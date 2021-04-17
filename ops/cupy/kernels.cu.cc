@@ -84,6 +84,15 @@ __global__ void apply_z_pow_kernel(complex<double>* state, long tk, int m,
   _apply_z_pow(state[i + tk], gate[0]);
 }
 
+__global__ void apply_swap_kernel(complex<double>* state, long tk1, long tk2,
+                                  int m1, int m2) {
+  const long g = blockIdx.x * blockDim.x + threadIdx.x;
+  long i = ((long)((long)g >> m1) << (m1 + 1)) + (g & (tk1 - 1));
+  i = ((long)((long)i >> m2) << (m2 + 1)) + (i & (tk2 - 1));
+  _apply_x(state[i + tk2], state[i + tk1]);
+}
+
+
 __global__ void multicontrol_apply_gate_kernel(complex<double>* state, long tk, int m,
                                                const complex<double>* gate,
                                                const int* qubits,
@@ -124,5 +133,15 @@ __global__ void multicontrol_apply_z_pow_kernel(complex<double>* state, long tk,
   const long g = blockIdx.x * blockDim.x + threadIdx.x;
   const long i = multicontrol_index(g, qubits, ncontrols);
   _apply_z_pow(state[i], gate[0]);
+}
+
+_global__ void multicontrol_apply_swap_kernel(complex<double>* state,
+                                              long tk1, long tk2,
+                                              int m1, int m2
+                                              const int* qubits,
+                                              int ncontrols) {
+  const long g = blockIdx.x * blockDim.x + threadIdx.x;
+  const long i = multicontrol_index(g, qubits, ncontrols);
+  _apply_x(state[i - tk1], state[i - tk2]);
 }
 }
