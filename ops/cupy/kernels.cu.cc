@@ -135,11 +135,11 @@ __global__ void multicontrol_apply_z_pow_kernel(complex<double>* state, long tk,
   _apply_z_pow(state[i], gate[0]);
 }
 
-_global__ void multicontrol_apply_swap_kernel(complex<double>* state,
-                                              long tk1, long tk2,
-                                              int m1, int m2
-                                              const int* qubits,
-                                              int ncontrols) {
+__global__ void multicontrol_apply_swap_kernel(complex<double>* state,
+                                               long tk1, long tk2,
+                                               int m1, int m2,
+                                               const int* qubits,
+                                               int ncontrols) {
   const long g = blockIdx.x * blockDim.x + threadIdx.x;
   const long i = multicontrol_index(g, qubits, ncontrols);
   _apply_x(state[i - tk1], state[i - tk2]);
