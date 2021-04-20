@@ -12,7 +12,7 @@ __device__ complex<double> cadd(complex<double> a, complex<double> b) {
 __device__ long multicontrol_index(const int* qubits, long g, int ncontrols) {
   long i = g;
   for (int iq = 0; iq < ncontrols; iq++) {
-      const int n = qubits[2 * iq];
+      const int n = qubits[iq];
       long k = (long)(1 << n);
       i = ((long)((long)i >> n) << (n + 1)) + (i & (k - 1)) + k;
   }
