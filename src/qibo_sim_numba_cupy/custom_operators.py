@@ -74,3 +74,6 @@ def apply_z_pow_kernel(state1, state2, gate):
 
 def apply_z_pow(state, gate, nqubits, target, qubits=None):
     return apply_gate_base(state, nqubits, target, apply_z_pow_kernel, qubits, gate)
+
+
+# TODO: Implement two-qubit gates and other ops

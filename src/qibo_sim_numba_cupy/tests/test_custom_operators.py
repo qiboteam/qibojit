@@ -1,7 +1,7 @@
 import pytest
 import numpy as np
 import qibo
-from qibo_sim_numba_cupy import ops
+from qibo_sim_numba_cupy import custom_operators as op
 
 ATOL = {"complex64": 1e-6, "complex128": 1e-12}
 
@@ -37,7 +37,7 @@ def test_apply_gate(nqubits, target, controls, dtype):
     target_state = gate(np.copy(state))
 
     qubits = qubits_tensor(nqubits, [target], controls)
-    state = ops.apply_gate(state, matrix, nqubits, target, qubits)
+    state = op.apply_gate(state, matrix, nqubits, target, qubits)
     np.testing.assert_allclose(state, target_state, atol=ATOL.get(dtype))
 
 
@@ -53,7 +53,7 @@ def test_apply_pauli_gate(nqubits, target, pauli, dtype):
     target_state = gate(np.copy(state))
 
     qubits = qubits_tensor(nqubits, [target])
-    func = getattr(ops, "apply_{}".format(pauli))
+    func = getattr(op, "apply_{}".format(pauli))
     state = func(state, nqubits, target, qubits)
     np.testing.assert_allclose(state, target_state, atol=ATOL.get(dtype))
 
@@ -71,5 +71,5 @@ def test_apply_zpow_gate(nqubits, target, controls):
 
     phase = np.exp(1j * theta)
     qubits = qubits_tensor(nqubits, [target], controls)
-    state = ops.apply_z_pow(state, phase, nqubits, target, qubits)
+    state = op.apply_z_pow(state, phase, nqubits, target, qubits)
     np.testing.assert_allclose(state, target_state)
