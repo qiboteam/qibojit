@@ -26,7 +26,6 @@ def multicontrol_apply(state, gate, kernel, qubits, nstates, m):
 
 
 def apply_gate_base(state, nqubits, target, kernel, qubits=None, gate=None):
-    """Numba custom operator for applying general gates."""
     ncontrols = len(qubits) - 1 if qubits is not None else 0
     m = nqubits - target - 1
     nstates = 1 << (nqubits - ncontrols - 1)
@@ -74,6 +73,3 @@ def apply_z_pow_kernel(state1, state2, gate):
 
 def apply_z_pow(state, gate, nqubits, target, qubits=None):
     return apply_gate_base(state, nqubits, target, apply_z_pow_kernel, qubits, gate)
-
-
-# TODO: Implement two-qubit gates and other ops
