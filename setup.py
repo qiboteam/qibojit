@@ -5,7 +5,7 @@ import os
 import re
 import sys
 
-PACKAGE = "qibo_sim_numba_cupy"
+PACKAGE = "qibojit"
 
 
 # Returns the version
@@ -28,12 +28,12 @@ with open(os.path.join(this_directory, "README.md"), encoding="utf-8") as f:
 
 
 setup(
-    name="qibo-sim-numba-cupy",
+    name=PACKAGE,
     version=get_version(),
     description="Simulation tools based on numba and cupy.",
     author="Quantum-TII team",
     author_email="",
-    url="https://github.com/Quantum-TII/qibo-sim-numba-cupy",
+    url="https://github.com/Quantum-TII/qibojit",
     packages=find_packages("src"),
     package_dir={"": "src"},
     zip_safe=False,
