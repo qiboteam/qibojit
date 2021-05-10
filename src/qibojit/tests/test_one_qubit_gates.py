@@ -30,7 +30,7 @@ def test_apply_gate(nqubits, target, controls, dtype):
 @pytest.mark.parametrize("dtype", ["complex128", "complex64"])
 def test_apply_pauli_gate(nqubits, target, pauli, dtype):
     qibo.set_backend("numpy")
-    state = random_state(nqubits)
+    state = random_state(nqubits, dtype=dtype)
 
     gate = getattr(qibo.gates, pauli.capitalize())(target)
     target_state = gate(np.copy(state))
@@ -44,9 +44,10 @@ def test_apply_pauli_gate(nqubits, target, pauli, dtype):
 @pytest.mark.parametrize(("nqubits", "target", "controls"),
                          [(3, 0, []), (3, 2, [1]),
                           (3, 2, [0, 1]), (6, 1, [0, 2, 4])])
-def test_apply_zpow_gate(nqubits, target, controls):
+@pytest.mark.parametrize("dtype", ["complex128", "complex64"])
+def test_apply_zpow_gate(nqubits, target, controls, dtype):
     qibo.set_backend("numpy")
-    state = random_state(nqubits)
+    state = random_state(nqubits, dtype=dtype)
     theta = 0.1234
 
     gate = qibo.gates.U1(target, theta=theta).controlled_by(*controls)

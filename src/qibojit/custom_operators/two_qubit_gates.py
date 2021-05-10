@@ -71,3 +71,13 @@ def apply_swap_kernel(substate, gate):
 def apply_swap(state, nqubits, target1, target2, qubits=None):
     return apply_gate_base(state, nqubits, target1, target2, apply_swap_kernel,
                            qubits)
+
+
+@njit
+def apply_fsim_kernel(substate, gate):
+    newstate = gate[:-1].reshape((2, 2)).dot(substate[1:3])
+    return substate[0], newstate[0], newstate[1], gate[-1] * substate[3]
+
+def apply_fsim(state, gate, nqubits, target1, target2, qubits=None):
+    return apply_gate_base(state, nqubits, target1, target2, apply_fsim_kernel,
+                           qubits, gate)
