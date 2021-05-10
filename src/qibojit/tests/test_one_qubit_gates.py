@@ -6,8 +6,8 @@ from qibojit.tests.utils import random_complex, random_state, qubits_tensor, ATO
 
 
 @pytest.mark.parametrize(("nqubits", "target", "controls"),
-                         [(5, 4, []), (4, 2, []), (4, 2, []), (3, 0, []),
-                          (8, 5, []), (3, 0, [1, 2]), (4, 3, [0, 1, 2]),
+                         [(5, 4, []), (4, 2, []), (3, 0, []), (8, 5, []),
+                          (3, 0, [1, 2]), (4, 3, [0, 1, 2]),
                           (5, 3, [1]), (5, 2, [1, 4]), (6, 3, [0, 2, 5]),
                           (6, 3, [0, 2, 4, 5])])
 @pytest.mark.parametrize("dtype", ["complex128", "complex64"])
