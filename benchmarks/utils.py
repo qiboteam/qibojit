@@ -1,7 +1,7 @@
 class NumbaBackend:
 
     def __init__(self):
-        from qibo_sim_numba_cupy import custom_operators as op
+        from qibojit import custom_operators as op
         self.op = op
 
     def cast(self, x):

@@ -1,8 +1,8 @@
 import pytest
 import numpy as np
 import qibo
-from qibo_sim_numba_cupy import custom_operators as op
-from qibo_sim_numba_cupy.tests.utils import random_complex, random_state, qubits_tensor, ATOL
+from qibojit import custom_operators as op
+from qibojit.tests.utils import random_complex, random_state, qubits_tensor, ATOL
 
 
 @pytest.mark.parametrize(("nqubits", "target", "controls"),
