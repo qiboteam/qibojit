@@ -49,7 +49,7 @@ def test_apply_zpow_gate(nqubits, target, controls):
     state = random_state(nqubits)
     theta = 0.1234
 
-    gate = qibo.gates.ZPow(target, theta=theta).controlled_by(*controls)
+    gate = qibo.gates.U1(target, theta=theta).controlled_by(*controls)
     target_state = gate(np.copy(state))
 
     phase = np.exp(1j * theta)
