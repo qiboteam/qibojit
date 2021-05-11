@@ -7,3 +7,4 @@ from qibojit.custom_operators.two_qubit_gates import apply_two_qubit_gate
 from qibojit.custom_operators.two_qubit_gates import apply_swap
 from qibojit.custom_operators.two_qubit_gates import apply_fsim
 from qibojit.custom_operators.state_ops import collapse_state
+from qibojit.custom_operators.state_ops import measure_frequencies

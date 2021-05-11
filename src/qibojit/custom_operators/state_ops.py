@@ -33,3 +33,20 @@ def collapse_state(state, qubits, result, nqubits, normalize):
             state[i] = state[i] / norm
 
     return state
+
+
+@njit(parallel=True)
+def measure_frequencies(frequencies, probs, nshots, nqubits, seed=1234):
+    nstates = 1 << nqubits
+    np.random.seed(seed)
+    # Initial bitstring is the one with the maximum probability
+    for i in prange(nshots):
+        if i == 0:
+            shot = probs.argmax()
+        new_shot = (shot + np.random.randint(0, nstates)) % nstates
+        # accept or reject move
+        if probs[new_shot] / probs[shot] > np.random.random():
+            shot = new_shot
+        # update frequencies
+        frequencies[shot] += 1
+    return frequencies

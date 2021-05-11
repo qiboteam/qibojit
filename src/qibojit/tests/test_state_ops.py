@@ -1,4 +1,5 @@
 import pytest
+import itertools
 import numpy as np
 from qibojit import custom_operators as op
 from qibojit.tests.utils import random_state, random_complex, qubits_tensor, ATOL
@@ -9,6 +10,7 @@ from qibojit.tests.utils import random_state, random_complex, qubits_tensor, ATO
                           (4, [1, 3], [1, 0]), (5, [1, 2, 4], [0, 1, 1]),
                           (15, [4, 7], [0, 0]), (16, [8, 12, 15], [1, 0, 1])])
 @pytest.mark.parametrize("dtype", ["complex128", "complex64"])
+@pytest.mark.skip
 def test_collapse_state(nqubits, targets, results, dtype):
     atol = 1e-7 if dtype == "complex64" else 1e-14
     state = random_complex((2 ** nqubits,), dtype=dtype)
@@ -27,3 +29,38 @@ def test_collapse_state(nqubits, targets, results, dtype):
     result = int(np.array(results).dot(b2d))
     state = op.collapse_state(state, tuple(qubits), result, nqubits, True)
     np.testing.assert_allclose(state, target_state, atol=atol)
+
+
+@pytest.mark.parametrize("dtype", ["float32", "float64"])
+@pytest.mark.parametrize("inttype", ["int32", "int64"])
+@pytest.mark.skip("Measure frequencies does not work properly yet.")
+def test_measure_frequencies(dtype, inttype):
+    probs = np.ones(16, dtype=dtype) / 16
+    frequencies = np.zeros(16, dtype=inttype)
+    frequencies = op.measure_frequencies(frequencies, probs, nshots=1000,
+                                         nqubits=4, seed=1234)
+    assert np.sum(frequencies) == 1000
+    # TODO: Test exact frequencies once you figure out how to fix seed
+    #np.testing.assert_allclose(frequencies, target_frequencies)
+
+
+NONZERO = list(itertools.combinations(range(8), r=1))
+NONZERO.extend(itertools.combinations(range(8), r=2))
+NONZERO.extend(itertools.combinations(range(8), r=3))
+NONZERO.extend(itertools.combinations(range(8), r=4))
+@pytest.mark.parametrize("nonzero", NONZERO)
+@pytest.mark.skip("Measure frequencies does not work properly yet.")
+def test_measure_frequencies_sparse_probabilities(nonzero):
+    probs = np.zeros(8, dtype=np.float64)
+    for i in nonzero:
+        probs[i] = 1
+    probs = probs / np.sum(probs)
+    frequencies = np.zeros(8, dtype=np.int64)
+    frequencies = op.measure_frequencies(frequencies, probs, nshots=1000,
+                                         nqubits=3)
+    assert np.sum(frequencies) == 1000
+    for i, freq in enumerate(frequencies):
+        if i in nonzero:
+            assert freq != 0
+        else:
+            assert freq == 0
