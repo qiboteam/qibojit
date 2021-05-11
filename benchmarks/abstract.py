@@ -72,8 +72,8 @@ class AbstractBackend:
 
     def qft(self, state, nqubits):
         import numpy as np
-        matrix = self.np.array([[1, 1], [1, -1]], dtype=state.dtype)
-        matrix = self.cast(matrix / self.np.sqrt(2))
+        matrix = self.np.array([[1, 1], [1, -1]])
+        matrix = self.cast(matrix / self.np.sqrt(2), dtype=state.dtype)
         for i1 in range(nqubits):
             qubits = self.qubits_tensor(nqubits, [i1])
             state = self.apply_gate(state, matrix, nqubits, i1, qubits)
