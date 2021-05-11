@@ -63,6 +63,8 @@ def collapse_state(state, qubits, result, nqubits, normalize):
 def measure_frequencies(frequencies, probs, nshots, nqubits, seed=1234):
     nstates = 1 << nqubits
     np.random.seed(seed)
+    # FIXME: sum(frequencies) == nshots does not work probably due to
+    # parallelization
     # Initial bitstring is the one with the maximum probability
     for i in prange(nshots):
         if i == 0:
