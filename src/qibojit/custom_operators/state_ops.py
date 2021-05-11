@@ -8,13 +8,13 @@ def collapse_index(g, h, qubits):
     i += g
     for j, n in enumerate(qubits):
         k = 1 << n
-        i = (i >> n) << (n + 1) + (i & (k - 1))
-        i += ((h >> j) % 2) * k
+        i = ((i >> n) << (n + 1)) + (i & (k - 1)) + ((h >> j) % 2) * k
     return i
 
 
 @njit(parallel=True)
 def collapse_state(state, qubits, result, nqubits, normalize):
+    qubits = tuple(qubits)
     nstates = 1 << (nqubits - len(qubits))
     nsubstates = 1 << len(qubits)
 

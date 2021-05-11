@@ -10,7 +10,7 @@ from qibojit.tests.utils import random_state, random_complex, qubits_tensor, ATO
                           (15, [4, 7], [0, 0]), (16, [8, 12, 15], [1, 0, 1])])
 @pytest.mark.parametrize("dtype", ["complex128", "complex64"])
 def test_collapse_state(nqubits, targets, results, dtype):
-    atol = 1e-7 if dtype == np.complex64 else 1e-14
+    atol = 1e-7 if dtype == "complex64" else 1e-14
     state = random_complex((2 ** nqubits,), dtype=dtype)
     slicer = nqubits * [slice(None)]
     for t, r in zip(targets, results):
