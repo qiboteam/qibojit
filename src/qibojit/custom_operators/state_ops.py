@@ -2,6 +2,30 @@ import numpy as np
 from numba import prange, njit
 
 
+@njit(parallel=True)
+def initial_state_vector(nqubits, dtype):
+    size = 2 ** nqubits
+    state = np.zeros((size,), dtype=dtype)
+    state[0] = 1
+    return state
+
+
+@njit(parallel=True)
+def initial_density_matrix(nqubits, dtype):
+    size = 2 ** nqubits
+    state = np.zeros((size, size), dtype=dtype)
+    state[0, 0] = 1
+    return state
+
+
+def initial_state(nqubits, dtype, is_matrix=False):
+    if isinstance(dtype, str):
+        dtype = getattr(np, dtype)
+    if is_matrix:
+        return initial_density_matrix(nqubits, dtype)
+    return initial_state_vector(nqubits, dtype)
+
+
 @njit
 def collapse_index(g, h, qubits):
     i = 0

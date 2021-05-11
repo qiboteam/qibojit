@@ -5,12 +5,23 @@ from qibojit import custom_operators as op
 from qibojit.tests.utils import random_state, random_complex, qubits_tensor, ATOL
 
 
+@pytest.mark.parametrize("dtype", ["complex128", "complex64"])
+@pytest.mark.parametrize("is_matrix", [False, True])
+def test_initial_state(dtype, is_matrix):
+    final_state =  op.initial_state(4, dtype, is_matrix)
+    if is_matrix:
+        target_state = np.array([1] + [0]*255, dtype=dtype)
+        target_state = np.reshape(target_state, (16, 16))
+    else:
+        target_state = np.array([1] + [0]*15, dtype=dtype)
+    np.testing.assert_allclose(final_state, target_state)
+
+
 @pytest.mark.parametrize("nqubits,targets,results",
                          [(2, [0], [1]), (2, [1], [0]), (3, [1], [1]),
                           (4, [1, 3], [1, 0]), (5, [1, 2, 4], [0, 1, 1]),
                           (15, [4, 7], [0, 0]), (16, [8, 12, 15], [1, 0, 1])])
 @pytest.mark.parametrize("dtype", ["complex128", "complex64"])
-@pytest.mark.skip
 def test_collapse_state(nqubits, targets, results, dtype):
     atol = 1e-7 if dtype == "complex64" else 1e-14
     state = random_complex((2 ** nqubits,), dtype=dtype)
