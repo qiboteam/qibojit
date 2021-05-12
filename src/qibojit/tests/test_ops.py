@@ -2,7 +2,7 @@ import pytest
 import itertools
 import numpy as np
 from qibojit import custom_operators as op
-from qibojit.tests.utils import random_state, random_complex, qubits_tensor, ATOL
+from qibojit.tests.utils import random_state, random_complex
 
 
 @pytest.mark.parametrize("dtype", ["complex128", "complex64"])

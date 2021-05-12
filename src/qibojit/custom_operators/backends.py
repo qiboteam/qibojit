@@ -31,11 +31,7 @@ class NumbaBackend:
         return self.gates.two_qubit_nocontrol(state, gate, kernel, nstates, m1, m2, swap_targets)
 
     def initial_state(self, nqubits, dtype, is_matrix=False):
-        if isinstance(dtype, str):
-            dtype = getattr(np, dtype)
-        if is_matrix:
-            return self.ops.initial_density_matrix(nqubits, dtype)
-        return self.ops.initial_state_vector(nqubits, dtype)
+        return self.ops.initial_state(nqubits, dtype, is_matrix)
 
     def collapse_state(self, state, qubits, result, nqubits, normalize):
         return self.ops.collapse_state(state, qubits, result, nqubits, normalize)
