@@ -5,7 +5,7 @@ from qibojit import custom_operators as op
 from qibojit.tests.utils import random_complex, random_state
 
 
-ATOL = {"complex64": 1e-6, "complex128": 1e-12}
+ATOL = {"complex64": 1e-7, "complex128": 1e-12}
 
 def qubits_tensor(nqubits, targets, controls=[]):
     qubits = [nqubits - q - 1 for q in targets]
@@ -124,4 +124,4 @@ def test_apply_fsim(nqubits, targets, controls, dtype):
     gate = np.array(list(matrix.flatten()) + [np.exp(-1j * phi)], dtype=dtype)
     qubits = qubits_tensor(nqubits, targets, controls)
     state = op.apply_fsim(state, gate, nqubits, target1, target2, qubits)
-    np.testing.assert_allclose(state, target_state)
+    np.testing.assert_allclose(state, target_state, atol=ATOL.get(dtype))

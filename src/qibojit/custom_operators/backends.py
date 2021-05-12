@@ -1,4 +1,22 @@
-class NumbaBackend:
+from abc import ABC, abstractmethod
+
+
+class AbstractBackend(ABC):
+
+    def __init__(self):
+        self.gates = None
+        self.ops = None
+
+    @abstractmethod
+    def one_qubit_base(self, state, nqubits, target, kernel, qubits=None, gate=None):
+        raise NotImplementedError
+
+    @abstractmethod
+    def two_qubit_base(self, state, nqubits, target1, target2, kernel, qubits=None, gate=None):
+        raise NotImplementedError
+
+
+class NumbaBackend(AbstractBackend):
 
     def __init__(self):
         from qibojit.custom_operators import gates, ops
@@ -30,17 +48,8 @@ class NumbaBackend:
             return self.gates.two_qubit_multicontrol(state, gate, kernel, qubits, nstates, m1, m2, swap_targets)
         return self.gates.two_qubit_nocontrol(state, gate, kernel, nstates, m1, m2, swap_targets)
 
-    def initial_state(self, nqubits, dtype, is_matrix=False):
-        return self.ops.initial_state(nqubits, dtype, is_matrix)
 
-    def collapse_state(self, state, qubits, result, nqubits, normalize):
-        return self.ops.collapse_state(state, qubits, result, nqubits, normalize)
-
-    def measure_frequencies(self, frequencies, probs, nshots, nqubits, seed=1234):
-        return self.ops.measure_frequencies(frequencies, probs, nshots, nqubits, seed=1234)
-
-
-class CupyBackend:
+class CupyBackend(AbstractBackend):
 
     DEFAULT_BLOCK_SIZE = 1024
 
@@ -51,6 +60,8 @@ class CupyBackend:
         gates_dir = os.path.join(module_dir, "gates.cu.cc")
         with open(gates_dir, "r") as file:
             self.gates = cp.RawModule(code=r"{}".format(file.read()))
+
+        self.ops = None # TODO: Implement this
 
     def calculate_blocks(self, nstates):
         block_size = self.DEFAULT_BLOCK_SIZE
@@ -104,72 +115,3 @@ class CupyBackend:
         kernel((nblocks,), (block_size,), args)
         self.cp.cuda.stream.get_current_stream().synchronize()
         return state
-
-    def initial_state(self, nqubits, dtype, is_matrix=False):
-        raise NotImplementedError
-
-    def collapse_state(self, state, qubits, result, nqubits, normalize):
-        raise NotImplementedError
-
-    def measure_frequencies(self, frequencies, probs, nshots, nqubits, seed=1234):
-        raise NotImplementedError
-
-
-class Backend:
-
-    available_backends = {"numba": NumbaBackend, "cupy": CupyBackend}
-
-    def __init__(self):
-        self.constructed_backends = {}
-        self.set_backend("numba")
-
-    def construct_backend(self, name):
-        if name not in self.constructed_backends:
-            if name in self.available_backends:
-                self.constructed_backends[name] = self.available_backends.get(name)()
-            else:
-                raise KeyError
-        return self.constructed_backends.get(name)
-
-    def set_backend(self, name):
-        self.backend = self.construct_backend(name)
-
-    def apply_gate(self, state, gate, nqubits, target, qubits=None):
-        return self.backend.one_qubit_base(state, nqubits, target, "apply_gate", qubits, gate)
-
-    def apply_x(self, state, nqubits, target, qubits=None):
-        return self.backend.one_qubit_base(state, nqubits, target, "apply_x", qubits)
-
-    def apply_y(self, state, nqubits, target, qubits=None):
-        return self.backend.one_qubit_base(state, nqubits, target, "apply_y", qubits)
-
-    def apply_z(self, state, nqubits, target, qubits=None):
-        return self.backend.one_qubit_base(state, nqubits, target, "apply_z", qubits)
-
-    def apply_z_pow(self, state, gate, nqubits, target, qubits=None):
-        return self.backend.one_qubit_base(state, nqubits, target, "apply_z_pow", qubits, gate)
-
-    def apply_two_qubit_gate(self, state, gate, nqubits, target1, target2, qubits=None):
-        return self.backend.two_qubit_base(state, nqubits, target1, target2,
-                                           "apply_two_qubit_gate",
-                                           qubits, gate)
-
-    def apply_swap(self, state, nqubits, target1, target2, qubits=None):
-        return self.backend.two_qubit_base(state, nqubits, target1, target2,
-                                           "apply_swap", qubits)
-
-    def apply_fsim(self, state, gate, nqubits, target1, target2, qubits=None):
-        return self.backend.two_qubit_base(state, nqubits, target1, target2,
-                                           "apply_fsim", qubits, gate)
-
-    def initial_state(self, nqubits, dtype, is_matrix=False):
-        return self.backend.initial_state(nqubits, dtype, is_matrix)
-
-    def collapse_state(self, state, qubits, result, nqubits, normalize):
-        return self.backend.collapse_state(state, qubits, result, nqubits, normalize)
-
-    def measure_frequencies(self, frequencies, probs, nshots, nqubits, seed=1234):
-        return self.backend.measure_frequencies(frequencies, probs, nshots, nqubits, seed=1234)
-
-
-backend = Backend()
