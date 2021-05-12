@@ -3,7 +3,31 @@ from numba import prange, njit
 
 
 @njit(parallel=True)
-def nocontrol_apply(state, gate, kernel, nstates, m1, m2, swap_targets=False):
+def one_qubit_nocontrol(state, gate, kernel, nstates, m):
+    tk = 1 << m
+    for g in prange(nstates):
+        i1 = ((g >> m) << (m + 1)) + (g & (tk - 1))
+        i2 = i1 + tk
+        state[i1], state[i2] = kernel(state[i1], state[i2], gate)
+    return state
+
+
+@njit(parallel=True)
+def one_qubit_multicontrol(state, gate, kernel, qubits, nstates, m):
+    tk = 1 << m
+    for g in prange(nstates):
+        i = 0
+        i += g
+        for n in qubits:
+            k = 1 << n
+            i = ((i >> n) << (n + 1)) + (i & (k - 1)) + k
+        i1, i2 = i - tk, i
+        state[i1], state[i2] = kernel(state[i1], state[i2], gate)
+    return state
+
+
+@njit(parallel=True)
+def two_qubit_nocontrol(state, gate, kernel, nstates, m1, m2, swap_targets=False):
     tk1, tk2 = 1 << m1, 1 << m2
     uk1, uk2 = tk1, tk2
     if swap_targets:
@@ -19,7 +43,7 @@ def nocontrol_apply(state, gate, kernel, nstates, m1, m2, swap_targets=False):
 
 
 @njit(parallel=True)
-def multicontrol_apply(state, gate, kernel, qubits, nstates, m1, m2, swap_targets=False):
+def two_qubit_multicontrol(state, gate, kernel, qubits, nstates, m1, m2, swap_targets=False):
     tk1, tk2 = 1 << m1, 1 << m2
     uk1, uk2 = tk1, tk2
     if swap_targets:
@@ -38,46 +62,43 @@ def multicontrol_apply(state, gate, kernel, qubits, nstates, m1, m2, swap_target
     return state
 
 
-def apply_gate_base(state, nqubits, target1, target2, kernel, qubits=None, gate=None):
-    ncontrols = len(qubits) - 2 if qubits is not None else 0
-    if target1 > target2:
-        swap_targets = True
-        m1 = nqubits - target1 - 1
-        m2 = nqubits - target2 - 1
-    else:
-        swap_targets = False
-        m1 = nqubits - target2 - 1
-        m2 = nqubits - target1 - 1
-    nstates = 1 << (nqubits - 2 - ncontrols)
-    if ncontrols:
-        return multicontrol_apply(state, gate, kernel, qubits, nstates, m1, m2, swap_targets)
-    return nocontrol_apply(state, gate, kernel, nstates, m1, m2, swap_targets)
+@njit
+def apply_gate_kernel(state1, state2, gate):
+    return (gate[0, 0] * state1 + gate[0, 1] * state2,
+            gate[1, 0] * state1 + gate[1, 1] * state2)
+
+
+@njit
+def apply_x_kernel(state1, state2, gate):
+    return state2, state1
+
+
+@njit
+def apply_y_kernel(state1, state2, gate):
+    return -1j * state2, 1j * state1
+
+
+@njit
+def apply_z_kernel(state1, state2, gate):
+    return state1, -state2
+
+
+@njit
+def apply_z_pow_kernel(state1, state2, gate):
+    return state1, gate * state2
 
 
 @njit
 def apply_two_qubit_gate_kernel(substate, gate):
     return gate.dot(substate)
 
-def apply_two_qubit_gate(state, gate, nqubits, target1, target2, qubits=None):
-    return apply_gate_base(state, nqubits, target1, target2,
-                           apply_two_qubit_gate_kernel,
-                           qubits, gate)
-
 
 @njit
 def apply_swap_kernel(substate, gate):
     return substate[0], substate[2], substate[1], substate[3]
-
-def apply_swap(state, nqubits, target1, target2, qubits=None):
-    return apply_gate_base(state, nqubits, target1, target2, apply_swap_kernel,
-                           qubits)
 
 
 @njit
 def apply_fsim_kernel(substate, gate):
     newstate = gate[:-1].reshape((2, 2)).dot(substate[1:3])
     return substate[0], newstate[0], newstate[1], gate[-1] * substate[3]
-
-def apply_fsim(state, gate, nqubits, target1, target2, qubits=None):
-    return apply_gate_base(state, nqubits, target1, target2, apply_fsim_kernel,
-                           qubits, gate)

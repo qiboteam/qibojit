@@ -1,11 +1,12 @@
-from qibojit.custom_operators.one_qubit_gates import apply_gate
-from qibojit.custom_operators.one_qubit_gates import apply_x
-from qibojit.custom_operators.one_qubit_gates import apply_y
-from qibojit.custom_operators.one_qubit_gates import apply_z
-from qibojit.custom_operators.one_qubit_gates import apply_z_pow
-from qibojit.custom_operators.two_qubit_gates import apply_two_qubit_gate
-from qibojit.custom_operators.two_qubit_gates import apply_swap
-from qibojit.custom_operators.two_qubit_gates import apply_fsim
-from qibojit.custom_operators.state_ops import initial_state
-from qibojit.custom_operators.state_ops import collapse_state
-from qibojit.custom_operators.state_ops import measure_frequencies
+from qibojit.custom_operators.backends import backend
+apply_gate = backend.apply_gate
+apply_x = backend.apply_x
+apply_y = backend.apply_y
+apply_z = backend.apply_z
+apply_z_pow = backend.apply_z_pow
+apply_two_qubit_gate = backend.apply_two_qubit_gate
+apply_swap = backend.apply_swap
+apply_fsim = backend.apply_fsim
+initial_state = backend.initial_state
+collapse_state = backend.collapse_state
+measure_frequencies = backend.measure_frequencies
