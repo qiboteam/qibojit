@@ -2,10 +2,8 @@ import pytest
 import itertools
 import numpy as np
 from qibojit import custom_operators as op
-from qibojit.tests.utils import random_state, random_complex
 
 
-@pytest.mark.parametrize("dtype", ["complex128", "complex64"])
 @pytest.mark.parametrize("is_matrix", [False, True])
 def test_initial_state(dtype, is_matrix):
     final_state =  op.initial_state(4, dtype, is_matrix)
@@ -21,10 +19,11 @@ def test_initial_state(dtype, is_matrix):
                          [(2, [0], [1]), (2, [1], [0]), (3, [1], [1]),
                           (4, [1, 3], [1, 0]), (5, [1, 2, 4], [0, 1, 1]),
                           (15, [4, 7], [0, 0]), (16, [8, 12, 15], [1, 0, 1])])
-@pytest.mark.parametrize("dtype", ["complex128", "complex64"])
 def test_collapse_state(nqubits, targets, results, dtype):
     atol = 1e-7 if dtype == "complex64" else 1e-14
-    state = random_complex((2 ** nqubits,), dtype=dtype)
+    shape = (2 ** nqubits,)
+    state = np.random.random(shape) + 1j * np.random.random(shape)
+    state = state.astype(dtype)
     slicer = nqubits * [slice(None)]
     for t, r in zip(targets, results):
         slicer[t] = r
@@ -42,11 +41,11 @@ def test_collapse_state(nqubits, targets, results, dtype):
     np.testing.assert_allclose(state, target_state, atol=atol)
 
 
-@pytest.mark.parametrize("dtype", ["float32", "float64"])
+@pytest.mark.parametrize("realtype", ["float32", "float64"])
 @pytest.mark.parametrize("inttype", ["int32", "int64"])
 @pytest.mark.skip("Measure frequencies does not work properly yet.")
-def test_measure_frequencies(dtype, inttype):
-    probs = np.ones(16, dtype=dtype) / 16
+def test_measure_frequencies(realtype, inttype):
+    probs = np.ones(16, dtype=realtype) / 16
     frequencies = np.zeros(16, dtype=inttype)
     frequencies = op.measure_frequencies(frequencies, probs, nshots=1000,
                                          nqubits=4, seed=1234)
