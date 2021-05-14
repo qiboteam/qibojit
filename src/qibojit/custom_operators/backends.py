@@ -103,7 +103,7 @@ class CupyBackend(AbstractBackend):
 
         if ncontrols:
             kernel = self.gates.get_function(f"multicontrol_{kernel}_kernel")
-            args += (self.cast(qubits), ncontrols)
+            args += (self.cast(qubits, dtype=self.cp.int32), ncontrols + 1)
         else:
             kernel = self.gates.get_function(f"{kernel}_kernel")
 
@@ -127,7 +127,7 @@ class CupyBackend(AbstractBackend):
 
         if ncontrols:
             kernel = self.gates.get_function(f"multicontrol_{kernel}_kernel")
-            args += (self.cast(qubits), ncontrols)
+            args += (self.cast(qubits, dtype=self.cp.int32), ncontrols + 2)
         else:
             kernel = self.gates.get_function(f"{kernel}_kernel")
 
