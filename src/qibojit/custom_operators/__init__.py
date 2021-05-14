@@ -38,6 +38,14 @@ def set_backend(name):
     backend.set(name)
 
 
+def cast(x, dtype=None):
+    return backend.cast(x, dtype)
+
+
+def to_numpy(x):
+    return backend.to_numpy(x)
+
+
 def apply_gate(state, gate, nqubits, target, qubits=None):
     return backend.one_qubit_base(state, nqubits, target, "apply_gate", qubits, gate)
 

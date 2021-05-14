@@ -8,6 +8,12 @@ class AbstractBackend(ABC):
         self.gates = None
         self.ops = None
 
+    def cast(self, x, dtype=None):
+        return x
+
+    def to_numpy(self, x):
+        return x
+
     @abstractmethod
     def one_qubit_base(self, state, nqubits, target, kernel, qubits=None, gate=None):
         raise NotImplementedError
@@ -75,27 +81,29 @@ class CupyBackend(AbstractBackend):
             block_size = nstates
         return nblocks, block_size
 
-    def cast(self, x):
+    def cast(self, x, dtype=None):
         if isinstance(x, self.cp.ndarray):
             return x
-        return self.cp.asarray(x)
+        return self.cp.asarray(x, dtype=dtype)
+
+    def to_numpy(self, x):
+        return x.get()
 
     def one_qubit_base(self, state, nqubits, target, kernel, qubits=None, gate=None):
         ncontrols = len(qubits) - 1 if qubits is not None else 0
         m = nqubits - target - 1
         tk = 1 << m
         nstates = 1 << (nqubits - ncontrols - 1)
-        state = self.cast(state)
 
+        state = self.cast(state)
         if gate is None:
             args = (state, tk, m)
         else:
-            gate = self.cast(gate)
-            args = (state, tk, m, gate)
+            args = (state, tk, m, self.cast(gate))
 
         if ncontrols:
             kernel = self.gates.get_function(f"multicontrol_{kernel}_kernel")
-            args += (qubits, ncontrols)
+            args += (self.cast(qubits), ncontrols)
         else:
             kernel = self.gates.get_function(f"{kernel}_kernel")
 
@@ -110,17 +118,16 @@ class CupyBackend(AbstractBackend):
         m1, m2 = nqubits - t1 - 1, nqubits - t2 - 1
         tk1, tk2 = 1 << m1, 1 << m2
         nstates = 1 << (nqubits - 2 - ncontrols)
-        state = self.cast(state)
 
+        state = self.cast(state)
         if gate is None:
             args = (state, tk1, tk2, m1, m2)
         else:
-            gate = self.cast(gate)
-            args = (state, tk1, tk2, m1, m2, gate)
+            args = (state, tk1, tk2, m1, m2, self.cast(gate))
 
         if ncontrols:
             kernel = self.gates.get_function(f"multicontrol_{kernel}_kernel")
-            args += (qubits, ncontrols)
+            args += (self.cast(qubits), ncontrols)
         else:
             kernel = self.gates.get_function(f"{kernel}_kernel")
 

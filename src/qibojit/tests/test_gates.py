@@ -37,6 +37,7 @@ def test_apply_gate(backend, nqubits, target, controls, dtype):
 
     qubits = qubits_tensor(nqubits, [target], controls)
     state = op.apply_gate(state, matrix, nqubits, target, qubits)
+    state = op.to_numpy(state)
     np.testing.assert_allclose(state, target_state, atol=ATOL.get(dtype))
 
 
@@ -53,6 +54,7 @@ def test_apply_pauli_gate(backend, nqubits, target, pauli, dtype):
     qubits = qubits_tensor(nqubits, [target])
     func = getattr(op, "apply_{}".format(pauli))
     state = func(state, nqubits, target, qubits)
+    state = op.to_numpy(state)
     np.testing.assert_allclose(state, target_state, atol=ATOL.get(dtype))
 
 
@@ -70,6 +72,7 @@ def test_apply_zpow_gate(backend, nqubits, target, controls, dtype):
     phase = np.exp(1j * theta)
     qubits = qubits_tensor(nqubits, [target], controls)
     state = op.apply_z_pow(state, phase, nqubits, target, qubits)
+    state = op.to_numpy(state)
     np.testing.assert_allclose(state, target_state)
 
 
