@@ -4,6 +4,7 @@ from abc import ABC, abstractmethod
 class AbstractBackend(ABC):
 
     def __init__(self):
+        self.name = "abstract"
         self.gates = None
         self.ops = None
 
@@ -20,6 +21,7 @@ class NumbaBackend(AbstractBackend):
 
     def __init__(self):
         from qibojit.custom_operators import gates, ops
+        self.name = "numba"
         self.gates = gates
         self.ops = ops
 
@@ -54,10 +56,12 @@ class CupyBackend(AbstractBackend):
     DEFAULT_BLOCK_SIZE = 1024
 
     def __init__(self):
+        import os
         import cupy as cp
+        self.name = "cupy"
         self.cp = cp
         gates_dir = os.path.dirname(os.path.realpath(__file__))
-        gates_dir = os.path.join(module_dir, "gates.cu.cc")
+        gates_dir = os.path.join(gates_dir, "gates.cu.cc")
         with open(gates_dir, "r") as file:
             self.gates = cp.RawModule(code=r"{}".format(file.read()))
 
@@ -71,15 +75,22 @@ class CupyBackend(AbstractBackend):
             block_size = nstates
         return nblocks, block_size
 
+    def cast(self, x):
+        if isinstance(x, self.cp.ndarray):
+            return x
+        return self.cp.asarray(x)
+
     def one_qubit_base(self, state, nqubits, target, kernel, qubits=None, gate=None):
         ncontrols = len(qubits) - 1 if qubits is not None else 0
         m = nqubits - target - 1
         tk = 1 << m
         nstates = 1 << (nqubits - ncontrols - 1)
+        state = self.cast(state)
 
         if gate is None:
             args = (state, tk, m)
         else:
+            gate = self.cast(gate)
             args = (state, tk, m, gate)
 
         if ncontrols:
@@ -99,10 +110,12 @@ class CupyBackend(AbstractBackend):
         m1, m2 = nqubits - t1 - 1, nqubits - t2 - 1
         tk1, tk2 = 1 << m1, 1 << m2
         nstates = 1 << (nqubits - 2 - ncontrols)
+        state = self.cast(state)
 
         if gate is None:
             args = (state, tk1, tk2, m1, m2)
         else:
+            gate = self.cast(gate)
             args = (state, tk1, tk2, m1, m2, gate)
 
         if ncontrols:

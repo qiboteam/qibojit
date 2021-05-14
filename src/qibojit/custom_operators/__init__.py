@@ -12,12 +12,17 @@ class Backend:
     def construct_backend(self, name):
         if name not in self.constructed_backends:
             if name in self.available_backends:
-                self.constructed_backends[name] = self.available_backends.get(name)()
+                backend_class = self.available_backends.get(name)
+                self.constructed_backends[name] = backend_class()
             else:
                 raise KeyError
         return self.constructed_backends.get(name)
 
-    def set_backend(self, name):
+    @property
+    def name(self):
+        return self.active_backend.name
+
+    def set(self, name):
         self.active_backend = self.construct_backend(name)
 
     def __getattr__(self, x):
@@ -25,6 +30,13 @@ class Backend:
 
 
 backend = Backend()
+
+def get_backend():
+    return backend.name
+
+def set_backend(name):
+    backend.set(name)
+
 
 def apply_gate(state, gate, nqubits, target, qubits=None):
     return backend.one_qubit_base(state, nqubits, target, "apply_gate", qubits, gate)
