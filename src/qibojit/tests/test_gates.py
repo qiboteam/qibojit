@@ -99,7 +99,7 @@ def test_apply_two_qubit_gate(nqubits, targets, controls, dtype):
                          [(2, [0, 1], []), (3, [0, 2], []), (4, [1, 3], []),
                           (3, [1, 2], [0]), (4, [0, 2], [1]), (4, [2, 3], [0]),
                           (5, [3, 4], [1, 2]), (6, [1, 4], [0, 2, 5])])
-def test_apply_swap(nqubits, targets, controls, dtype):
+def test_apply_swap(backend, nqubits, targets, controls, dtype):
     qibo.set_backend("numpy")
     state = random_state(nqubits, dtype=dtype)
 
@@ -109,6 +109,7 @@ def test_apply_swap(nqubits, targets, controls, dtype):
 
     qubits = qubits_tensor(nqubits, targets, controls)
     state = op.apply_swap(state, nqubits, target1, target2, qubits)
+    state = op.to_numpy(state)
     np.testing.assert_allclose(state, target_state)
 
 

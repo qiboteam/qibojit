@@ -11,6 +11,7 @@ def backend(backend_name):
 
 
 def pytest_generate_tests(metafunc):
+    # TODO: Fix `complex64` for cupy
     if "backend_name" in metafunc.fixturenames:
         if "dtype" in metafunc.fixturenames:
             metafunc.parametrize("backend_name,dtype",
