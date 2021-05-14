@@ -56,7 +56,7 @@ class AbstractBackend:
     def apply_fsim_args(self, state, nqubits, controls=[]):
         gate = self.np.random.random(4) + 1j * self.np.random.random(4)
         gate = gate.astype(state.dtype)
-        phase = self.np.array([np.exp(-1j * 0.1234)], dtype=state.dtype)
+        phase = self.np.array([self.np.exp(-1j * 0.1234)], dtype=state.dtype)
         gate = self.np.concatenate([gate, phase])
         qubits = self.qubits_tensor(nqubits, [0, 1], controls)
         return [state, gate, nqubits, 0, 1, qubits]
