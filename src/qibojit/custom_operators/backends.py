@@ -115,21 +115,22 @@ class CupyBackend(AbstractBackend):
     def two_qubit_base(self, state, nqubits, target1, target2, kernel, qubits=None, gate=None):
         ncontrols = len(qubits) - 2 if qubits is not None else 0
         if target1 > target2:
-            swap_targets = True
             m1 = nqubits - target1 - 1
             m2 = nqubits - target2 - 1
+            tk1, tk2 = 1 << m1, 1 << m2
+            uk1, uk2 = tk2, tk1
         else:
-            swap_targets = False
             m1 = nqubits - target2 - 1
             m2 = nqubits - target1 - 1
-        tk1, tk2 = 1 << m1, 1 << m2
+            tk1, tk2 = 1 << m1, 1 << m2
+            uk1, uk2 = tk1, tk2
         nstates = 1 << (nqubits - 2 - ncontrols)
 
         state = self.cast(state)
         if gate is None:
-            args = (state, tk1, tk2, m1, m2, swap_targets)
+            args = (state, tk1, tk2, m1, m2, uk1, uk2)
         else:
-            args = (state, tk1, tk2, m1, m2, swap_targets, self.cast(gate))
+            args = (state, tk1, tk2, m1, m2, uk1, uk2, self.cast(gate))
 
         if ncontrols:
             kernel = self.gates.get_function(f"multicontrol_{kernel}_kernel")
