@@ -40,7 +40,7 @@ class AbstractBackend:
 
     def apply_z_pow_args(self, state, nqubits, controls=[]):
         gate = self.np.exp(1j * 0.1234)
-        qubits = self.np.self.qubits_tensor(nqubits, [0], controls)
+        qubits = self.qubits_tensor(nqubits, [0], controls)
         return [state, gate, nqubits, 0, qubits]
 
     def apply_two_qubit_gate_args(self, state, nqubits, controls=[]):
