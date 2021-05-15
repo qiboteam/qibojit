@@ -85,7 +85,7 @@ __global__ void apply_z_pow_kernel(complex<double>* state, long tk, int m,
 }
 
 __global__ void apply_swap_kernel(complex<double>* state, long tk1, long tk2,
-                                  int m1, int m2) {
+                                  int m1, int m2, bool swap_targets) {
   const long g = blockIdx.x * blockDim.x + threadIdx.x;
   long i = ((long)((long)g >> m1) << (m1 + 1)) + (g & (tk1 - 1));
   i = ((long)((long)i >> m2) << (m2 + 1)) + (i & (tk2 - 1));
@@ -133,6 +133,7 @@ __global__ void multicontrol_apply_z_pow_kernel(complex<double>* state, long tk,
 __global__ void multicontrol_apply_swap_kernel(complex<double>* state,
                                                long tk1, long tk2,
                                                int m1, int m2,
+                                               bool swap_targets,
                                                const int* qubits,
                                                int ncontrols) {
   const long g = blockIdx.x * blockDim.x + threadIdx.x;
