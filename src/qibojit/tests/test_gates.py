@@ -119,7 +119,7 @@ def test_apply_swap(backend, nqubits, targets, controls, dtype):
                           (4, [0, 1], [2]), (5, [0, 1], [2]), (5, [3, 4], [2]),
                           (4, [0, 3], [1]), (4, [2, 3], [0]), (5, [1, 4], [2]),
                           (6, [1, 3], [0, 4]), (6, [0, 5], [1, 2, 3])])
-def test_apply_fsim(nqubits, targets, controls, dtype):
+def test_apply_fsim(backend, nqubits, targets, controls, dtype):
     qibo.set_backend("numpy")
     state = random_state(nqubits, dtype=dtype)
     matrix = random_complex((2, 2), dtype=dtype)
@@ -132,4 +132,5 @@ def test_apply_fsim(nqubits, targets, controls, dtype):
     gate = np.array(list(matrix.flatten()) + [np.exp(-1j * phi)], dtype=dtype)
     qubits = qubits_tensor(nqubits, targets, controls)
     state = op.apply_fsim(state, gate, nqubits, target1, target2, qubits)
+    state = op.to_numpy(state)
     np.testing.assert_allclose(state, target_state, atol=ATOL.get(dtype))

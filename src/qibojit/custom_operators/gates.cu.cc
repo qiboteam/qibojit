@@ -65,6 +65,15 @@ __device__ void _apply_two_qubit_gate(complex<double>& state0, complex<double>& 
                 cadd(cmult(gate[14], buffer2), cmult(gate[15], state3)));
 }
 
+__device__ void _apply_fsim(complex<double>& state0, complex<double>& state1,
+                            complex<double>& state2, complex<double>& state3,
+                            const complex<double>* gate) {
+  const complex<double> buffer = state1;
+  state1 = cadd(cmult(gate[0], state1), cmult(gate[1], state2));
+  state2 = cadd(cmult(gate[2], buffer), cmult(gate[3], state2));
+  state3 = cmult(gate[4], state3);
+}
+
 
 extern "C" {
 
@@ -107,6 +116,15 @@ __global__ void apply_two_qubit_gate_kernel(complex<double>* state, long tk1, lo
   long i = ((long)((long)g >> m1) << (m1 + 1)) + (g & (tk1 - 1));
   i = ((long)((long)i >> m2) << (m2 + 1)) + (i & (tk2 - 1));
   _apply_two_qubit_gate(state[i], state[i + uk1], state[i + uk2], state[i + uk1 + uk2], gate);
+}
+
+__global__ void apply_fsim_kernel(complex<double>* state, long tk1, long tk2,
+                                  int m1, int m2, long uk1, long uk2,
+                                  const complex<double>* gate) {
+  const long g = blockIdx.x * blockDim.x + threadIdx.x;
+  long i = ((long)((long)g >> m1) << (m1 + 1)) + (g & (tk1 - 1));
+  i = ((long)((long)i >> m2) << (m2 + 1)) + (i & (tk2 - 1));
+  _apply_fsim(state[i], state[i + uk1], state[i + uk2], state[i + uk1 + uk2], gate);
 }
 
 __global__ void apply_swap_kernel(complex<double>* state, long tk1, long tk2,
@@ -165,6 +183,18 @@ __global__ void multicontrol_apply_two_qubit_gate_kernel(complex<double>* state,
   const long g = blockIdx.x * blockDim.x + threadIdx.x;
   const long i = multicontrol_index(qubits, g, ncontrols);
   _apply_two_qubit_gate(state[i - uk1 - uk2], state[i - uk2], state[i - uk1], state[i], gate);
+}
+
+__global__ void multicontrol_apply_fsim_kernel(complex<double>* state,
+                                               long tk1, long tk2,
+                                               int m1, int m2,
+                                               long uk1, long uk2,
+                                               const complex<double>* gate,
+                                               const int* qubits,
+                                               int ncontrols) {
+  const long g = blockIdx.x * blockDim.x + threadIdx.x;
+  const long i = multicontrol_index(qubits, g, ncontrols);
+  _apply_fsim(state[i - uk1 - uk2], state[i - uk2], state[i - uk1], state[i], gate);
 }
 
 __global__ void multicontrol_apply_swap_kernel(complex<double>* state,
