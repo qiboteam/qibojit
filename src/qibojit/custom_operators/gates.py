@@ -1,6 +1,16 @@
 from numba import prange, njit
 
 
+@njit(inline="always"):
+def multicontrol_index(g, qubits):
+    i = 0
+    i += g
+    for n in qubits:
+        k = 1 << n
+        i = ((i >> n) << (n + 1)) + (i & (k - 1)) + k
+    return i
+
+
 @njit(parallel=True)
 def apply_gate_kernel(state, gate, nstates, m):
     tk = 1 << m
@@ -16,11 +26,7 @@ def apply_gate_kernel(state, gate, nstates, m):
 def multicontrol_apply_gate_kernel(state, gate, qubits, nstates, m):
     tk = 1 << m
     for g in prange(nstates):
-        i = 0
-        i += g
-        for n in qubits:
-            k = 1 << n
-            i = ((i >> n) << (n + 1)) + (i & (k - 1)) + k
+        i = multicontrol_index(g, qubits)
         i1, i2 = i - tk, i
         state[i1], state[i2] = (gate[0, 0] * state[i1] + gate[0, 1] * state[i2],
                                 gate[1, 0] * state[i1] + gate[1, 1] * state[i2])
@@ -41,11 +47,7 @@ def apply_x_kernel(state, gate, nstates, m):
 def multicontrol_apply_x_kernel(state, gate, qubits, nstates, m):
     tk = 1 << m
     for g in prange(nstates):
-        i = 0
-        i += g
-        for n in qubits:
-            k = 1 << n
-            i = ((i >> n) << (n + 1)) + (i & (k - 1)) + k
+        i = multicontrol_index(g, qubits)
         i1, i2 = i - tk, i
         state[i1], state[i2] = state[i2], state[i1]
     return state
@@ -65,11 +67,7 @@ def apply_y_kernel(state, gate, nstates, m):
 def multicontrol_apply_y_kernel(state, gate, qubits, nstates, m):
     tk = 1 << m
     for g in prange(nstates):
-        i = 0
-        i += g
-        for n in qubits:
-            k = 1 << n
-            i = ((i >> n) << (n + 1)) + (i & (k - 1)) + k
+        i = multicontrol_index(g, qubits)
         i1, i2 = i - tk, i
         state[i1], state[i2] = -1j * state[i2], 1j * state[i1]
     return state
@@ -88,11 +86,7 @@ def apply_z_kernel(state, gate, nstates, m):
 def multicontrol_apply_z_kernel(state, gate, qubits, nstates, m):
     tk = 1 << m
     for g in prange(nstates):
-        i = 0
-        i += g
-        for n in qubits:
-            k = 1 << n
-            i = ((i >> n) << (n + 1)) + (i & (k - 1)) + k
+        i = multicontrol_index(g, qubits)
         state[i] *= -1
     return state
 
@@ -110,11 +104,7 @@ def apply_z_pow_kernel(state, gate, nstates, m):
 def multicontrol_apply_z_pow_kernel(state, gate, qubits, nstates, m):
     tk = 1 << m
     for g in prange(nstates):
-        i = 0
-        i += g
-        for n in qubits:
-            k = 1 << n
-            i = ((i >> n) << (n + 1)) + (i & (k - 1)) + k
+        i = multicontrol_index(g, qubits)
         state[i] *= gate
     return state
 
@@ -149,11 +139,7 @@ def multicontrol_apply_two_qubit_gate_kernel(state, gate, qubits, nstates, m1, m
     if swap_targets:
         uk1, uk2 = uk2, uk1
     for g in prange(nstates):
-        i = 0
-        i += g
-        for m in qubits:
-            k = 1 << m
-            i = ((i >> m) << (m + 1)) + (i & (k - 1)) + k
+        i = multicontrol_index(g, qubits)
         i1, i2 = i - uk2, i - uk1
         i0 = i1 - uk1
         buffer0, buffer1, buffer2 = state[i0], state[i1], state[i2]
@@ -184,11 +170,7 @@ def multicontrol_apply_swap_kernel(state, gate, qubits, nstates, m1, m2, swap_ta
     tk1, tk2 = 1 << m1, 1 << m2
     uk1, uk2 = tk1, tk2
     for g in prange(nstates):
-        i = 0
-        i += g
-        for m in qubits:
-            k = 1 << m
-            i = ((i >> m) << (m + 1)) + (i & (k - 1)) + k
+        i = multicontrol_index(g, qubits)
         i1, i2 = i - tk2, i - tk1
         state[i1], state[i2] = state[i2], state[i1]
     return state
@@ -218,11 +200,7 @@ def multicontrol_apply_fsim_kernel(state, gate, qubits, nstates, m1, m2, swap_ta
     if swap_targets:
         uk1, uk2 = uk2, uk1
     for g in prange(nstates):
-        i = 0
-        i += g
-        for m in qubits:
-            k = 1 << m
-            i = ((i >> m) << (m + 1)) + (i & (k - 1)) + k
+        i = multicontrol_index(g, qubits)
         i1, i2 = i - uk2, i - uk1
         state[i1], state[i2] = (gate[0] * state[i1] + gate[1] * state[i2],
                                 gate[2] * state[i1] + gate[3] * state[i2])
