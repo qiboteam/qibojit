@@ -40,7 +40,7 @@ def collapse_index(g, h, qubits):
 
 
 @njit(parallel=True)
-def collapse_state(state, qubits, result, nqubits, normalize):
+def collapse_state(state, qubits, result, nqubits, normalize=True):
     qubits = tuple(qubits)
     nstates = 1 << (nqubits - len(qubits))
     nsubstates = 1 << len(qubits)
