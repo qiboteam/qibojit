@@ -68,7 +68,7 @@ def test_apply_zpow_gate(backend, nqubits, target, controls, dtype):
     gate = qibo.gates.U1(target, theta=theta).controlled_by(*controls)
     target_state = gate(np.copy(state))
 
-    phase = np.exp(1j * theta)
+    phase = np.exp(1j * theta).astype(dtype)
     qubits = qubits_tensor(nqubits, [target], controls)
     state = op.apply_z_pow(state, phase, nqubits, target, qubits)
     state = op.to_numpy(state)
