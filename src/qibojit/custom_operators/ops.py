@@ -38,7 +38,7 @@ def collapse_index(g, h, qubits):
 
 
 @njit(parallel=True)
-def collapse_state(state, qubits, result, nqubits, normalize):
+def collapse_state(state, qubits, result, nqubits, normalize=True):
     qubits = tuple(qubits)
     nstates = 1 << (nqubits - len(qubits))
     nsubstates = 1 << len(qubits)
@@ -53,6 +53,7 @@ def collapse_state(state, qubits, result, nqubits, normalize):
 
     if normalize:
         norm = np.sqrt(norms)
+        print(norm)
         for g in prange(nstates):
             i = collapse_index(g, result, qubits)
             state[i] = state[i] / norm

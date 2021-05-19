@@ -81,6 +81,9 @@ class TensorflowBackend(AbstractBackend):
     def initial_state(self, nqubits, dtype, is_matrix=False):
         return self.op.initial_state(nqubits, dtype, is_matrix, self.nthreads)
 
+    def collapse_state(self, state, qubits, result, nqubits, normalize=True):
+        return self.op.collapse_state(state, qubits, result, nqubits, normalize, self.nthreads)
+
 
 class Backends(dict):
 
