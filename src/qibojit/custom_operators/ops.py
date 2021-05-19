@@ -1,6 +1,8 @@
-import numpy as np
+import psutil
 import joblib
+import numpy as np
 from numba import prange, njit
+NTHREADS = psutil.cpu_count(logical=False)
 
 
 @njit(parallel=True)
@@ -77,7 +79,7 @@ def measure_frequencies_job(frequencies, probs, nshots, nstates, seed):
     return frequencies_private
 
 
-def measure_frequencies(frequencies, probs, nshots, nqubits, seed=1234, nthreads=12):
+def measure_frequencies(frequencies, probs, nshots, nqubits, seed=1234, nthreads=NTHREADS):
     nstates = 1 << nqubits
     thread_nshots = (nthreads - 1) * [nshots // nthreads]
     thread_nshots.append(thread_nshots[-1] + nshots % nthreads)
