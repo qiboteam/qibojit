@@ -43,15 +43,15 @@ def test_collapse_state(nqubits, targets, results, dtype):
 
 @pytest.mark.parametrize("realtype", ["float32", "float64"])
 @pytest.mark.parametrize("inttype", ["int32", "int64"])
-@pytest.mark.skip("Measure frequencies does not work properly yet.")
 def test_measure_frequencies(realtype, inttype):
     probs = np.ones(16, dtype=realtype) / 16
     frequencies = np.zeros(16, dtype=inttype)
     frequencies = op.measure_frequencies(frequencies, probs, nshots=1000,
                                          nqubits=4, seed=1234)
     assert np.sum(frequencies) == 1000
-    # TODO: Test exact frequencies once you figure out how to fix seed
-    #np.testing.assert_allclose(frequencies, target_frequencies)
+    target_frequencies = np.array([69, 71, 66, 50, 55, 62, 68, 50, 61, 61, 69,
+                                   69, 69, 67, 62, 51], dtype=inttype)
+    np.testing.assert_allclose(frequencies, target_frequencies)
 
 
 NONZERO = list(itertools.combinations(range(8), r=1))
@@ -59,7 +59,6 @@ NONZERO.extend(itertools.combinations(range(8), r=2))
 NONZERO.extend(itertools.combinations(range(8), r=3))
 NONZERO.extend(itertools.combinations(range(8), r=4))
 @pytest.mark.parametrize("nonzero", NONZERO)
-@pytest.mark.skip("Measure frequencies does not work properly yet.")
 def test_measure_frequencies_sparse_probabilities(nonzero):
     probs = np.zeros(8, dtype=np.float64)
     for i in nonzero:

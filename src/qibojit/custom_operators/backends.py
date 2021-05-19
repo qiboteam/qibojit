@@ -35,10 +35,11 @@ class NumbaBackend(AbstractBackend):
         ncontrols = len(qubits) - 1 if qubits is not None else 0
         m = nqubits - target - 1
         nstates = 1 << (nqubits - ncontrols - 1)
-        kernel = getattr(self.gates, f"{kernel}_kernel")
         if ncontrols:
-            return self.gates.one_qubit_multicontrol(state, gate, kernel, qubits, nstates, m)
-        return self.gates.one_qubit_nocontrol(state, gate, kernel, nstates, m)
+            kernel = getattr(self.gates, "multicontrol_{}_kernel".format(kernel))
+            return kernel(state, gate, qubits, nstates, m)
+        kernel = getattr(self.gates, "{}_kernel".format(kernel))
+        return kernel(state, gate, nstates, m)
 
     def two_qubit_base(self, state, nqubits, target1, target2, kernel, qubits=None, gate=None):
         ncontrols = len(qubits) - 2 if qubits is not None else 0
@@ -51,10 +52,11 @@ class NumbaBackend(AbstractBackend):
             m1 = nqubits - target2 - 1
             m2 = nqubits - target1 - 1
         nstates = 1 << (nqubits - 2 - ncontrols)
-        kernel = getattr(self.gates, f"{kernel}_kernel")
         if ncontrols:
-            return self.gates.two_qubit_multicontrol(state, gate, kernel, qubits, nstates, m1, m2, swap_targets)
-        return self.gates.two_qubit_nocontrol(state, gate, kernel, nstates, m1, m2, swap_targets)
+            kernel = getattr(self.gates, "multicontrol_{}_kernel".format(kernel))
+            return kernel(state, gate, qubits, nstates, m1, m2, swap_targets)
+        kernel = getattr(self.gates, "{}_kernel".format(kernel))
+        return kernel(state, gate, nstates, m1, m2, swap_targets)
 
 
 class CupyBackend(AbstractBackend):

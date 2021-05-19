@@ -1,5 +1,8 @@
+import psutil
+import joblib
 import numpy as np
 from numba import prange, njit
+NTHREADS = psutil.cpu_count(logical=False)
 
 
 @njit(parallel=True)
@@ -37,7 +40,7 @@ def collapse_index(g, h, qubits):
 
 
 @njit(parallel=True)
-def collapse_state(state, qubits, result, nqubits, normalize):
+def collapse_state(state, qubits, result, nqubits, normalize=True):
     qubits = tuple(qubits)
     nstates = 1 << (nqubits - len(qubits))
     nsubstates = 1 << len(qubits)
@@ -59,20 +62,35 @@ def collapse_state(state, qubits, result, nqubits, normalize):
     return state
 
 
-@njit(parallel=True)
-def measure_frequencies(frequencies, probs, nshots, nqubits, seed=1234):
-    nstates = 1 << nqubits
+@njit
+def measure_frequencies_job(frequencies, probs, nshots, nstates, seed):
+    frequencies_private = np.zeros_like(frequencies)
     np.random.seed(seed)
-    # FIXME: sum(frequencies) == nshots does not work probably due to
-    # parallelization
-    # Initial bitstring is the one with the maximum probability
     for i in prange(nshots):
         if i == 0:
+            # Initial bitstring is the one with the maximum probability
             shot = probs.argmax()
         new_shot = (shot + np.random.randint(0, nstates)) % nstates
         # accept or reject move
         if probs[new_shot] / probs[shot] > np.random.random():
             shot = new_shot
         # update frequencies
-        frequencies[shot] += 1
+        frequencies_private[shot] += 1
+    return frequencies_private
+
+
+def measure_frequencies(frequencies, probs, nshots, nqubits, seed=1234, nthreads=NTHREADS):
+    nstates = 1 << nqubits
+    thread_nshots = (nthreads - 1) * [nshots // nthreads]
+    thread_nshots.append(thread_nshots[-1] + nshots % nthreads)
+
+    np.random.seed(seed)
+    thread_seed = np.random.randint(0, int(1e8), size=(nthreads,))
+
+    pool = joblib.Parallel(n_jobs=nthreads, prefer="threads")
+    thread_frequencies = pool(
+        joblib.delayed(measure_frequencies_job)(frequencies, probs, n, nstates, s)
+        for n, s in zip(thread_nshots, thread_seed))
+    thread_frequencies = np.array(thread_frequencies)
+    frequencies += thread_frequencies.sum(axis=0)
     return frequencies
