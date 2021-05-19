@@ -17,7 +17,8 @@ def pytest_generate_tests(metafunc):
             metafunc.parametrize("backend_name,dtype",
                                  [("numba", "complex128"),
                                   ("numba", "complex64"),
-                                  ("cupy", "complex128")])
+                                  ("cupy", "complex128"),
+                                  ("cupy", "complex64")])
         else:
             metafunc.parametrize("backend_name", ["numba", "cupy"])
     elif "dtype" in metafunc.fixturenames:

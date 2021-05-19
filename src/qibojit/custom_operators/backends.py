@@ -62,6 +62,8 @@ class NumbaBackend(AbstractBackend):
 class CupyBackend(AbstractBackend):
 
     DEFAULT_BLOCK_SIZE = 1024
+    KERNELS = ("apply_gate", "apply_x", "apply_y", "apply_z", "apply_z_pow",
+               "apply_two_qubit_gate", "apply_fsim", "apply_swap")
 
     def __init__(self):
         import os
@@ -70,8 +72,19 @@ class CupyBackend(AbstractBackend):
         self.cp = cp
         gates_dir = os.path.dirname(os.path.realpath(__file__))
         gates_dir = os.path.join(gates_dir, "gates.cu.cc")
+
+        kernels = []
+        for kernel in self.KERNELS:
+            kernels.append(f"{kernel}_kernel<complex<double>>")
+            kernels.append(f"{kernel}_kernel<complex<float>>")
+            kernels.append(f"multicontrol_{kernel}_kernel<complex<double>>")
+            kernels.append(f"multicontrol_{kernel}_kernel<complex<float>>")
+        kernels = tuple(kernels)
+
         with open(gates_dir, "r") as file:
-            self.gates = cp.RawModule(code=r"{}".format(file.read()))
+            code = r"{}".format(file.read())
+            self.gates = cp.RawModule(code=code, options=("--std=c++11",),
+                                      name_expressions=kernels)
 
         self.ops = None # TODO: Implement this
 
@@ -91,6 +104,13 @@ class CupyBackend(AbstractBackend):
     def to_numpy(self, x):
         return x.get()
 
+    def get_kernel_type(self, state):
+        if state.dtype == self.cp.complex128:
+            return "complex<double>"
+        elif state.dtype == self.cp.complex64:
+            return "complex<float>"
+        raise TypeError("State of invalid type {}.".format(state.dtype))
+
     def one_qubit_base(self, state, nqubits, target, kernel, qubits=None, gate=None):
         ncontrols = len(qubits) - 1 if qubits is not None else 0
         m = nqubits - target - 1
@@ -102,12 +122,14 @@ class CupyBackend(AbstractBackend):
             args = (state, tk, m)
         else:
             args = (state, tk, m, self.cast(gate))
+            assert state.dtype == args[-1].dtype
 
+        ktype = self.get_kernel_type(state)
         if ncontrols:
-            kernel = self.gates.get_function(f"multicontrol_{kernel}_kernel")
+            kernel = self.gates.get_function(f"multicontrol_{kernel}_kernel<{ktype}>")
             args += (self.cast(qubits, dtype=self.cp.int32), ncontrols + 1)
         else:
-            kernel = self.gates.get_function(f"{kernel}_kernel")
+            kernel = self.gates.get_function(f"{kernel}_kernel<{ktype}>")
 
         nblocks, block_size = self.calculate_blocks(nstates)
         kernel((nblocks,), (block_size,), args)
@@ -133,12 +155,14 @@ class CupyBackend(AbstractBackend):
             args = (state, tk1, tk2, m1, m2, uk1, uk2)
         else:
             args = (state, tk1, tk2, m1, m2, uk1, uk2, self.cast(gate))
+            assert state.dtype == args[-1].dtype
 
+        ktype = self.get_kernel_type(state)
         if ncontrols:
-            kernel = self.gates.get_function(f"multicontrol_{kernel}_kernel")
+            kernel = self.gates.get_function(f"multicontrol_{kernel}_kernel<{ktype}>")
             args += (self.cast(qubits, dtype=self.cp.int32), ncontrols + 2)
         else:
-            kernel = self.gates.get_function(f"{kernel}_kernel")
+            kernel = self.gates.get_function(f"{kernel}_kernel<{ktype}>")
 
         nblocks, block_size = self.calculate_blocks(nstates)
         kernel((nblocks,), (block_size,), args)

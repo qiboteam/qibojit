@@ -1,12 +1,22 @@
 #include <cupy/complex.cuh>
 
+
 __device__ complex<double> cmult(complex<double> a, complex<double> b) {
   return complex<double>(a.real() * b.real() - a.imag() * b.imag(),
                          a.real() * b.imag() + a.imag() * b.real());
 }
 
+__device__ complex<float> cmult(complex<float> a, complex<float> b) {
+  return complex<float>(a.real() * b.real() - a.imag() * b.imag(),
+                        a.real() * b.imag() + a.imag() * b.real());
+}
+
 __device__ complex<double> cadd(complex<double> a, complex<double> b) {
   return complex<double>(a.real() + b.real(), a.imag() + b.imag());
+}
+
+__device__ complex<float> cadd(complex<float> a, complex<float> b) {
+  return complex<float>(a.real() + b.real(), a.imag() + b.imag());
 }
 
 __device__ long multicontrol_index(const int* qubits, long g, int ncontrols) {
@@ -20,41 +30,45 @@ __device__ long multicontrol_index(const int* qubits, long g, int ncontrols) {
 }
 
 
-__device__ void _apply_gate(complex<double>& state1, complex<double>& state2,
-                            const complex<double>* gate) {
-  const complex<double> buffer = state1;
+template<typename T>
+__device__ void _apply_gate(T& state1, T& state2, const T* gate) {
+  const T buffer = state1;
   state1 = cadd(cmult(gate[0], state1), cmult(gate[1], state2));
   state2 = cadd(cmult(gate[2], buffer), cmult(gate[3], state2));
 }
 
-__device__ void _apply_x(complex<double>& state1, complex<double>& state2) {
-  const complex<double> buffer = state1;
+template<typename T>
+__device__ void _apply_x(T& state1, T& state2) {
+  const T buffer = state1;
   state1 = state2;
   state2 = buffer;
 }
 
-__device__ void _apply_y(complex<double>& state1, complex<double>& state2) {
-  state1 = cmult(state1, complex<double>(0, 1));
-  state2 = cmult(state2, complex<double>(0, -1));
-  const complex<double> buffer = state1;
+template<typename T>
+__device__ void _apply_y(T& state1, T& state2) {
+  state1 = cmult(state1, T(0, 1));
+  state2 = cmult(state2, T(0, -1));
+  const T buffer = state1;
   state1 = state2;
   state2 = buffer;
 }
 
-__device__ void _apply_z(complex<double>& state) {
-  state = cmult(state, complex<double>(-1));
+template<typename T>
+__device__ void _apply_z(T& state) {
+  state = cmult(state, T(-1));
 }
 
-__device__ void _apply_z_pow(complex<double>& state, complex<double> gate) {
+template<typename T>
+__device__ void _apply_z_pow(T& state, T gate) {
   state = cmult(state, gate);
 }
 
-__device__ void _apply_two_qubit_gate(complex<double>& state0, complex<double>& state1,
-                                      complex<double>& state2, complex<double>& state3,
-                                      const complex<double>* gate) {
-  const complex<double> buffer0 = state0;
-  const complex<double> buffer1 = state1;
-  const complex<double> buffer2 = state2;
+template<typename T>
+__device__ void _apply_two_qubit_gate(T& state0, T& state1, T& state2, T& state3,
+                                      const T* gate) {
+  const T buffer0 = state0;
+  const T buffer1 = state1;
+  const T buffer2 = state2;
   state0 = cadd(cadd(cmult(gate[0], state0), cmult(gate[1], state1)),
                 cadd(cmult(gate[2], state2), cmult(gate[3], state3)));
   state1 = cadd(cadd(cmult(gate[4], buffer0), cmult(gate[5], state1)),
@@ -65,138 +79,148 @@ __device__ void _apply_two_qubit_gate(complex<double>& state0, complex<double>& 
                 cadd(cmult(gate[14], buffer2), cmult(gate[15], state3)));
 }
 
-__device__ void _apply_fsim(complex<double>& state1, complex<double>& state2,
-                            complex<double>& state3, const complex<double>* gate) {
-  const complex<double> buffer = state1;
+template<typename T>
+__device__ void _apply_fsim(T& state1, T& state2, T& state3, const T* gate) {
+  const T buffer = state1;
   state1 = cadd(cmult(gate[0], state1), cmult(gate[1], state2));
   state2 = cadd(cmult(gate[2], buffer), cmult(gate[3], state2));
   state3 = cmult(gate[4], state3);
 }
 
-
-extern "C" {
-
-__global__ void apply_gate_kernel(complex<double>* state, long tk, int m,
-                                  const complex<double>* gate) {
+template<typename T>
+__global__ void apply_gate_kernel(T* state, long tk, int m, const T* gate) {
   const long g = blockIdx.x * blockDim.x + threadIdx.x;
   const long i = ((long)((long)g >> m) << (m + 1)) + (g & (tk - 1));
-  _apply_gate(state[i], state[i + tk], gate);
+  _apply_gate<T>(state[i], state[i + tk], gate);
 }
 
-__global__ void apply_x_kernel(complex<double>* state, long tk, int m) {
+template<typename T>
+__global__ void apply_x_kernel(T* state, long tk, int m) {
   const long g = blockIdx.x * blockDim.x + threadIdx.x;
   const long i = ((long)((long)g >> m) << (m + 1)) + (g & (tk - 1));
-  _apply_x(state[i], state[i + tk]);
+  _apply_x<T>(state[i], state[i + tk]);
 }
 
-__global__ void apply_y_kernel(complex<double>* state, long tk, int m) {
+template<typename T>
+__global__ void apply_y_kernel(T* state, long tk, int m) {
   const long g = blockIdx.x * blockDim.x + threadIdx.x;
   const long i = ((long)((long)g >> m) << (m + 1)) + (g & (tk - 1));
-  _apply_y(state[i], state[i + tk]);
+  _apply_y<T>(state[i], state[i + tk]);
 }
 
-__global__ void apply_z_kernel(complex<double>* state, long tk, int m) {
+template<typename T>
+__global__ void apply_z_kernel(T* state, long tk, int m) {
   const long g = blockIdx.x * blockDim.x + threadIdx.x;
   const long i = ((long)((long)g >> m) << (m + 1)) + (g & (tk - 1));
-  _apply_z(state[i + tk]);
+  _apply_z<T>(state[i + tk]);
 }
 
-__global__ void apply_z_pow_kernel(complex<double>* state, long tk, int m,
-                                   const complex<double>* gate) {
+template<typename T>
+__global__ void apply_z_pow_kernel(T* state, long tk, int m,
+                                   const T* gate) {
   const long g = blockIdx.x * blockDim.x + threadIdx.x;
   const long i = ((long)((long)g >> m) << (m + 1)) + (g & (tk - 1));
-  _apply_z_pow(state[i + tk], gate[0]);
+  _apply_z_pow<T>(state[i + tk], gate[0]);
 }
 
-__global__ void apply_two_qubit_gate_kernel(complex<double>* state, long tk1, long tk2,
+template<typename T>
+__global__ void apply_two_qubit_gate_kernel(T* state, long tk1, long tk2,
                                             int m1, int m2, long uk1, long uk2,
-                                            const complex<double>* gate) {
+                                            const T* gate) {
   const long g = blockIdx.x * blockDim.x + threadIdx.x;
   long i = ((long)((long)g >> m1) << (m1 + 1)) + (g & (tk1 - 1));
   i = ((long)((long)i >> m2) << (m2 + 1)) + (i & (tk2 - 1));
-  _apply_two_qubit_gate(state[i], state[i + uk1], state[i + uk2], state[i + uk1 + uk2], gate);
+  _apply_two_qubit_gate<T>(state[i], state[i + uk1], state[i + uk2], state[i + uk1 + uk2], gate);
 }
 
-__global__ void apply_fsim_kernel(complex<double>* state, long tk1, long tk2,
+template<typename T>
+__global__ void apply_fsim_kernel(T* state, long tk1, long tk2,
                                   int m1, int m2, long uk1, long uk2,
-                                  const complex<double>* gate) {
+                                  const T* gate) {
   const long g = blockIdx.x * blockDim.x + threadIdx.x;
   long i = ((long)((long)g >> m1) << (m1 + 1)) + (g & (tk1 - 1));
   i = ((long)((long)i >> m2) << (m2 + 1)) + (i & (tk2 - 1));
-  _apply_fsim(state[i + uk1], state[i + uk2], state[i + uk1 + uk2], gate);
+  _apply_fsim<T>(state[i + uk1], state[i + uk2], state[i + uk1 + uk2], gate);
 }
 
-__global__ void apply_swap_kernel(complex<double>* state, long tk1, long tk2,
+template<typename T>
+__global__ void apply_swap_kernel(T* state, long tk1, long tk2,
                                   int m1, int m2, long uk1, long uk2) {
   const long g = blockIdx.x * blockDim.x + threadIdx.x;
   long i = ((long)((long)g >> m1) << (m1 + 1)) + (g & (tk1 - 1));
   i = ((long)((long)i >> m2) << (m2 + 1)) + (i & (tk2 - 1));
-  _apply_x(state[i + tk2], state[i + tk1]);
+  _apply_x<T>(state[i + tk2], state[i + tk1]);
 }
 
-
-__global__ void multicontrol_apply_gate_kernel(complex<double>* state, long tk, int m,
-                                               const complex<double>* gate,
+template<typename T>
+__global__ void multicontrol_apply_gate_kernel(T* state, long tk, int m, const T* gate,
                                                const int* qubits, int ncontrols) {
   const long g = blockIdx.x * blockDim.x + threadIdx.x;
   const long i = multicontrol_index(qubits, g, ncontrols);
-  _apply_gate(state[i - tk], state[i], gate);
+  _apply_gate<T>(state[i - tk], state[i], gate);
 }
 
-__global__ void multicontrol_apply_x_kernel(complex<double>* state, long tk, int m,
+template<typename T>
+__global__ void multicontrol_apply_x_kernel(T* state, long tk, int m,
                                             const int* qubits, int ncontrols) {
   const long g = blockIdx.x * blockDim.x + threadIdx.x;
   const long i = multicontrol_index(qubits, g, ncontrols);
-  _apply_x(state[i - tk], state[i]);
+  _apply_x<T>(state[i - tk], state[i]);
 }
 
-__global__ void multicontrol_apply_y_kernel(complex<double>* state, long tk, int m,
+template<typename T>
+__global__ void multicontrol_apply_y_kernel(T* state, long tk, int m,
                                             const int* qubits, int ncontrols) {
   const long g = blockIdx.x * blockDim.x + threadIdx.x;
   const long i = multicontrol_index(qubits, g, ncontrols);
-  _apply_y(state[i - tk], state[i]);
+  _apply_y<T>(state[i - tk], state[i]);
 }
 
-__global__ void multicontrol_apply_z_kernel(complex<double>* state, long tk, int m,
+template<typename T>
+__global__ void multicontrol_apply_z_kernel(T* state, long tk, int m,
                                             const int* qubits, int ncontrols) {
   const long g = blockIdx.x * blockDim.x + threadIdx.x;
   const long i = multicontrol_index(qubits, g, ncontrols);
-  _apply_z(state[i]);
+  _apply_z<T>(state[i]);
 }
 
-__global__ void multicontrol_apply_z_pow_kernel(complex<double>* state, long tk, int m,
-                                                const complex<double>* gate,
+template<typename T>
+__global__ void multicontrol_apply_z_pow_kernel(T* state, long tk, int m,
+                                                const T* gate,
                                                 const int* qubits, int ncontrols) {
   const long g = blockIdx.x * blockDim.x + threadIdx.x;
   const long i = multicontrol_index(qubits, g, ncontrols);
-  _apply_z_pow(state[i], gate[0]);
+  _apply_z_pow<T>(state[i], gate[0]);
 }
 
-__global__ void multicontrol_apply_two_qubit_gate_kernel(complex<double>* state,
+template<typename T>
+__global__ void multicontrol_apply_two_qubit_gate_kernel(T* state,
                                                          long tk1, long tk2,
                                                          int m1, int m2,
                                                          long uk1, long uk2,
-                                                         const complex<double>* gate,
+                                                         const T* gate,
                                                          const int* qubits,
                                                          int ncontrols) {
   const long g = blockIdx.x * blockDim.x + threadIdx.x;
   const long i = multicontrol_index(qubits, g, ncontrols);
-  _apply_two_qubit_gate(state[i - uk1 - uk2], state[i - uk2], state[i - uk1], state[i], gate);
+  _apply_two_qubit_gate<T>(state[i - uk1 - uk2], state[i - uk2], state[i - uk1], state[i], gate);
 }
 
-__global__ void multicontrol_apply_fsim_kernel(complex<double>* state,
+template<typename T>
+__global__ void multicontrol_apply_fsim_kernel(T* state,
                                                long tk1, long tk2,
                                                int m1, int m2,
                                                long uk1, long uk2,
-                                               const complex<double>* gate,
+                                               const T* gate,
                                                const int* qubits,
                                                int ncontrols) {
   const long g = blockIdx.x * blockDim.x + threadIdx.x;
   const long i = multicontrol_index(qubits, g, ncontrols);
-  _apply_fsim(state[i - uk2], state[i - uk1], state[i], gate);
+  _apply_fsim<T>(state[i - uk2], state[i - uk1], state[i], gate);
 }
 
-__global__ void multicontrol_apply_swap_kernel(complex<double>* state,
+template<typename T>
+__global__ void multicontrol_apply_swap_kernel(T* state,
                                                long tk1, long tk2,
                                                int m1, int m2,
                                                long uk1, long uk2,
@@ -204,6 +228,5 @@ __global__ void multicontrol_apply_swap_kernel(complex<double>* state,
                                                int ncontrols) {
   const long g = blockIdx.x * blockDim.x + threadIdx.x;
   const long i = multicontrol_index(qubits, g, ncontrols);
-  _apply_x(state[i - tk1], state[i - tk2]);
-}
+  _apply_x<T>(state[i - tk1], state[i - tk2]);
 }
