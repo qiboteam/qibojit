@@ -88,7 +88,7 @@ class TensorflowBackend(AbstractBackend):
         if controls:
             raise NotImplementedError
         qubits = self.qubits_tensor(nqubits, [0], controls)
-        result = self.cast([0], dtype="int32")
+        result = self.cast([0], dtype="int64")
         return [state, qubits, result, nqubits]
 
     def measure_frequencies(self, frequencies, probs, nshots, nqubits):
