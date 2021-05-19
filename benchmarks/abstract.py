@@ -72,6 +72,13 @@ class AbstractBackend:
         qubits = self.qubits_tensor(nqubits, [0], controls)
         return [state, qubits, 0, nqubits]
 
+    def measure_frequencies_args(self, state, nqubits, controls=[]):
+        if controls:
+            raise NotImplementedError
+        frequencies = self.np.zeros(state.shape, dtype="int64")
+        probs = self.np.abs(state) ** 2
+        return [frequencies, probs]
+
     def qft_args(self, state, nqubits, controls=[]):
         return [state, nqubits]
 
