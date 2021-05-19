@@ -55,7 +55,6 @@ def collapse_state(state, qubits, result, nqubits, normalize=True):
 
     if normalize:
         norm = np.sqrt(norms)
-        print(norm)
         for g in prange(nstates):
             i = collapse_index(g, result, qubits)
             state[i] = state[i] / norm
