@@ -50,8 +50,8 @@ def test_measure_frequencies(dtype, inttype):
     frequencies = op.measure_frequencies(frequencies, probs, nshots=1000,
                                          nqubits=4, seed=1234)
     assert np.sum(frequencies) == 1000
-    target_frequencies = np.array([64, 85, 66, 53, 47, 55, 66, 65, 57, 48, 72,
-                                   65, 60, 68, 72, 57], dtype=inttype)
+    target_frequencies = np.array([69, 71, 66, 50, 55, 62, 68, 50, 61, 61, 69,
+                                   69, 69, 67, 62, 51], dtype=inttype)
     np.testing.assert_allclose(frequencies, target_frequencies)
 
 
