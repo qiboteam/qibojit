@@ -5,7 +5,7 @@ from numba import prange, njit
 NTHREADS = psutil.cpu_count(logical=False)
 
 
-@njit(parallel=True)
+@njit(parallel=True, cache=True)
 def initial_state_vector(nqubits, dtype):
     size = 2 ** nqubits
     state = np.zeros((size,), dtype=dtype)
@@ -13,7 +13,7 @@ def initial_state_vector(nqubits, dtype):
     return state
 
 
-@njit(parallel=True)
+@njit(parallel=True, cache=True)
 def initial_density_matrix(nqubits, dtype):
     size = 2 ** nqubits
     state = np.zeros((size, size), dtype=dtype)
@@ -29,7 +29,7 @@ def initial_state(nqubits, dtype, is_matrix=False):
     return initial_state_vector(nqubits, dtype)
 
 
-@njit
+@njit(cache=True)
 def collapse_index(g, h, qubits):
     i = 0
     i += g
@@ -39,7 +39,7 @@ def collapse_index(g, h, qubits):
     return i
 
 
-@njit(parallel=True)
+@njit(parallel=True, cache=True)
 def collapse_state(state, qubits, result, nqubits, normalize=True):
     qubits = tuple(qubits)
     nstates = 1 << (nqubits - len(qubits))
@@ -62,7 +62,7 @@ def collapse_state(state, qubits, result, nqubits, normalize=True):
     return state
 
 
-@njit
+@njit(cache=True)
 def measure_frequencies_job(frequencies, probs, nshots, nstates, seed):
     frequencies_private = np.zeros_like(frequencies)
     np.random.seed(seed)
