@@ -81,6 +81,26 @@ class TensorflowBackend(AbstractBackend):
     def initial_state(self, nqubits, dtype, is_matrix=False):
         return self.op.initial_state(nqubits, dtype, is_matrix, self.nthreads)
 
+    def collapse_state(self, state, qubits, result, nqubits, normalize=True):
+        return self.op.collapse_state(state, qubits, result, nqubits, normalize, self.nthreads)
+
+    def collapse_state_args(self, state, nqubits, controls=[]):
+        if controls:
+            raise NotImplementedError
+        qubits = self.qubits_tensor(nqubits, [0], controls)
+        result = self.cast([0], dtype="int64")
+        return [state, qubits, result, nqubits]
+
+    def measure_frequencies(self, frequencies, probs, nshots, nqubits):
+        return self.op.measure_frequencies(frequencies, probs, nshots, nqubits, 1234, self.nthreads)
+
+    def measure_frequencies_args(self, state, nqubits, controls=[]):
+        if controls:
+            raise NotImplementedError
+        frequencies = self.backend.zeros(state.shape, dtype="int64")
+        probs = self.backend.square(self.backend.abs(state))
+        return [frequencies, probs]
+
 
 class Backends(dict):
 
