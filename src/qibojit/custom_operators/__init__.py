@@ -89,4 +89,7 @@ def collapse_state(state, qubits, result, nqubits, normalize):
 
 
 def measure_frequencies(frequencies, probs, nshots, nqubits, seed=1234):
-    return backend.measure_frequencies(frequencies, probs, nshots, nqubits, seed)
+    # always fall back to numba CPU backend because this op is not implemented
+    # on GPU
+    numba_backend = backend.constructed_backends.get("numba")
+    return numba_backend.measure_frequencies(frequencies, probs, nshots, nqubits, seed)

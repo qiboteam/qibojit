@@ -5,13 +5,14 @@ from qibojit import custom_operators as op
 
 
 @pytest.mark.parametrize("is_matrix", [False, True])
-def test_initial_state(dtype, is_matrix):
+def test_initial_state(backend, dtype, is_matrix):
     final_state =  op.initial_state(4, dtype, is_matrix)
     if is_matrix:
         target_state = np.array([1] + [0]*255, dtype=dtype)
         target_state = np.reshape(target_state, (16, 16))
     else:
         target_state = np.array([1] + [0]*15, dtype=dtype)
+    final_state = op.to_numpy(final_state)
     np.testing.assert_allclose(final_state, target_state)
 
 
@@ -43,7 +44,7 @@ def test_collapse_state(nqubits, targets, results, dtype):
 
 @pytest.mark.parametrize("realtype", ["float32", "float64"])
 @pytest.mark.parametrize("inttype", ["int32", "int64"])
-def test_measure_frequencies(realtype, inttype):
+def test_measure_frequencies(backend, realtype, inttype):
     probs = np.ones(16, dtype=realtype) / 16
     frequencies = np.zeros(16, dtype=inttype)
     frequencies = op.measure_frequencies(frequencies, probs, nshots=1000,
@@ -59,7 +60,7 @@ NONZERO.extend(itertools.combinations(range(8), r=2))
 NONZERO.extend(itertools.combinations(range(8), r=3))
 NONZERO.extend(itertools.combinations(range(8), r=4))
 @pytest.mark.parametrize("nonzero", NONZERO)
-def test_measure_frequencies_sparse_probabilities(nonzero):
+def test_measure_frequencies_sparse_probabilities(backend, nonzero):
     probs = np.zeros(8, dtype=np.float64)
     for i in nonzero:
         probs[i] = 1

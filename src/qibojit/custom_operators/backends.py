@@ -197,10 +197,18 @@ class CupyBackend(AbstractBackend):
         return state
 
     def initial_state(self, nqubits, dtype, is_matrix=False):
-        raise NotImplementedError
+        n = 1 << nqubits
+        if is_matrix:
+            state = self.cp.zeros((n, n), dtype=dtype)
+            state[0, 0] = 1
+        else:
+            state = self.cp.zeros(n, dtype=dtype)
+            state[0] = 1
+        return state
 
     def collapse_state(self, state, qubits, result, nqubits, normalize):
         raise NotImplementedError
 
     def measure_frequencies(self, frequencies, probs, nshots, nqubits, seed=1234):
-        raise NotImplementedError
+        raise NotImplementedError("`measure_frequencies` method is not "
+                                  "implemented for GPU.")
