@@ -81,12 +81,12 @@ def apply_fsim(state, gate, nqubits, target1, target2, qubits=None):
 
 
 def initial_state(nqubits, dtype, is_matrix=False):
-    return backend.ops.initial_state(nqubits, dtype, is_matrix)
+    return backend.initial_state(nqubits, dtype, is_matrix)
 
 
 def collapse_state(state, qubits, result, nqubits, normalize):
-    return backend.ops.collapse_state(state, qubits, result, nqubits, normalize)
+    return backend.collapse_state(state, qubits, result, nqubits, normalize)
 
 
 def measure_frequencies(frequencies, probs, nshots, nqubits, seed=1234):
-    return backend.ops.measure_frequencies(frequencies, probs, nshots, nqubits, seed)
+    return backend.measure_frequencies(frequencies, probs, nshots, nqubits, seed)

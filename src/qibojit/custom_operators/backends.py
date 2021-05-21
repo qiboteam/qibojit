@@ -22,14 +22,28 @@ class AbstractBackend(ABC):
     def two_qubit_base(self, state, nqubits, target1, target2, kernel, qubits=None, gate=None):
         raise NotImplementedError
 
+    @abstractmethod
+    def initial_state(self, nqubits, dtype, is_matrix=False):
+        raise NotImplementedError
+
+    @abstractmethod
+    def collapse_state(self, state, qubits, result, nqubits, normalize):
+        raise NotImplementedError
+
+    @abstractmethod
+    def measure_frequencies(self, frequencies, probs, nshots, nqubits, seed=1234):
+        raise NotImplementedError
+
 
 class NumbaBackend(AbstractBackend):
 
     def __init__(self):
+        import numpy as np
         from qibojit.custom_operators import gates, ops
         self.name = "numba"
         self.gates = gates
         self.ops = ops
+        self.np = np
 
     def one_qubit_base(self, state, nqubits, target, kernel, qubits=None, gate=None):
         ncontrols = len(qubits) - 1 if qubits is not None else 0
@@ -57,6 +71,19 @@ class NumbaBackend(AbstractBackend):
             return kernel(state, gate, qubits, nstates, m1, m2, swap_targets)
         kernel = getattr(self.gates, "{}_kernel".format(kernel))
         return kernel(state, gate, nstates, m1, m2, swap_targets)
+
+    def initial_state(self, nqubits, dtype, is_matrix=False):
+        if isinstance(dtype, str):
+            dtype = getattr(self.np, dtype)
+        if is_matrix:
+            return self.ops.initial_density_matrix(nqubits, dtype)
+        return self.ops.initial_state_vector(nqubits, dtype)
+
+    def collapse_state(self, state, qubits, result, nqubits, normalize):
+        return self.ops.collapse_state(state, qubits, result, nqubits, normalize)
+
+    def measure_frequencies(self, frequencies, probs, nshots, nqubits, seed=1234):
+        return self.ops.measure_frequencies(frequencies, probs, nshots, nqubits, seed)
 
 
 class CupyBackend(AbstractBackend):
@@ -168,3 +195,12 @@ class CupyBackend(AbstractBackend):
         kernel((nblocks,), (block_size,), args)
         self.cp.cuda.stream.get_current_stream().synchronize()
         return state
+
+    def initial_state(self, nqubits, dtype, is_matrix=False):
+        raise NotImplementedError
+
+    def collapse_state(self, state, qubits, result, nqubits, normalize):
+        raise NotImplementedError
+
+    def measure_frequencies(self, frequencies, probs, nshots, nqubits, seed=1234):
+        raise NotImplementedError
