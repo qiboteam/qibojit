@@ -1,7 +1,7 @@
 from numba import prange, njit
 
 
-@njit(inline="always")
+@njit(inline="always", cache=True)
 def multicontrol_index(g, qubits):
     i = 0
     i += g
@@ -11,7 +11,7 @@ def multicontrol_index(g, qubits):
     return i
 
 
-@njit(parallel=True)
+@njit(parallel=True, cache=True)
 def apply_gate_kernel(state, gate, nstates, m):
     tk = 1 << m
     for g in prange(nstates):
@@ -22,7 +22,7 @@ def apply_gate_kernel(state, gate, nstates, m):
     return state
 
 
-@njit(parallel=True)
+@njit(parallel=True, cache=True)
 def multicontrol_apply_gate_kernel(state, gate, qubits, nstates, m):
     tk = 1 << m
     for g in prange(nstates):
@@ -33,7 +33,7 @@ def multicontrol_apply_gate_kernel(state, gate, qubits, nstates, m):
     return state
 
 
-@njit(parallel=True)
+@njit(parallel=True, cache=True)
 def apply_x_kernel(state, gate, nstates, m):
     tk = 1 << m
     for g in prange(nstates):
@@ -43,7 +43,7 @@ def apply_x_kernel(state, gate, nstates, m):
     return state
 
 
-@njit(parallel=True)
+@njit(parallel=True, cache=True)
 def multicontrol_apply_x_kernel(state, gate, qubits, nstates, m):
     tk = 1 << m
     for g in prange(nstates):
@@ -53,7 +53,7 @@ def multicontrol_apply_x_kernel(state, gate, qubits, nstates, m):
     return state
 
 
-@njit(parallel=True)
+@njit(parallel=True, cache=True)
 def apply_y_kernel(state, gate, nstates, m):
     tk = 1 << m
     for g in prange(nstates):
@@ -63,7 +63,7 @@ def apply_y_kernel(state, gate, nstates, m):
     return state
 
 
-@njit(parallel=True)
+@njit(parallel=True, cache=True)
 def multicontrol_apply_y_kernel(state, gate, qubits, nstates, m):
     tk = 1 << m
     for g in prange(nstates):
@@ -73,7 +73,7 @@ def multicontrol_apply_y_kernel(state, gate, qubits, nstates, m):
     return state
 
 
-@njit(parallel=True)
+@njit(parallel=True, cache=True)
 def apply_z_kernel(state, gate, nstates, m):
     tk = 1 << m
     for g in prange(nstates):
@@ -82,7 +82,7 @@ def apply_z_kernel(state, gate, nstates, m):
     return state
 
 
-@njit(parallel=True)
+@njit(parallel=True, cache=True)
 def multicontrol_apply_z_kernel(state, gate, qubits, nstates, m):
     tk = 1 << m
     for g in prange(nstates):
@@ -91,7 +91,7 @@ def multicontrol_apply_z_kernel(state, gate, qubits, nstates, m):
     return state
 
 
-@njit(parallel=True)
+@njit(parallel=True, cache=True)
 def apply_z_pow_kernel(state, gate, nstates, m):
     tk = 1 << m
     for g in prange(nstates):
@@ -100,7 +100,7 @@ def apply_z_pow_kernel(state, gate, nstates, m):
     return state
 
 
-@njit(parallel=True)
+@njit(parallel=True, cache=True)
 def multicontrol_apply_z_pow_kernel(state, gate, qubits, nstates, m):
     tk = 1 << m
     for g in prange(nstates):
@@ -109,7 +109,7 @@ def multicontrol_apply_z_pow_kernel(state, gate, qubits, nstates, m):
     return state
 
 
-@njit(parallel=True)
+@njit(parallel=True, cache=True)
 def apply_two_qubit_gate_kernel(state, gate, nstates, m1, m2, swap_targets=False):
     tk1, tk2 = 1 << m1, 1 << m2
     uk1, uk2 = tk1, tk2
@@ -132,7 +132,7 @@ def apply_two_qubit_gate_kernel(state, gate, nstates, m1, m2, swap_targets=False
     return state
 
 
-@njit(parallel=True)
+@njit(parallel=True, cache=True)
 def multicontrol_apply_two_qubit_gate_kernel(state, gate, qubits, nstates, m1, m2, swap_targets=False):
     tk1, tk2 = 1 << m1, 1 << m2
     uk1, uk2 = tk1, tk2
@@ -154,7 +154,7 @@ def multicontrol_apply_two_qubit_gate_kernel(state, gate, qubits, nstates, m1, m
     return state
 
 
-@njit(parallel=True)
+@njit(parallel=True, cache=True)
 def apply_swap_kernel(state, gate, nstates, m1, m2, swap_targets=False):
     tk1, tk2 = 1 << m1, 1 << m2
     for g in prange(nstates):
@@ -165,7 +165,7 @@ def apply_swap_kernel(state, gate, nstates, m1, m2, swap_targets=False):
     return state
 
 
-@njit(parallel=True)
+@njit(parallel=True, cache=True)
 def multicontrol_apply_swap_kernel(state, gate, qubits, nstates, m1, m2, swap_targets=False):
     tk1, tk2 = 1 << m1, 1 << m2
     uk1, uk2 = tk1, tk2
@@ -176,7 +176,7 @@ def multicontrol_apply_swap_kernel(state, gate, qubits, nstates, m1, m2, swap_ta
     return state
 
 
-@njit(parallel=True)
+@njit(parallel=True, cache=True)
 def apply_fsim_kernel(state, gate, nstates, m1, m2, swap_targets=False):
     tk1, tk2 = 1 << m1, 1 << m2
     uk1, uk2 = tk1, tk2
@@ -193,7 +193,7 @@ def apply_fsim_kernel(state, gate, nstates, m1, m2, swap_targets=False):
     return state
 
 
-@njit(parallel=True)
+@njit(parallel=True, cache=True)
 def multicontrol_apply_fsim_kernel(state, gate, qubits, nstates, m1, m2, swap_targets=False):
     tk1, tk2 = 1 << m1, 1 << m2
     uk1, uk2 = tk1, tk2
