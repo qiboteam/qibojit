@@ -43,27 +43,6 @@ __global__ void collapsed_norm_kernel(T* state, const int* qubits,
 }
 
 
-template <typename R>
-__global__ void vector_reduction_kernel(R *g_idata, R *g_odata) {
-  extern __shared__ double sdata[DEFAULT_BLOCK_SIZE];
-  // each thread loads one element from global to shared mem
-  const auto tid = threadIdx.x;
-  sdata[tid] = g_idata[blockIdx.x * blockDim.x + threadIdx.x];
-  __syncthreads();
-  // do reduction in shared mem
-  for (auto s = blockDim.x / 2; s > 0; s >>= 1) {
-    if (tid < s) {
-      sdata[tid] += sdata[tid + s];
-    }
-    __syncthreads();
-  }
-  // write result for this block to global mem
-  if (tid == 0) {
-    g_odata[blockIdx.x] = std::sqrt(sdata[0]);
-  }
-}
-
-
 template <typename T, typename R>
 __global__ void normalize_collapsed_state_kernel(T* state, const int* qubits,
                                                  const long* results,

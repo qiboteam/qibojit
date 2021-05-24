@@ -119,8 +119,6 @@ class CupyBackend(AbstractBackend):
             "collapse_state_kernel<complex<float>>",
             "collapsed_norm_kernel<complex<double>,double>",
             "collapsed_norm_kernel<complex<float>,float>",
-            "vector_reduction_kernel<double>",
-            "vector_reduction_kernel<float>",
             "normalize_collapsed_state_kernel<complex<double>,double>",
             "normalize_collapsed_state_kernel<complex<float>,float>"
         ))
