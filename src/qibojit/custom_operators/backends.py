@@ -114,7 +114,7 @@ class CupyBackend(AbstractBackend):
                                       name_expressions=kernels)
 
         # load `collapse_state` kernels
-        kernels = tuple(
+        kernels = tuple((
             "collapse_state_kernel<complex<double>>",
             "collapse_state_kernel<complex<float>>",
             "collapsed_norm_kernel<complex<double>,double>",
@@ -123,7 +123,7 @@ class CupyBackend(AbstractBackend):
             "vector_reduction_kernel<float>",
             "normalize_collapsed_state_kernel<complex<double>,double>",
             "normalize_collapsed_state_kernel<complex<float>,float>"
-        )
+        ))
         ops_dir = os.path.join(base_dir, "ops.cu.cc")
         with open(ops_dir, "r") as file:
             code = r"{}".format(file.read())
@@ -163,8 +163,7 @@ class CupyBackend(AbstractBackend):
         if gate is None:
             args = (state, tk, m)
         else:
-            args = (state, tk, m, self.cast(gate))
-            assert state.dtype == args[-1].dtype
+            args = (state, tk, m, self.cast(gate, dtype=state.dtype))
 
         ktype = self.get_kernel_type(state)
         if ncontrols:
@@ -224,7 +223,6 @@ class CupyBackend(AbstractBackend):
     def collapse_state(self, state, qubits, result, nqubits, normalize=True):
         ntargets = len(qubits)
         nstates = 1 << (nqubits - ntargets)
-        int blockSize = DEFAULT_BLOCK_SIZE;
         nblocks, block_size = self.calculate_blocks(nstates)
 
         ktype = self.get_kernel_type(state)
