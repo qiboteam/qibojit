@@ -45,7 +45,7 @@ def collapse_state(state, qubits, result, nqubits, normalize=True):
     nsubstates = 1 << len(qubits)
 
     norms = 0
-    for g in prange(nstates):
+    for g in prange(nstates):  # pylint: disable=not-an-iterable
         for h in range(result):
             state[collapse_index(g, h, qubits)] = 0
         norms += np.abs(state[collapse_index(g, result, qubits)]) ** 2
@@ -54,7 +54,7 @@ def collapse_state(state, qubits, result, nqubits, normalize=True):
 
     if normalize:
         norm = np.sqrt(norms)
-        for g in prange(nstates):
+        for g in prange(nstates):  # pylint: disable=not-an-iterable
             i = collapse_index(g, result, qubits)
             state[i] = state[i] / norm
 
@@ -72,7 +72,7 @@ def measure_frequencies(frequencies, probs, nshots, nqubits, seed=1234, nthreads
     thread_seed = np.random.randint(0, int(1e8), size=(nthreads,))
 
     thread_frequencies = np.zeros(shape=(nthreads, nstates), dtype=frequencies.dtype)
-    for n in prange(nthreads):
+    for n in prange(nthreads):  # pylint: disable=not-an-iterable
         frequencies_private = thread_frequencies[n]
         np.random.seed(thread_seed[n])
         for i in range(thread_nshots[n]):

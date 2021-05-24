@@ -47,8 +47,8 @@ setup(
         "Topic :: Scientific/Engineering :: Physics",
     ],
     install_requires=requirements,
-    extra_requires={
-        "tests": ["qibo"]
+    extras_requires={
+        "tests": ["qibo"],
     },
     python_requires=">=3.6.0",
     long_description=long_description,
