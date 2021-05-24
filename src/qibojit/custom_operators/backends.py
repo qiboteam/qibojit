@@ -97,9 +97,9 @@ class CupyBackend(AbstractBackend):
         import cupy as cp
         self.name = "cupy"
         self.cp = cp
-        gates_dir = os.path.dirname(os.path.realpath(__file__))
-        gates_dir = os.path.join(gates_dir, "gates.cu.cc")
+        base_dir = os.path.dirname(os.path.realpath(__file__))
 
+        # load gate kernels
         kernels = []
         for kernel in self.KERNELS:
             kernels.append(f"{kernel}_kernel<complex<double>>")
@@ -107,13 +107,28 @@ class CupyBackend(AbstractBackend):
             kernels.append(f"multicontrol_{kernel}_kernel<complex<double>>")
             kernels.append(f"multicontrol_{kernel}_kernel<complex<float>>")
         kernels = tuple(kernels)
-
+        gates_dir = os.path.join(base_dir, "gates.cu.cc")
         with open(gates_dir, "r") as file:
             code = r"{}".format(file.read())
             self.gates = cp.RawModule(code=code, options=("--std=c++11",),
                                       name_expressions=kernels)
 
-        self.ops = None # TODO: Implement this
+        # load `collapse_state` kernels
+        kernels = tuple(
+            "collapse_state_kernel<complex<double>>",
+            "collapse_state_kernel<complex<float>>",
+            "collapsed_norm_kernel<complex<double>,double>",
+            "collapsed_norm_kernel<complex<float>,float>",
+            "vector_reduction_kernel<double>",
+            "vector_reduction_kernel<float>",
+            "normalize_collapsed_state_kernel<complex<double>,double>",
+            "normalize_collapsed_state_kernel<complex<float>,float>"
+        )
+        ops_dir = os.path.join(base_dir, "ops.cu.cc")
+        with open(ops_dir, "r") as file:
+            code = r"{}".format(file.read())
+            self.ops = cp.RawModule(code=code, options=("--std=c++11",),
+                                    name_expressions=kernels)
 
     def calculate_blocks(self, nstates):
         block_size = self.DEFAULT_BLOCK_SIZE
@@ -206,8 +221,43 @@ class CupyBackend(AbstractBackend):
             state[0] = 1
         return state
 
-    def collapse_state(self, state, qubits, result, nqubits, normalize):
-        raise NotImplementedError
+    def collapse_state(self, state, qubits, result, nqubits, normalize=True):
+        ntargets = len(qubits)
+        nstates = 1 << (nqubits - ntargets)
+        int blockSize = DEFAULT_BLOCK_SIZE;
+        nblocks, block_size = self.calculate_blocks(nstates)
+
+        ktype = self.get_kernel_type(state)
+        args = [state, qubits, result, ntargets]
+        # TODO: Implemenet `collapse_state_kernel`
+        kernel = self.ops.get_function(f"collapse_state_kernel<{ktype}>")
+        kernel((nblocks,), (block_size,), args)
+
+        if normalize:
+            # TODO: Check if it is faster to do this with `cp` primitives
+            # instead of custom kernels
+            rtype = ktype.split("<")[1][:-1]
+            # allocate support arrays on GPU
+            if rtype == "double":
+                # norms = 0
+                # not sure if `nblocks` is the proper shape here
+                block_norms = cp.zeros(nblocks, dtype="float64")
+            else:
+                # norms = 0
+                block_norms = cp.zeros(nblocks, dtype="float32")
+
+            args.append(nstates)
+            args.append(block_norms)
+            kernel = self.ops.get_function(f"collapsed_norm_kernel<{ktype},{rtype}>")
+            kernel((1,), (block_size,), args)
+            # TODO: check if it is faster to do this calculation using custom kernel
+            #kernel = self.gates.get_function(f"vector_reduction_kernel<{rtype}>")
+            #kernel((1,), (block_size,), [block_norms, norms])
+            norms = cp.sum(block_norms)
+            args.pop()
+            args.append(norms)
+            kernel = self.ops.get_function(f"normalize_collapsed_state_kernel<{ktype},{rtype}>")
+            kernel((nblocks,), (block_size,), args)
 
     def measure_frequencies(self, frequencies, probs, nshots, nqubits, seed=1234):
         raise NotImplementedError("`measure_frequencies` method is not "
