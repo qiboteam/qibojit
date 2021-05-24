@@ -1,9 +1,7 @@
 # Installation script for python
 from setuptools import setup, find_packages
-import subprocess
 import os
 import re
-import sys
 
 PACKAGE = "qibojit"
 
