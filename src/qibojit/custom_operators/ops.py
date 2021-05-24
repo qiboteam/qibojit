@@ -1,5 +1,4 @@
 import psutil
-import joblib
 import numpy as np
 from numba import prange, njit
 NTHREADS = psutil.cpu_count(logical=False)
@@ -62,35 +61,34 @@ def collapse_state(state, qubits, result, nqubits, normalize=True):
     return state
 
 
-@njit(cache=True)
-def measure_frequencies_job(frequencies, probs, nshots, nstates, seed):
-    frequencies_private = np.zeros_like(frequencies)
-    np.random.seed(seed)
-    for i in prange(nshots):
-        if i == 0:
-            # Initial bitstring is the one with the maximum probability
-            shot = probs.argmax()
-        new_shot = (shot + np.random.randint(0, nstates)) % nstates
-        # accept or reject move
-        if probs[new_shot] / probs[shot] > np.random.random():
-            shot = new_shot
-        # update frequencies
-        frequencies_private[shot] += 1
-    return frequencies_private
+@njit(cache=True, parallel=True)
+def measure_frequencies_job(frequencies, probs, thread_nshots, nstates, thread_seed):
+    nthreads = len(thread_seed)
+    thread_frequencies = np.zeros(shape=(nthreads, frequencies.shape[0]), dtype=frequencies.dtype)
+    for n in prange(nthreads):
+        frequencies_private = thread_frequencies[n]
+        np.random.seed(thread_seed[n])
+        for i in range(thread_nshots[n]):
+            if i == 0:
+                # Initial bitstring is the one with the maximum probability
+                shot = probs.argmax()
+            new_shot = (shot + np.random.randint(0, nstates)) % nstates
+            # accept or reject move
+            if probs[new_shot] / probs[shot] > np.random.random():
+                shot = new_shot
+            # update frequencies
+            frequencies_private[shot] += 1
+    frequencies += thread_frequencies.sum(axis=0)
 
 
 def measure_frequencies(frequencies, probs, nshots, nqubits, seed=1234, nthreads=NTHREADS):
     nstates = 1 << nqubits
     thread_nshots = (nthreads - 1) * [nshots // nthreads]
     thread_nshots.append(thread_nshots[-1] + nshots % nthreads)
+    thread_nshots = np.array(thread_nshots)
 
     np.random.seed(seed)
     thread_seed = np.random.randint(0, int(1e8), size=(nthreads,))
 
-    pool = joblib.Parallel(n_jobs=nthreads, prefer="threads")
-    thread_frequencies = pool(
-        joblib.delayed(measure_frequencies_job)(frequencies, probs, n, nstates, s)
-        for n, s in zip(thread_nshots, thread_seed))
-    thread_frequencies = np.array(thread_frequencies)
-    frequencies += thread_frequencies.sum(axis=0)
+    measure_frequencies_job(frequencies, probs, thread_nshots, nstates, thread_seed)
     return frequencies
