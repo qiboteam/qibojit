@@ -31,12 +31,12 @@ with open(os.path.join(this_directory, "README.md"), encoding="utf-8") as f:
 
 
 setup(
-    name="qibojit",
+    name=PACKAGE,
     version=get_version(),
     description="Simulation tools based on numba and cupy.",
-    author="Quantum-TII team",
+    author="The Qibo team",
     author_email="",
-    url="https://github.com/Quantum-TII/qibojit",
+    url="https://github.com/qiboteam/qibojit",
     packages=find_packages("src"),
     package_dir={"": "src"},
     zip_safe=False,
