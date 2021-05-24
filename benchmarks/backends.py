@@ -92,7 +92,7 @@ class TensorflowBackend(AbstractBackend):
         return [state, qubits, result, nqubits]
 
     def measure_frequencies(self, frequencies, probs, nshots, nqubits):
-        return self.op.measure_frequencies(frequencies, probs, nshots, nqubits, 1234, self.nthreads)
+        return self.op.measure_frequencies(frequencies, probs, nshots, 1234, self.nthreads)
 
     def measure_frequencies_args(self, state, nqubits, controls=[]):
         if controls:

@@ -62,9 +62,16 @@ def collapse_state(state, qubits, result, nqubits, normalize=True):
 
 
 @njit(cache=True, parallel=True)
-def measure_frequencies_job(frequencies, probs, thread_nshots, nstates, thread_seed):
-    nthreads = len(thread_seed)
-    thread_frequencies = np.zeros(shape=(nthreads, frequencies.shape[0]), dtype=frequencies.dtype)
+def measure_frequencies(frequencies, probs, nshots, seed=1234, nthreads=NTHREADS):
+    nstates = frequencies.shape[0]
+    thread_nshots = np.zeros(nthreads, dtype=frequencies.dtype)
+    thread_nshots[:] = nshots // nthreads
+    thread_nshots[-1] += nshots % nthreads
+
+    np.random.seed(seed)
+    thread_seed = np.random.randint(0, int(1e8), size=(nthreads,))
+
+    thread_frequencies = np.zeros(shape=(nthreads, nstates), dtype=frequencies.dtype)
     for n in prange(nthreads):
         frequencies_private = thread_frequencies[n]
         np.random.seed(thread_seed[n])
@@ -79,16 +86,4 @@ def measure_frequencies_job(frequencies, probs, thread_nshots, nstates, thread_s
             # update frequencies
             frequencies_private[shot] += 1
     frequencies += thread_frequencies.sum(axis=0)
-
-
-def measure_frequencies(frequencies, probs, nshots, nqubits, seed=1234, nthreads=NTHREADS):
-    nstates = 1 << nqubits
-    thread_nshots = (nthreads - 1) * [nshots // nthreads]
-    thread_nshots.append(thread_nshots[-1] + nshots % nthreads)
-    thread_nshots = np.array(thread_nshots)
-
-    np.random.seed(seed)
-    thread_seed = np.random.randint(0, int(1e8), size=(nthreads,))
-
-    measure_frequencies_job(frequencies, probs, thread_nshots, nstates, thread_seed)
     return frequencies
