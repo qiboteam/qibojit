@@ -12,7 +12,7 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest]
-        python-version: [3.9] # TODO update this when going online
+        python-version: [3.8] # TODO update this when going online
     runs-on: ${{ matrix.os }}
     steps:
     - uses: actions/checkout@v1
