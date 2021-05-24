@@ -225,8 +225,10 @@ class CupyBackend(AbstractBackend):
         nstates = 1 << (nqubits - ntargets)
         nblocks, block_size = self.calculate_blocks(nstates)
 
+        state = self.cast(state)
         ktype = self.get_kernel_type(state)
-        args = [state, qubits, result, ntargets]
+        args = [state, self.cast(qubits, dtype=self.cp.int32),
+                self.cast(result, dtype=self.cp.int32), ntargets]
         # TODO: Implemenet `collapse_state_kernel`
         kernel = self.ops.get_function(f"collapse_state_kernel<{ktype}>")
         kernel((nblocks,), (block_size,), args)
@@ -256,6 +258,8 @@ class CupyBackend(AbstractBackend):
             args.append(norms)
             kernel = self.ops.get_function(f"normalize_collapsed_state_kernel<{ktype},{rtype}>")
             kernel((nblocks,), (block_size,), args)
+
+        return state
 
     def measure_frequencies(self, frequencies, probs, nshots, nqubits, seed=1234):
         raise NotImplementedError("`measure_frequencies` method is not "
