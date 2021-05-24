@@ -1,9 +1,7 @@
 # Installation script for python
 from setuptools import setup, find_packages
-import subprocess
 import os
 import re
-import sys
 
 PACKAGE = "qibojit"
 
@@ -19,6 +17,11 @@ def get_version():
         mo = re.search(VSRE, line, re.M)
         if mo:
             return mo.group(1)
+
+
+# Read in requirements
+requirements = open('requirements.txt').readlines()
+requirements = [r.strip() for r in requirements]
 
 
 # load long description from README
@@ -41,7 +44,10 @@ setup(
         "Programming Language :: Python :: 3",
         "Topic :: Scientific/Engineering :: Physics",
     ],
-    install_requires=['numba', 'cupy-cuda110'],
+    install_requires=requirements,
+    extras_require={
+        "tests": ["qibo"],
+    },
     python_requires=">=3.6.0",
     long_description=long_description,
     long_description_content_type='text/markdown',
