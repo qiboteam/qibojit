@@ -47,10 +47,11 @@ def test_collapse_state(nqubits, targets, results, dtype):
 def test_measure_frequencies(dtype, inttype):
     probs = np.ones(16, dtype=dtype) / 16
     frequencies = np.zeros(16, dtype=inttype)
-    frequencies = op.measure_frequencies(frequencies, probs, nshots=1000, seed=1234)
+    frequencies = op.measure_frequencies(frequencies, probs, nshots=1000,
+                                         nqubits=4, seed=1234)
     assert np.sum(frequencies) == 1000
-    target_frequencies = np.array([69, 71, 66, 50, 55, 62, 68, 50, 61, 61, 69,
-                                   69, 69, 67, 62, 51], dtype=inttype)
+    target_frequencies = np.array([65, 70, 60, 51, 54, 61, 69, 54, 53, 60, 74,
+                                   77, 70, 66, 65, 51], dtype=inttype)
     np.testing.assert_allclose(frequencies, target_frequencies)
 
 
@@ -65,7 +66,8 @@ def test_measure_frequencies_sparse_probabilities(nonzero):
         probs[i] = 1
     probs = probs / np.sum(probs)
     frequencies = np.zeros(8, dtype=np.int64)
-    frequencies = op.measure_frequencies(frequencies, probs, nshots=1000)
+    frequencies = op.measure_frequencies(frequencies, probs, nshots=1000,
+                                         nqubits=3)
     assert np.sum(frequencies) == 1000
     for i, freq in enumerate(frequencies):
         if i in nonzero:

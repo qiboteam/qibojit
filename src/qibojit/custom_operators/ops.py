@@ -62,7 +62,7 @@ def collapse_state(state, qubits, result, nqubits, normalize=True):
 
 
 @njit(cache=True, parallel=True)
-def measure_frequencies(frequencies, probs, nshots, seed=1234, nthreads=NTHREADS):
+def measure_frequencies(frequencies, probs, nshots, nqubits, seed=1234, nthreads=NTHREADS):
     nstates = frequencies.shape[0]
     thread_nshots = np.zeros(nthreads, dtype=frequencies.dtype)
     thread_nshots[:] = nshots // nthreads
