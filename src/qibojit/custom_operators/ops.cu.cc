@@ -6,7 +6,7 @@ __device__ long collapse_index(const int* qubits, long g, long h, int ntargets) 
   for (auto iq = 0; iq < ntargets; iq++) {
     const auto n = qubits[iq];
     long k = (long)1 << n;
-    i = ((long)((int64)i >> n) << (n + 1)) + (i & (k - 1));
+    i = ((long)((long)i >> n) << (n + 1)) + (i & (k - 1));
     i += ((long)((int)(h >> iq) % 2) * k);
   }
   return i;
@@ -15,10 +15,10 @@ __device__ long collapse_index(const int* qubits, long g, long h, int ntargets) 
 
 template <typename T>
 __global__ void collapse_state_kernel(T* state, const int* qubits,
-                                      const int64* results, int ntargets) {
+                                      const long* results, int ntargets) {
   const auto g = blockIdx.x * blockDim.x + threadIdx.x;
   const long result = results[0];
-  const long nsubstates = (int64)1 << ntargets;
+  const long nsubstates = (long)1 << ntargets;
   for (auto h = 0; h < result; h++) {
     state[collapse_index(qubits, g, h, ntargets)] = T(0, 0);
   }
@@ -30,7 +30,7 @@ __global__ void collapse_state_kernel(T* state, const int* qubits,
 
 template <typename T, typename R>
 __global__ void collapsed_norm_kernel(T* state, const int* qubits,
-                                      const int64* results, int ntargets,
+                                      const long* results, int ntargets,
                                       long nstates, R* norms) {
   const auto tid = threadIdx.x;
   const auto stride = blockDim.x;
@@ -66,7 +66,7 @@ __global__ void vector_reduction_kernel(R *g_idata, R *g_odata) {
 
 template <typename T, typename R>
 __global__ void normalize_collapsed_state_kernel(T* state, const int* qubits,
-                                                 const int64* results,
+                                                 const long* results,
                                                  int ntargets, long nstates,
                                                  R* norms) {
   const auto g = blockIdx.x * blockDim.x + threadIdx.x;
