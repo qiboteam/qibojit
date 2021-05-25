@@ -25,9 +25,12 @@ jobs:
     - name: Test with pylint
       run: |
         pylint src -E -d E1123,E1120
-    - name: Test with pytest core
+    - name: Test with jit enabled
       run: |
-        pytest --cov=qibojit --cov-report=xml --pyargs qibojit
+        pytest --pyargs qibojit
+    - name: Test with jit disabled
+      run: |
+        NUMBA_DISABLE_JIT=1 pytest --cov=qibojit --cov-report=xml --pyargs qibojit
     - name: Upload coverage to Codecov
       if: startsWith(matrix.os, 'ubuntu')
       uses: codecov/codecov-action@v1
