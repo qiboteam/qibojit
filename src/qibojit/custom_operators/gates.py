@@ -14,7 +14,7 @@ def multicontrol_index(g, qubits):
 @njit(parallel=True, cache=True)
 def apply_gate_kernel(state, gate, nstates, m):
     tk = 1 << m
-    for g in prange(nstates):
+    for g in prange(nstates):  # pylint: disable=not-an-iterable
         i1 = ((g >> m) << (m + 1)) + (g & (tk - 1))
         i2 = i1 + tk
         state[i1], state[i2] = (gate[0, 0] * state[i1] + gate[0, 1] * state[i2],
@@ -25,7 +25,7 @@ def apply_gate_kernel(state, gate, nstates, m):
 @njit(parallel=True, cache=True)
 def multicontrol_apply_gate_kernel(state, gate, qubits, nstates, m):
     tk = 1 << m
-    for g in prange(nstates):
+    for g in prange(nstates):  # pylint: disable=not-an-iterable
         i = multicontrol_index(g, qubits)
         i1, i2 = i - tk, i
         state[i1], state[i2] = (gate[0, 0] * state[i1] + gate[0, 1] * state[i2],
@@ -36,7 +36,7 @@ def multicontrol_apply_gate_kernel(state, gate, qubits, nstates, m):
 @njit(parallel=True, cache=True)
 def apply_x_kernel(state, gate, nstates, m):
     tk = 1 << m
-    for g in prange(nstates):
+    for g in prange(nstates):  # pylint: disable=not-an-iterable
         i1 = ((g >> m) << (m + 1)) + (g & (tk - 1))
         i2 = i1 + tk
         state[i1], state[i2] = state[i2], state[i1]
@@ -46,7 +46,7 @@ def apply_x_kernel(state, gate, nstates, m):
 @njit(parallel=True, cache=True)
 def multicontrol_apply_x_kernel(state, gate, qubits, nstates, m):
     tk = 1 << m
-    for g in prange(nstates):
+    for g in prange(nstates):  # pylint: disable=not-an-iterable
         i = multicontrol_index(g, qubits)
         i1, i2 = i - tk, i
         state[i1], state[i2] = state[i2], state[i1]
@@ -56,7 +56,7 @@ def multicontrol_apply_x_kernel(state, gate, qubits, nstates, m):
 @njit(parallel=True, cache=True)
 def apply_y_kernel(state, gate, nstates, m):
     tk = 1 << m
-    for g in prange(nstates):
+    for g in prange(nstates):  # pylint: disable=not-an-iterable
         i1 = ((g >> m) << (m + 1)) + (g & (tk - 1))
         i2 = i1 + tk
         state[i1], state[i2] = -1j * state[i2], 1j * state[i1]
@@ -66,7 +66,7 @@ def apply_y_kernel(state, gate, nstates, m):
 @njit(parallel=True, cache=True)
 def multicontrol_apply_y_kernel(state, gate, qubits, nstates, m):
     tk = 1 << m
-    for g in prange(nstates):
+    for g in prange(nstates):  # pylint: disable=not-an-iterable
         i = multicontrol_index(g, qubits)
         i1, i2 = i - tk, i
         state[i1], state[i2] = -1j * state[i2], 1j * state[i1]
@@ -76,7 +76,7 @@ def multicontrol_apply_y_kernel(state, gate, qubits, nstates, m):
 @njit(parallel=True, cache=True)
 def apply_z_kernel(state, gate, nstates, m):
     tk = 1 << m
-    for g in prange(nstates):
+    for g in prange(nstates):  # pylint: disable=not-an-iterable
         i = ((g >> m) << (m + 1)) + (g & (tk - 1))
         state[i + tk] *= -1
     return state
@@ -85,7 +85,7 @@ def apply_z_kernel(state, gate, nstates, m):
 @njit(parallel=True, cache=True)
 def multicontrol_apply_z_kernel(state, gate, qubits, nstates, m):
     tk = 1 << m
-    for g in prange(nstates):
+    for g in prange(nstates):  # pylint: disable=not-an-iterable
         i = multicontrol_index(g, qubits)
         state[i] *= -1
     return state
@@ -94,7 +94,7 @@ def multicontrol_apply_z_kernel(state, gate, qubits, nstates, m):
 @njit(parallel=True, cache=True)
 def apply_z_pow_kernel(state, gate, nstates, m):
     tk = 1 << m
-    for g in prange(nstates):
+    for g in prange(nstates):  # pylint: disable=not-an-iterable
         i = ((g >> m) << (m + 1)) + (g & (tk - 1))
         state[i + tk] *= gate
     return state
@@ -103,7 +103,7 @@ def apply_z_pow_kernel(state, gate, nstates, m):
 @njit(parallel=True, cache=True)
 def multicontrol_apply_z_pow_kernel(state, gate, qubits, nstates, m):
     tk = 1 << m
-    for g in prange(nstates):
+    for g in prange(nstates):  # pylint: disable=not-an-iterable
         i = multicontrol_index(g, qubits)
         state[i] *= gate
     return state
@@ -115,7 +115,7 @@ def apply_two_qubit_gate_kernel(state, gate, nstates, m1, m2, swap_targets=False
     uk1, uk2 = tk1, tk2
     if swap_targets:
         uk1, uk2 = uk2, uk1
-    for g in prange(nstates):
+    for g in prange(nstates):  # pylint: disable=not-an-iterable
         i = ((g >> m1) << (m1 + 1)) + (g & (tk1 - 1))
         i = ((i >> m2) << (m2 + 1)) + (i & (tk2 - 1))
         i1, i2 = i + uk1, i + uk2
@@ -138,7 +138,7 @@ def multicontrol_apply_two_qubit_gate_kernel(state, gate, qubits, nstates, m1, m
     uk1, uk2 = tk1, tk2
     if swap_targets:
         uk1, uk2 = uk2, uk1
-    for g in prange(nstates):
+    for g in prange(nstates):  # pylint: disable=not-an-iterable
         i = multicontrol_index(g, qubits)
         i1, i2 = i - uk2, i - uk1
         i0 = i1 - uk1
@@ -157,7 +157,7 @@ def multicontrol_apply_two_qubit_gate_kernel(state, gate, qubits, nstates, m1, m
 @njit(parallel=True, cache=True)
 def apply_swap_kernel(state, gate, nstates, m1, m2, swap_targets=False):
     tk1, tk2 = 1 << m1, 1 << m2
-    for g in prange(nstates):
+    for g in prange(nstates):  # pylint: disable=not-an-iterable
         i = ((g >> m1) << (m1 + 1)) + (g & (tk1 - 1))
         i = ((i >> m2) << (m2 + 1)) + (i & (tk2 - 1))
         i1, i2 = i + tk1, i + tk2
@@ -169,7 +169,7 @@ def apply_swap_kernel(state, gate, nstates, m1, m2, swap_targets=False):
 def multicontrol_apply_swap_kernel(state, gate, qubits, nstates, m1, m2, swap_targets=False):
     tk1, tk2 = 1 << m1, 1 << m2
     uk1, uk2 = tk1, tk2
-    for g in prange(nstates):
+    for g in prange(nstates):  # pylint: disable=not-an-iterable
         i = multicontrol_index(g, qubits)
         i1, i2 = i - tk2, i - tk1
         state[i1], state[i2] = state[i2], state[i1]
@@ -182,7 +182,7 @@ def apply_fsim_kernel(state, gate, nstates, m1, m2, swap_targets=False):
     uk1, uk2 = tk1, tk2
     if swap_targets:
         uk1, uk2 = uk2, uk1
-    for g in prange(nstates):
+    for g in prange(nstates):  # pylint: disable=not-an-iterable
         i = ((g >> m1) << (m1 + 1)) + (g & (tk1 - 1))
         i = ((i >> m2) << (m2 + 1)) + (i & (tk2 - 1))
         i1, i2 = i + uk1, i + uk2
@@ -199,7 +199,7 @@ def multicontrol_apply_fsim_kernel(state, gate, qubits, nstates, m1, m2, swap_ta
     uk1, uk2 = tk1, tk2
     if swap_targets:
         uk1, uk2 = uk2, uk1
-    for g in prange(nstates):
+    for g in prange(nstates):  # pylint: disable=not-an-iterable
         i = multicontrol_index(g, qubits)
         i1, i2 = i - uk2, i - uk1
         state[i1], state[i2] = (gate[0] * state[i1] + gate[1] * state[i2],

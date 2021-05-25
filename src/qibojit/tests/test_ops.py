@@ -50,10 +50,10 @@ def test_measure_frequencies(backend, realtype, inttype):
     probs = np.ones(16, dtype=realtype) / 16
     frequencies = np.zeros(16, dtype=inttype)
     frequencies = op.measure_frequencies(frequencies, probs, nshots=1000,
-                                         nqubits=4, seed=1234)
+                                         nqubits=4, seed=1234, nthreads=4)
     assert np.sum(frequencies) == 1000
-    target_frequencies = np.array([69, 71, 66, 50, 55, 62, 68, 50, 61, 61, 69,
-                                   69, 69, 67, 62, 51], dtype=inttype)
+    target_frequencies = np.array([72, 65, 63, 54, 57, 55, 67, 50, 53, 67, 69,
+                                   68, 64, 68, 66, 62], dtype=inttype)
     np.testing.assert_allclose(frequencies, target_frequencies)
 
 
@@ -69,7 +69,7 @@ def test_measure_frequencies_sparse_probabilities(backend, nonzero):
     probs = probs / np.sum(probs)
     frequencies = np.zeros(8, dtype=np.int64)
     frequencies = op.measure_frequencies(frequencies, probs, nshots=1000,
-                                         nqubits=3)
+                                         nqubits=3, nthreads=4)
     assert np.sum(frequencies) == 1000
     for i, freq in enumerate(frequencies):
         if i in nonzero:

@@ -80,7 +80,7 @@ def test_apply_zpow_gate(backend, nqubits, target, controls, dtype):
                           (8, [6, 3], []), (3, [0, 1], [2]), (4, [1, 3], [0]),
                           (5, [2, 3], [1, 4]), (5, [1, 3], [0, 2]),
                           (6, [2, 5], [0, 1, 3, 4])])
-def test_apply_gate(backend, nqubits, targets, controls, dtype):
+def test_apply_two_qubit_gate(backend, nqubits, targets, controls, dtype):
     qibo.set_backend("numpy")
     state = random_state(nqubits, dtype=dtype)
     matrix = random_complex((4, 4), dtype=dtype)
