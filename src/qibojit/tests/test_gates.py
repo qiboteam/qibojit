@@ -65,7 +65,7 @@ def test_apply_zpow_gate(nqubits, target, controls, dtype):
                           (5, [2, 3], [1, 4]), (5, [1, 3], [0, 2]),
                           (6, [2, 5], [0, 1, 3, 4])])
 @pytest.mark.parametrize("dtype", ["complex128", "complex64"])
-def test_apply_gate_targets(nqubits, targets, controls, dtype):
+def test_apply_two_qubit_gate(nqubits, targets, controls, dtype):
     qibo.set_backend("numpy")
     state = random_state(nqubits, dtype=dtype)
     matrix = random_complex((4, 4), dtype=dtype)
