@@ -24,18 +24,20 @@ def test_apply_gate(nqubits, target, controls, dtype):
     np.testing.assert_allclose(state, target_state, atol=ATOL.get(dtype))
 
 
-@pytest.mark.parametrize(("nqubits", "target"),
-                         [(3, 0), (4, 3), (5, 2), (3, 1)])
+@pytest.mark.parametrize(("nqubits", "target", "controls"),
+                         [(3, 0, []), (4, 3, []), (5, 2, []), (3, 1, []),
+                          (3, 0, [1]), (4, 3, [0, 1]), (5, 2, [1, 3, 4])])
 @pytest.mark.parametrize("pauli", ["x", "y", "z"])
 @pytest.mark.parametrize("dtype", ["complex128", "complex64"])
-def test_apply_pauli_gate(nqubits, target, pauli, dtype):
+def test_apply_pauli_gate(nqubits, target, pauli, controls, dtype):
     qibo.set_backend("numpy")
     state = random_state(nqubits, dtype=dtype)
 
-    gate = getattr(qibo.gates, pauli.capitalize())(target)
+    gate = getattr(qibo.gates, pauli.capitalize())
+    gate = gate(target).controlled_by(*controls)
     target_state = gate(np.copy(state))
 
-    qubits = qubits_tensor(nqubits, [target])
+    qubits = qubits_tensor(nqubits, [target], controls)
     func = getattr(op, "apply_{}".format(pauli))
     state = func(state, nqubits, target, qubits)
     np.testing.assert_allclose(state, target_state, atol=ATOL.get(dtype))
@@ -62,7 +64,7 @@ def test_apply_zpow_gate(nqubits, target, controls, dtype):
 @pytest.mark.parametrize(("nqubits", "targets", "controls"),
                          [(5, [3, 4], []), (4, [2, 0], []), (2, [0, 1], []),
                           (8, [6, 3], []), (3, [0, 1], [2]), (4, [1, 3], [0]),
-                          (5, [2, 3], [1, 4]), (5, [1, 3], [0, 2]),
+                          (5, [2, 3], [1, 4]), (5, [3, 1], [0, 2]),
                           (6, [2, 5], [0, 1, 3, 4])])
 @pytest.mark.parametrize("dtype", ["complex128", "complex64"])
 def test_apply_two_qubit_gate(nqubits, targets, controls, dtype):
@@ -98,10 +100,10 @@ def test_apply_swap(nqubits, targets, controls, dtype):
 
 
 @pytest.mark.parametrize(("nqubits", "targets", "controls"),
-                         [(3, [0, 1], []), (4, [0, 2], []), (3, [1, 2], [0]),
+                         [(3, [0, 1], []), (4, [2, 0], []), (3, [1, 2], [0]),
                           (4, [0, 1], [2]), (5, [0, 1], [2]), (5, [3, 4], [2]),
-                          (4, [0, 3], [1]), (4, [2, 3], [0]), (5, [1, 4], [2]),
-                          (6, [1, 3], [0, 4]), (6, [0, 5], [1, 2, 3])])
+                          (4, [0, 3], [1]), (4, [3, 2], [0]), (5, [1, 4], [2]),
+                          (6, [1, 3], [0, 4]), (6, [5, 0], [1, 2, 3])])
 @pytest.mark.parametrize("dtype", ["complex128", "complex64"])
 def test_apply_fsim(nqubits, targets, controls, dtype):
     qibo.set_backend("numpy")
