@@ -38,6 +38,7 @@ class AbstractBackend(ABC):
 class NumbaBackend(AbstractBackend):
 
     def __init__(self):
+        import psutil
         import numpy as np
         from qibojit.custom_operators import gates, ops
         self.name = "numba"
@@ -79,11 +80,14 @@ class NumbaBackend(AbstractBackend):
             return self.ops.initial_density_matrix(nqubits, dtype)
         return self.ops.initial_state_vector(nqubits, dtype)
 
-    def collapse_state(self, state, qubits, result, nqubits, normalize):
+    def collapse_state(self, state, qubits, result, nqubits, normalize=True):
         return self.ops.collapse_state(state, qubits, result, nqubits, normalize)
 
-    def measure_frequencies(self, frequencies, probs, nshots, nqubits, seed=1234):
-        return self.ops.measure_frequencies(frequencies, probs, nshots, nqubits, seed)
+    def measure_frequencies(self, frequencies, probs, nshots, nqubits, seed=1234, nthreads=None):
+        if nthreads is None:
+            import psutil
+            nthreads = psutil.cpu_count(logical=False)
+        return self.ops.measure_frequencies(frequencies, probs, nshots, nqubits, seed, nthreads)
 
 
 class CupyBackend(AbstractBackend):

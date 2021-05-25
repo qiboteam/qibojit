@@ -1,7 +1,5 @@
-import psutil
 import numpy as np
 from numba import prange, njit
-NTHREADS = psutil.cpu_count(logical=False)
 
 
 @njit(parallel=True, cache=True)
@@ -54,7 +52,7 @@ def collapse_state(state, qubits, result, nqubits, normalize=True):
 
 
 @njit(cache=True, parallel=True)
-def measure_frequencies(frequencies, probs, nshots, nqubits, seed=1234, nthreads=NTHREADS):
+def measure_frequencies(frequencies, probs, nshots, nqubits, seed=1234, nthreads=None):
     nstates = frequencies.shape[0]
     thread_nshots = np.zeros(nthreads, dtype=frequencies.dtype)
     thread_nshots[:] = nshots // nthreads

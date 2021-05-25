@@ -84,12 +84,12 @@ def initial_state(nqubits, dtype, is_matrix=False):
     return backend.initial_state(nqubits, dtype, is_matrix)
 
 
-def collapse_state(state, qubits, result, nqubits, normalize):
+def collapse_state(state, qubits, result, nqubits, normalize=True):
     return backend.collapse_state(state, qubits, result, nqubits, normalize)
 
 
-def measure_frequencies(frequencies, probs, nshots, nqubits, seed=1234):
+def measure_frequencies(frequencies, probs, nshots, nqubits, seed=1234, nthreads=None):
     # always fall back to numba CPU backend because this op is not implemented
     # on GPU
     numba_backend = backend.constructed_backends.get("numba")
-    return numba_backend.measure_frequencies(frequencies, probs, nshots, nqubits, seed)
+    return numba_backend.measure_frequencies(frequencies, probs, nshots, nqubits, seed, nthreads)
