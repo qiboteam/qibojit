@@ -38,7 +38,6 @@ class AbstractBackend(ABC):
 class NumbaBackend(AbstractBackend):
 
     def __init__(self):
-        import psutil
         import numpy as np
         from qibojit.custom_operators import gates, ops
         self.name = "numba"
