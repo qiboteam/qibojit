@@ -44,7 +44,7 @@ def test_apply_gate(backend, nqubits, target, controls, dtype):
                          [(3, 0, []), (4, 3, []), (5, 2, []), (3, 1, []),
                           (3, 0, [1]), (4, 3, [0, 1]), (5, 2, [1, 3, 4])])
 @pytest.mark.parametrize("pauli", ["x", "y", "z"])
-def test_apply_pauli_gate(nqubits, target, pauli, controls, dtype):
+def test_apply_pauli_gate(backend, nqubits, target, pauli, controls, dtype):
     qibo.set_backend("numpy")
     state = random_state(nqubits, dtype=dtype)
 
@@ -120,7 +120,7 @@ def test_apply_swap(backend, nqubits, targets, controls, dtype):
                           (4, [0, 1], [2]), (5, [0, 1], [2]), (5, [3, 4], [2]),
                           (4, [0, 3], [1]), (4, [3, 2], [0]), (5, [1, 4], [2]),
                           (6, [1, 3], [0, 4]), (6, [5, 0], [1, 2, 3])])
-def test_apply_fsim(nqubits, targets, controls, dtype):
+def test_apply_fsim(backend, nqubits, targets, controls, dtype):
     qibo.set_backend("numpy")
     state = random_state(nqubits, dtype=dtype)
     matrix = random_complex((2, 2), dtype=dtype)

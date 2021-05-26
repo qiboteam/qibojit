@@ -1,5 +1,4 @@
 import pytest
-import cupy as cp
 from qibojit import custom_operators as op
 
 
