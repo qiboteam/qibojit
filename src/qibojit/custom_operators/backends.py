@@ -230,37 +230,12 @@ class CupyBackend(AbstractBackend):
         ktype = self.get_kernel_type(state)
         args = [state, self.cast(qubits, dtype=self.cp.int32),
                 self.cast(result, dtype=self.cp.int32), ntargets]
-        # TODO: Implemenet `collapse_state_kernel`
         kernel = self.ops.get_function(f"collapse_state_kernel<{ktype}>")
         kernel((nblocks,), (block_size,), args)
 
         if normalize:
             norm = self.cp.sqrt(self.cp.sum(self.cp.square(self.cp.abs(state))))
             state = state / norm
-            # TODO: Check if it is faster to do this with `cp` primitives
-            # instead of custom kernels
-            #rtype = ktype.split("<")[1][:-1]
-            # allocate support arrays on GPU
-            #if rtype == "double":
-                # norms = 0
-                # not sure if `nblocks` is the proper shape here
-            #    block_norms = self.cp.zeros(nblocks, dtype="float64")
-            #else:
-                # norms = 0
-            #    block_norms = self.cp.zeros(nblocks, dtype="float32")
-
-            #args.append(nstates)
-            #args.append(block_norms)
-            #kernel = self.ops.get_function(f"collapsed_norm_kernel<{ktype},{rtype}>")
-            #kernel((1,), (block_size,), args)
-            # TODO: check if it is faster to do this calculation using custom kernel
-            #kernel = self.gates.get_function(f"vector_reduction_kernel<{rtype}>")
-            #kernel((1,), (block_size,), [block_norms, norms])
-            #norms = self.cp.sqrt(self.cp.sum(block_norms))
-            #args.pop()
-            #args.append(norms)
-            #kernel = self.ops.get_function(f"normalize_collapsed_state_kernel<{ktype},{rtype}>")
-            #kernel((nblocks,), (block_size,), args)
 
         return state
 
