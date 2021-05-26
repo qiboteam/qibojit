@@ -1,5 +1,14 @@
 import pytest
+import cupy as cp
 from qibojit import custom_operators as op
+
+
+BACKENDS = ["numba"]
+try:
+    if cp.cuda.runtime.getDeviceCount(): # test cupy backend in GPU is available
+        BACKENDS.append("cupy")
+except cp.cuda.runtime.CUDARuntimeError:
+    pass
 
 
 @pytest.fixture
@@ -12,6 +21,6 @@ def backend(backend_name):
 
 def pytest_generate_tests(metafunc):
     if "backend_name" in metafunc.fixturenames:
-        metafunc.parametrize("backend_name", ["numba", "cupy"])
+        metafunc.parametrize("backend_name", BACKENDS)
     if "dtype" in metafunc.fixturenames:
         metafunc.parametrize("dtype", ["complex128", "complex64"])
