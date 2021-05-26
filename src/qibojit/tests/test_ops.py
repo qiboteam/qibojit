@@ -19,7 +19,7 @@ def test_initial_state(backend, dtype, is_matrix):
 # FIXME: Find why tests with >10 qubits hang on GPU
 @pytest.mark.parametrize("nqubits,targets,results",
                          [(2, [0], [1]), (2, [1], [0]), (3, [1], [1]),
-                          (4, [1, 3], [1, 0]), (5, [1, 2, 4], [0, 1, 1])])
+                          (4, [1, 3], [1, 0]), (5, [1, 2, 4], [0, 1, 1]),
                           (15, [4, 7], [0, 0]), (16, [8, 12, 15], [1, 0, 1])])
 def test_collapse_state(backend, nqubits, targets, results, dtype):
     atol = 1e-7 if dtype == "complex64" else 1e-14
