@@ -5,9 +5,13 @@ from qibojit import custom_operators as op
 
 BACKENDS = ["numba"]
 try:
-    if cp.cuda.runtime.getDeviceCount(): # test cupy backend in GPU is available
-        BACKENDS.append("cupy")
-except cp.cuda.runtime.CUDARuntimeError:
+    import cupy as cp
+    try:
+        if cp.cuda.runtime.getDeviceCount(): # test cupy backend in GPU is available
+            BACKENDS.append("cupy")
+    except cp.cuda.runtime.CUDARuntimeError:
+        pass
+except (ModuleNotFoundError, ImportError): # skip cupy tests if cupy is not installed
     pass
 
 
