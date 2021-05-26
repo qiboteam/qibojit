@@ -109,27 +109,14 @@ class CupyBackend(AbstractBackend):
             kernels.append(f"{kernel}_kernel<complex<float>>")
             kernels.append(f"multicontrol_{kernel}_kernel<complex<double>>")
             kernels.append(f"multicontrol_{kernel}_kernel<complex<float>>")
+        kernels.append("collapse_state_kernel<complex<double>>")
+        kernels.append("collapse_state_kernel<complex<float>>")
         kernels = tuple(kernels)
         gates_dir = os.path.join(base_dir, "gates.cu.cc")
         with open(gates_dir, "r") as file:
             code = r"{}".format(file.read())
             self.gates = cp.RawModule(code=code, options=("--std=c++11",),
                                       name_expressions=kernels)
-
-        # load `collapse_state` kernels
-        kernels = tuple((
-            "collapse_state_kernel<complex<double>>",
-            "collapse_state_kernel<complex<float>>",
-            "collapsed_norm_kernel<complex<double>,double>",
-            "collapsed_norm_kernel<complex<float>,float>",
-            "normalize_collapsed_state_kernel<complex<double>,double>",
-            "normalize_collapsed_state_kernel<complex<float>,float>"
-        ))
-        ops_dir = os.path.join(base_dir, "ops.cu.cc")
-        with open(ops_dir, "r") as file:
-            code = r"{}".format(file.read())
-            self.ops = cp.RawModule(code=code, options=("--std=c++11",),
-                                    name_expressions=kernels)
 
     def calculate_blocks(self, nstates):
         block_size = self.DEFAULT_BLOCK_SIZE
@@ -230,7 +217,7 @@ class CupyBackend(AbstractBackend):
         ktype = self.get_kernel_type(state)
         args = [state, self.cast(qubits, dtype=self.cp.int32),
                 self.cast(result, dtype=self.cp.int32), ntargets]
-        kernel = self.ops.get_function(f"collapse_state_kernel<{ktype}>")
+        kernel = self.gates.get_function(f"collapse_state_kernel<{ktype}>")
         kernel((nblocks,), (block_size,), args)
 
         if normalize:

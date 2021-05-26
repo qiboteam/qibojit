@@ -230,3 +230,30 @@ __global__ void multicontrol_apply_swap_kernel(T* state,
   const long i = multicontrol_index(qubits, g, ncontrols);
   _apply_x<T>(state[i - tk1], state[i - tk2]);
 }
+
+
+__device__ long collapse_index(const int* qubits, long g, long h, int ntargets) {
+  long i = g;
+  for (auto iq = 0; iq < ntargets; iq++) {
+    const auto n = qubits[iq];
+    long k = (long)1 << n;
+    i = ((long)((long)i >> n) << (n + 1)) + (i & (k - 1));
+    i += ((long)((int)(h >> iq) % 2) * k);
+  }
+  return i;
+};
+
+
+template <typename T>
+__global__ void collapse_state_kernel(T* state, const int* qubits,
+                                      const long* results, int ntargets) {
+  const auto g = blockIdx.x * blockDim.x + threadIdx.x;
+  const long result = results[0];
+  const long nsubstates = (long)1 << ntargets;
+  for (auto h = 0; h < result; h++) {
+    state[collapse_index(qubits, g, h, ntargets)] = T(0, 0);
+  }
+  for (auto h = result + 1; h < nsubstates; h++) {
+    state[collapse_index(qubits, g, h, ntargets)] = T(0, 0);
+  }
+}
