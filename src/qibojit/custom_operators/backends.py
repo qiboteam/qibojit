@@ -15,27 +15,27 @@ class AbstractBackend(ABC):
         return x
 
     @abstractmethod
-    def free_all_blocks(self):
+    def free_all_blocks(self): # pragma: no cover
         raise NotImplementedError
 
     @abstractmethod
-    def one_qubit_base(self, state, nqubits, target, kernel, qubits=None, gate=None):
+    def one_qubit_base(self, state, nqubits, target, kernel, qubits=None, gate=None): # pragma: no cover
         raise NotImplementedError
 
     @abstractmethod
-    def two_qubit_base(self, state, nqubits, target1, target2, kernel, qubits=None, gate=None):
+    def two_qubit_base(self, state, nqubits, target1, target2, kernel, qubits=None, gate=None): # pragma: no cover
         raise NotImplementedError
 
     @abstractmethod
-    def initial_state(self, nqubits, dtype, is_matrix=False):
+    def initial_state(self, nqubits, dtype, is_matrix=False): # pragma: no cover
         raise NotImplementedError
 
     @abstractmethod
-    def collapse_state(self, state, qubits, result, nqubits, normalize):
+    def collapse_state(self, state, qubits, result, nqubits, normalize): # pragma: no cover
         raise NotImplementedError
 
     @abstractmethod
-    def measure_frequencies(self, frequencies, probs, nshots, nqubits, seed=1234):
+    def measure_frequencies(self, frequencies, probs, nshots, nqubits, seed=1234): # pragma: no cover
         raise NotImplementedError
 
 
@@ -96,7 +96,7 @@ class NumbaBackend(AbstractBackend):
         return self.ops.measure_frequencies(frequencies, probs, nshots, nqubits, seed, nthreads)
 
 
-class CupyBackend(AbstractBackend):
+class CupyBackend(AbstractBackend): # pragma: no cover
 
     DEFAULT_BLOCK_SIZE = 1024
     KERNELS = ("apply_gate", "apply_x", "apply_y", "apply_z", "apply_z_pow",

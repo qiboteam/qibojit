@@ -5,7 +5,7 @@ from qibojit import custom_operators as op
 BACKENDS = ["numba"]
 try:
     import cupy as cp
-    try:
+    try: # pragma: no cover
         if cp.cuda.runtime.getDeviceCount(): # test cupy backend in GPU is available
             BACKENDS.append("cupy")
     except cp.cuda.runtime.CUDARuntimeError:
