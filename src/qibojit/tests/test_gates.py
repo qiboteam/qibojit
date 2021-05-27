@@ -74,7 +74,7 @@ def test_apply_zpow_gate(backend, nqubits, target, controls, dtype):
     qubits = qubits_tensor(nqubits, [target], controls)
     state = op.apply_z_pow(state, phase, nqubits, target, qubits)
     state = op.to_numpy(state)
-    np.testing.assert_allclose(state, target_state)
+    np.testing.assert_allclose(state, target_state, atol=ATOL.get(dtype))
 
 
 @pytest.mark.parametrize(("nqubits", "targets", "controls"),
@@ -112,7 +112,7 @@ def test_apply_swap(backend, nqubits, targets, controls, dtype):
     qubits = qubits_tensor(nqubits, targets, controls)
     state = op.apply_swap(state, nqubits, target1, target2, qubits)
     state = op.to_numpy(state)
-    np.testing.assert_allclose(state, target_state)
+    np.testing.assert_allclose(state, target_state, atol=ATOL.get(dtype))
 
 
 @pytest.mark.parametrize(("nqubits", "targets", "controls"),
