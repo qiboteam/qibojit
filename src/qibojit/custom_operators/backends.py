@@ -105,6 +105,12 @@ class CupyBackend(AbstractBackend): # pragma: no cover
     def __init__(self):
         import os
         import cupy as cp
+        try:
+            if not cp.cuda.runtime.getDeviceCount(): # pragma: no cover
+                raise RuntimeError("Cannot use cupy backend if GPU is not available.")
+        except cp.cuda.runtime.CUDARuntimeError:
+            raise ImportError("Could not detect cupy compatible devices.")
+
         self.name = "cupy"
         self.cp = cp
         base_dir = os.path.dirname(os.path.realpath(__file__))

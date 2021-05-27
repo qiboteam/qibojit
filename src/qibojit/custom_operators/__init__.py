@@ -3,11 +3,15 @@ from qibojit.custom_operators.backends import NumbaBackend, CupyBackend
 
 class Backend:
 
-    available_backends = {"numba": NumbaBackend, "cupy": CupyBackend}
-
     def __init__(self):
+        self.available_backends = {"numba": NumbaBackend, "cupy": CupyBackend}
         self.constructed_backends = {}
-        self.active_backend = self.construct_backend("numba")
+        try:
+            self.active_backend = self.construct_backend("cupy")
+        except (ModuleNotFoundError, ImportError, RuntimeError):
+            # if cupy or GPU is not available fall back to numba
+            # shall we include a fallback warning here?
+            self.active_backend = self.construct_backend("numba")
 
     def construct_backend(self, name):
         if name not in self.constructed_backends:
@@ -15,7 +19,7 @@ class Backend:
                 backend_class = self.available_backends.get(name)
                 self.constructed_backends[name] = backend_class()
             else:
-                raise KeyError
+                raise KeyError("Unknown backend {}.".format(name))
         return self.constructed_backends.get(name)
 
     @property
