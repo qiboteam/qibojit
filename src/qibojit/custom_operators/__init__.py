@@ -11,6 +11,7 @@ class Backend:
         except (ModuleNotFoundError, ImportError, RuntimeError):
             # if cupy or GPU is not available fall back to numba
             # shall we include a fallback warning here?
+            self.available_backends.pop("cupy")
             self.active_backend = self.construct_backend("numba")
 
     def construct_backend(self, name):

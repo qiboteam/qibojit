@@ -47,15 +47,18 @@ def test_collapse_state(backend, nqubits, targets, results, dtype):
 
 @pytest.mark.parametrize("realtype", ["float32", "float64"])
 @pytest.mark.parametrize("inttype", ["int32", "int64"])
-def test_measure_frequencies(backend, realtype, inttype):
+@pytest.mark.parametrize("nthreads", [None, 4])
+def test_measure_frequencies(backend, realtype, inttype, nthreads):
     probs = np.ones(16, dtype=realtype) / 16
     frequencies = np.zeros(16, dtype=inttype)
     frequencies = op.measure_frequencies(frequencies, probs, nshots=1000,
-                                         nqubits=4, seed=1234, nthreads=4)
+                                         nqubits=4, seed=1234,
+                                         nthreads=nthreads)
     assert np.sum(frequencies) == 1000
-    target_frequencies = np.array([72, 65, 63, 54, 57, 55, 67, 50, 53, 67, 69,
-                                   68, 64, 68, 66, 62], dtype=inttype)
-    np.testing.assert_allclose(frequencies, target_frequencies)
+    if nthreads is not None:
+        target_frequencies = np.array([72, 65, 63, 54, 57, 55, 67, 50, 53, 67, 69,
+                                       68, 64, 68, 66, 62], dtype=inttype)
+        np.testing.assert_allclose(frequencies, target_frequencies)
 
 
 NONZERO = list(itertools.combinations(range(8), r=1))

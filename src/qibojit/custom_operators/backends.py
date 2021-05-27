@@ -3,7 +3,7 @@ from abc import ABC, abstractmethod
 
 class AbstractBackend(ABC):
 
-    def __init__(self):
+    def __init__(self): # pragma: no cover
         self.name = "abstract"
         self.gates = None
         self.ops = None
