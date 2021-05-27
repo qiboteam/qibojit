@@ -15,6 +15,10 @@ class AbstractBackend(ABC):
         return x
 
     @abstractmethod
+    def free_all_blocks(self):
+        raise NotImplementedError
+
+    @abstractmethod
     def one_qubit_base(self, state, nqubits, target, kernel, qubits=None, gate=None):
         raise NotImplementedError
 
@@ -44,6 +48,9 @@ class NumbaBackend(AbstractBackend):
         self.gates = gates
         self.ops = ops
         self.np = np
+
+    def free_all_blocks(self):
+        pass
 
     def one_qubit_base(self, state, nqubits, target, kernel, qubits=None, gate=None):
         ncontrols = len(qubits) - 1 if qubits is not None else 0
@@ -133,6 +140,9 @@ class CupyBackend(AbstractBackend):
 
     def to_numpy(self, x):
         return x.get()
+
+    def free_all_blocks(self):
+        self.cp._default_memory_pool.free_all_blocks()
 
     def get_kernel_type(self, state):
         if state.dtype == self.cp.complex128:

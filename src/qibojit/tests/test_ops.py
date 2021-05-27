@@ -16,7 +16,6 @@ def test_initial_state(backend, dtype, is_matrix):
     np.testing.assert_allclose(final_state, target_state)
 
 
-# FIXME: Find why tests with >10 qubits hang on GPU
 @pytest.mark.parametrize("nqubits,targets,results",
                          [(2, [0], [1]), (2, [1], [0]), (3, [1], [1]),
                           (4, [1, 3], [1, 0]), (5, [1, 2, 4], [0, 1, 1]),
@@ -42,6 +41,8 @@ def test_collapse_state(backend, nqubits, targets, results, dtype):
     state = op.collapse_state(state, tuple(qubits), result, nqubits, True)
     state = op.to_numpy(state)
     np.testing.assert_allclose(state, target_state, atol=atol)
+    del state
+    op.free_all_blocks()
 
 
 @pytest.mark.parametrize("realtype", ["float32", "float64"])
