@@ -1,9 +1,7 @@
 # Installation script for python
 from setuptools import setup, find_packages
-import subprocess
 import os
 import re
-import sys
 
 PACKAGE = "qibojit"
 
@@ -21,6 +19,11 @@ def get_version():
             return mo.group(1)
 
 
+# Read in requirements
+requirements = open('requirements.txt').readlines()
+requirements = [r.strip() for r in requirements]
+
+
 # load long description from README
 this_directory = os.path.abspath(os.path.dirname(__file__))
 with open(os.path.join(this_directory, "README.md"), encoding="utf-8") as f:
@@ -31,9 +34,9 @@ setup(
     name=PACKAGE,
     version=get_version(),
     description="Simulation tools based on numba and cupy.",
-    author="Quantum-TII team",
+    author="The Qibo team",
     author_email="",
-    url="https://github.com/Quantum-TII/qibojit",
+    url="https://github.com/qiboteam/qibojit",
     packages=find_packages("src"),
     package_dir={"": "src"},
     zip_safe=False,
@@ -41,7 +44,10 @@ setup(
         "Programming Language :: Python :: 3",
         "Topic :: Scientific/Engineering :: Physics",
     ],
-    install_requires=['numba', 'cupy-cuda110'],
+    install_requires=requirements,
+    extras_require={
+        "tests": ["qibo"],
+    },
     python_requires=">=3.6.0",
     long_description=long_description,
     long_description_content_type='text/markdown',
