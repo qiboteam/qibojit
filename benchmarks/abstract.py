@@ -6,14 +6,10 @@ class AbstractBackend:
         self.op = None
 
     def cast(self, x, dtype=None):
-        if dtype is not None:
-            return self.np.array(x, dtype=dtype)
-        return x
+        return self.op.cast(x, dtype=dtype)
 
-    def to_numpy(self, x, dtype="complex128"):
-        if dtype is not None:
-            return x.astype(dtype)
-        return x
+    def to_numpy(self, x):
+        return self.op.to_numpy(x)
 
     def qubits_tensor(self, nqubits, targets, controls=[]):
         qubits = [nqubits - q - 1 for q in targets]
@@ -23,6 +19,7 @@ class AbstractBackend:
     def apply_gate_args(self, state, nqubits, controls=[]):
         gate = self.cast([[1, 1], [1, -1]], dtype=state.dtype)
         gate = gate / self.np.sqrt(2)
+        gate = self.cast(gate)
         qubits = self.qubits_tensor(nqubits, [0], controls)
         return [state, gate, nqubits, 0, qubits]
 
@@ -39,13 +36,13 @@ class AbstractBackend:
         return [state, nqubits, 0, qubits]
 
     def apply_z_pow_args(self, state, nqubits, controls=[]):
-        gate = self.np.exp(1j * 0.1234)
+        gate = self.cast(self.np.exp(1j * 0.1234))
         qubits = self.qubits_tensor(nqubits, [0], controls)
         return [state, gate, nqubits, 0, qubits]
 
     def apply_two_qubit_gate_args(self, state, nqubits, controls=[]):
         gate = self.np.random.random((4, 4)) + 1j * self.np.random.random((4, 4))
-        gate = gate.astype(state.dtype)
+        gate = self.cast(gate)
         qubits = self.qubits_tensor(nqubits, [0, 1], controls)
         return [state, gate, nqubits, 0, 1, qubits]
 
@@ -54,10 +51,10 @@ class AbstractBackend:
         return [state, nqubits, 0, 1, qubits]
 
     def apply_fsim_args(self, state, nqubits, controls=[]):
-        gate = self.np.random.random(4) + 1j * self.np.random.random(4)
-        gate = gate.astype(state.dtype)
-        phase = self.np.array([self.np.exp(-1j * 0.1234)], dtype=state.dtype)
-        gate = self.np.concatenate([gate, phase])
+        gate = list(self.np.random.random(4) + 1j * self.np.random.random(4))
+        gate.append(self.np.exp(-1j * 0.1234))
+        gate = self.np.array(gate, dtype="complex128")
+        gate = self.cast(gate)
         qubits = self.qubits_tensor(nqubits, [0, 1], controls)
         return [state, gate, nqubits, 0, 1, qubits]
 
@@ -76,7 +73,8 @@ class AbstractBackend:
         if controls:
             raise NotImplementedError
         frequencies = self.np.zeros(state.shape, dtype="int64")
-        probs = self.np.abs(state) ** 2
+        frequencies = self.cast(frequencies, dtype="int64")
+        probs = self.cast(self.np.abs(state) ** 2, dtype="float64")
         return [frequencies, probs]
 
     def qft_args(self, state, nqubits, controls=[]):

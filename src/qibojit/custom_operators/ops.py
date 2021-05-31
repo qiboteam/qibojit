@@ -1,7 +1,5 @@
-import psutil
 import numpy as np
 from numba import prange, njit
-NTHREADS = psutil.cpu_count(logical=False)
 
 
 @njit(parallel=True, cache=True)
@@ -18,14 +16,6 @@ def initial_density_matrix(nqubits, dtype):
     state = np.zeros((size, size), dtype=dtype)
     state[0, 0] = 1
     return state
-
-
-def initial_state(nqubits, dtype, is_matrix=False):
-    if isinstance(dtype, str):
-        dtype = getattr(np, dtype)
-    if is_matrix:
-        return initial_density_matrix(nqubits, dtype)
-    return initial_state_vector(nqubits, dtype)
 
 
 @njit(cache=True)
@@ -62,7 +52,7 @@ def collapse_state(state, qubits, result, nqubits, normalize=True):
 
 
 @njit(cache=True, parallel=True)
-def measure_frequencies(frequencies, probs, nshots, nqubits, seed=1234, nthreads=NTHREADS):
+def measure_frequencies(frequencies, probs, nshots, nqubits, seed=1234, nthreads=None):
     nstates = frequencies.shape[0]
     thread_nshots = np.zeros(nthreads, dtype=frequencies.dtype)
     thread_nshots[:] = nshots // nthreads
