@@ -49,6 +49,18 @@ class NumbaBackend(AbstractBackend):
         self.ops = ops
         self.np = np
 
+    def cast(self, x, dtype=None):
+        if not isinstance(x, self.np.ndarray):
+            x = self.np.array(x)
+        if dtype:
+            return x.astype(dtype)
+        return x
+
+    def to_numpy(self, x):
+        if isinstance(x, self.np.ndarray):
+            return x
+        return self.np.array(x)        
+
     def free_all_blocks(self):
         pass
 

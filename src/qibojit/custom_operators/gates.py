@@ -96,7 +96,7 @@ def apply_z_pow_kernel(state, gate, nstates, m):
     tk = 1 << m
     for g in prange(nstates):  # pylint: disable=not-an-iterable
         i = ((g >> m) << (m + 1)) + (g & (tk - 1))
-        state[i + tk] *= gate
+        state[i + tk] = gate * state[i + tk]
     return state
 
 
@@ -105,7 +105,7 @@ def multicontrol_apply_z_pow_kernel(state, gate, qubits, nstates, m):
     tk = 1 << m
     for g in prange(nstates):  # pylint: disable=not-an-iterable
         i = multicontrol_index(g, qubits)
-        state[i] *= gate
+        state[i] = gate * state[i]
     return state
 
 
