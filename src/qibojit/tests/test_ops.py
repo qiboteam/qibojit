@@ -20,7 +20,8 @@ def test_initial_state(backend, dtype, is_matrix):
                          [(2, [0], [1]), (2, [1], [0]), (3, [1], [1]),
                           (4, [1, 3], [1, 0]), (5, [1, 2, 4], [0, 1, 1]),
                           (15, [4, 7], [0, 0]), (16, [8, 12, 15], [1, 0, 1])])
-def test_collapse_state(backend, nqubits, targets, results, dtype):
+@pytest.mark.parametrize("normalize", [False, True])
+def test_collapse_state(backend, nqubits, targets, results, normalize, dtype):
     atol = 1e-7 if dtype == "complex64" else 1e-14
     shape = (2 ** nqubits,)
     state = np.random.random(shape) + 1j * np.random.random(shape)
@@ -32,13 +33,15 @@ def test_collapse_state(backend, nqubits, targets, results, dtype):
     initial_state = np.reshape(state, nqubits * (2,))
     target_state = np.zeros_like(initial_state)
     target_state[slicer] = initial_state[slicer]
-    norm = (np.abs(target_state) ** 2).sum()
-    target_state = target_state.ravel() / np.sqrt(norm)
+    target_state = target_state.flatten()
+    if normalize:
+        norm = (np.abs(target_state) ** 2).sum()
+        target_state = target_state / np.sqrt(norm)
 
     qubits = sorted(nqubits - np.array(targets, dtype=np.int32) - 1)
     b2d = 2 ** np.arange(len(results) - 1, -1, -1)
     result = int(np.array(results).dot(b2d))
-    state = op.collapse_state(state, tuple(qubits), result, nqubits, True)
+    state = op.collapse_state(state, tuple(qubits), result, nqubits, normalize)
     state = op.to_numpy(state)
     np.testing.assert_allclose(state, target_state, atol=atol)
     del state
