@@ -59,7 +59,7 @@ class NumbaBackend(AbstractBackend):
     def to_numpy(self, x):
         if isinstance(x, self.np.ndarray):
             return x
-        return self.np.array(x)        
+        return self.np.array(x)
 
     def free_all_blocks(self):
         pass
@@ -99,7 +99,9 @@ class NumbaBackend(AbstractBackend):
         return self.ops.initial_state_vector(nqubits, dtype)
 
     def collapse_state(self, state, qubits, result, nqubits, normalize=True):
-        return self.ops.collapse_state(state, qubits, result, nqubits, normalize)
+        if normalize:
+            return self.ops.collapse_state_normalized(state, qubits, result, nqubits)
+        return self.ops.collapse_state(state, qubits, result, nqubits)
 
     def measure_frequencies(self, frequencies, probs, nshots, nqubits, seed=1234, nthreads=None):
         if nthreads is None:
