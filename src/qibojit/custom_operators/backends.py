@@ -8,11 +8,13 @@ class AbstractBackend(ABC):
         self.gates = None
         self.ops = None
 
-    def cast(self, x, dtype=None):
-        return x
+    @abstractmethod
+    def cast(self, x, dtype=None): # pragma: no cover
+        raise NotImplementedError
 
-    def to_numpy(self, x):
-        return x
+    @abstractmethod
+    def to_numpy(self, x): # pragma: no cover
+        raise NotImplementedError
 
     @abstractmethod
     def free_all_blocks(self): # pragma: no cover
