@@ -54,7 +54,7 @@ class NumbaBackend(AbstractBackend):
     def cast(self, x, dtype=None):
         if not isinstance(x, self.np.ndarray):
             x = self.np.array(x)
-        if dtype:
+        if dtype and x.dtype != dtype:
             return x.astype(dtype)
         return x
 
