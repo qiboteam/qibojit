@@ -120,6 +120,7 @@ class CupyBackend(AbstractBackend): # pragma: no cover
 
     def __init__(self):
         import os
+        import numpy as np
         import cupy as cp
         try:
             if not cp.cuda.runtime.getDeviceCount(): # pragma: no cover
@@ -128,6 +129,7 @@ class CupyBackend(AbstractBackend): # pragma: no cover
             raise ImportError("Could not detect cupy compatible devices.")
 
         self.name = "cupy"
+        self.np = np
         self.cp = cp
         base_dir = os.path.dirname(os.path.realpath(__file__))
 
@@ -161,6 +163,8 @@ class CupyBackend(AbstractBackend): # pragma: no cover
         return self.cp.asarray(x, dtype=dtype)
 
     def to_numpy(self, x):
+        if isinstance(x, self.np.ndarray):
+            return x
         return x.get()
 
     def free_all_blocks(self):

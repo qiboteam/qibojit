@@ -22,5 +22,5 @@ def test_cast(backend, array_type):
 def test_to_numpy(backend):
     x = [0, 1, 2]
     target = op.to_numpy(op.cast(x))
-    final = op.to_numpy(op.to_numpy(x))
+    final = op.to_numpy(np.array(x))
     np.testing.assert_allclose(final, target)
