@@ -24,6 +24,6 @@ def test_to_numpy(backend):
     target = op.to_numpy(op.cast(x))
     if op.get_backend() == "numba":
         final = op.to_numpy(x)
-    else:
+    else: # pragma: no cover
         final = op.to_numpy(np.array(x))
     np.testing.assert_allclose(final, target)
