@@ -251,15 +251,13 @@ class CupyBackend(AbstractBackend): # pragma: no cover
 
         state = self.cast(state)
         ktype = self.get_kernel_type(state)
-        args = [state, self.cast(qubits, dtype=self.cp.int32),
-                self.cast(result, dtype=self.cp.int32), ntargets]
+        args = [state, self.cast(qubits, dtype=self.cp.int32), result, ntargets]
         kernel = self.gates.get_function(f"collapse_state_kernel<{ktype}>")
         kernel((nblocks,), (block_size,), args)
 
         if normalize:
             norm = self.cp.sqrt(self.cp.sum(self.cp.square(self.cp.abs(state))))
             state = state / norm
-
         return state
 
     def measure_frequencies(self, frequencies, probs, nshots, nqubits, seed=1234):

@@ -44,8 +44,6 @@ def test_collapse_state(backend, nqubits, targets, results, normalize, dtype):
     state = op.collapse_state(state, tuple(qubits), result, nqubits, normalize)
     state = op.to_numpy(state)
     np.testing.assert_allclose(state, target_state, atol=atol)
-    del state
-    op.free_all_blocks()
 
 
 @pytest.mark.parametrize("realtype", ["float32", "float64"])
