@@ -51,10 +51,6 @@ def to_numpy(x):
     return backend.to_numpy(x)
 
 
-def free_all_blocks():
-    backend.free_all_blocks()
-
-
 def apply_gate(state, gate, nqubits, target, qubits=None):
     return backend.one_qubit_base(state, nqubits, target, "apply_gate", qubits, gate)
 
