@@ -177,7 +177,7 @@ class CupyBackend(AbstractBackend): # pragma: no cover
         if gate is None:
             args = (state, tk, m)
         else:
-            args = (state, tk, m, self.cast(gate, dtype=state.dtype))
+            args = (state, tk, m, self.cast(gate, dtype=state.dtype).flatten())
 
         ktype = self.get_kernel_type(state)
         if ncontrols:
@@ -209,7 +209,7 @@ class CupyBackend(AbstractBackend): # pragma: no cover
         if gate is None:
             args = (state, tk1, tk2, m1, m2, uk1, uk2)
         else:
-            args = (state, tk1, tk2, m1, m2, uk1, uk2, self.cast(gate))
+            args = (state, tk1, tk2, m1, m2, uk1, uk2, self.cast(gate).flatten())
             assert state.dtype == args[-1].dtype
 
         ktype = self.get_kernel_type(state)
