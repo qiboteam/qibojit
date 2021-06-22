@@ -43,7 +43,9 @@ def main(nqubits, nreps, backend, method, controls, random, nshots, collapsenono
         })
 
     backend = backends.get(backend)
-    if random:
+    if method == "initial_state":
+        state = np.zeros(2, dtype=np.complex128)
+    elif random:
         state = random_state(nqubits)
     else:
         state = np.zeros(2 ** nqubits, dtype=np.complex128)
