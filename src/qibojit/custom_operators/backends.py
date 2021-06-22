@@ -228,10 +228,13 @@ class CupyBackend(AbstractBackend): # pragma: no cover
 
     def initial_state(self, nqubits, dtype, is_matrix=False):
         n = 1 << nqubits
-        if dtype == "complex128":
+        if dtype in {"complex128", self.np.complex128, self.cp.complex128}:
             ktype = "complex<double>"
-        elif dtype == "complex64":
+        elif dtype in {"complex64", self.np.complex64, self.cp.complex64}:
             ktype = "complex<float>"
+        else: # pragma: no cover
+            raise TypeError("Unknown dtype {} passed in initial state operator."
+                            "".format(dtype))
         kernel = self.gates.get_function(f"initial_state_kernel<{ktype}>")
 
         if is_matrix:
