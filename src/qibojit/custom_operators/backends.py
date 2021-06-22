@@ -135,6 +135,8 @@ class CupyBackend(AbstractBackend): # pragma: no cover
             kernels.append(f"multicontrol_{kernel}_kernel<complex<float>>")
         kernels.append("collapse_state_kernel<complex<double>>")
         kernels.append("collapse_state_kernel<complex<float>>")
+        kernels.append("initial_state_kernel<complex<double>>")
+        kernels.append("initial_state_kernel<complex<float>>")
         kernels = tuple(kernels)
         gates_dir = os.path.join(base_dir, "gates.cu.cc")
         with open(gates_dir, "r") as file:
@@ -226,12 +228,22 @@ class CupyBackend(AbstractBackend): # pragma: no cover
 
     def initial_state(self, nqubits, dtype, is_matrix=False):
         n = 1 << nqubits
+        if dtype in {"complex128", self.np.complex128, self.cp.complex128}:
+            ktype = "complex<double>"
+        elif dtype in {"complex64", self.np.complex64, self.cp.complex64}:
+            ktype = "complex<float>"
+        else: # pragma: no cover
+            raise TypeError("Unknown dtype {} passed in initial state operator."
+                            "".format(dtype))
+        kernel = self.gates.get_function(f"initial_state_kernel<{ktype}>")
+
         if is_matrix:
-            state = self.cp.zeros((n, n), dtype=dtype)
-            state[0, 0] = 1
+            state = self.cp.zeros(n * n, dtype=dtype)
+            kernel((1,), (1,), [state])
+            state = state.reshape((n, n))
         else:
             state = self.cp.zeros(n, dtype=dtype)
-            state[0] = 1
+            kernel((1,), (1,), [state])
         return state
 
     def collapse_state(self, state, qubits, result, nqubits, normalize=True):
