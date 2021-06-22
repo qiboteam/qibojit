@@ -256,3 +256,9 @@ __global__ void collapse_state_kernel(T* state, const int* qubits,
     state[collapse_index(qubits, g, h, ntargets)] = T(0, 0);
   }
 }
+
+
+template <typename T>
+__global__ void initial_state_kernel(T* state) {
+  state[0] = T(1, 0);
+}
