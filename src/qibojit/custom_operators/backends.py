@@ -89,9 +89,12 @@ class NumbaBackend(AbstractBackend):
     def initial_state(self, nqubits, dtype, is_matrix=False):
         if isinstance(dtype, str):
             dtype = getattr(self.np, dtype)
+        size = 2 ** nqubits
         if is_matrix:
-            return self.ops.initial_density_matrix(nqubits, dtype)
-        return self.ops.initial_state_vector(nqubits, dtype)
+            state = self.np.empty((size, size), dtype=dtype)
+            return self.ops.initial_density_matrix(state)
+        state = self.np.empty((size,), dtype=dtype)
+        return self.ops.initial_state_vector(state)
 
     def collapse_state(self, state, qubits, result, nqubits, normalize=True):
         if normalize:
