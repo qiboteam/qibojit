@@ -5,15 +5,15 @@ from numba import prange, njit
 @njit(parallel=True, cache=True)
 def initial_state_vector(state):
     state[0] = 1
-    for i in prange(1, len(state)):
+    for i in prange(1, len(state)): # pylint: disable=not-an-iterable
         state[i] = 0
     return state
 
 
 @njit(parallel=True, cache=True)
 def initial_density_matrix(state):
-    for i in prange(len(state)):
-        for j in prange(len(state)):
+    for i in prange(len(state)): # pylint: disable=not-an-iterable
+        for j in prange(len(state)): # pylint: disable=not-an-iterable
             state[i, j] = 0
     state[0, 0] = 1
     return state
