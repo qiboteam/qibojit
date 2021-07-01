@@ -8,14 +8,12 @@ class AbstractBackend(ABC):
         self.gates = None
         self.ops = None
 
-    def cast(self, x, dtype=None):
-        return x
-
-    def to_numpy(self, x):
-        return x
+    @abstractmethod
+    def cast(self, x, dtype=None): # pragma: no cover
+        raise NotImplementedError
 
     @abstractmethod
-    def free_all_blocks(self): # pragma: no cover
+    def to_numpy(self, x): # pragma: no cover
         raise NotImplementedError
 
     @abstractmethod
@@ -49,8 +47,17 @@ class NumbaBackend(AbstractBackend):
         self.ops = ops
         self.np = np
 
-    def free_all_blocks(self):
-        pass
+    def cast(self, x, dtype=None):
+        if not isinstance(x, self.np.ndarray):
+            x = self.np.array(x)
+        if dtype and x.dtype != dtype:
+            return x.astype(dtype)
+        return x
+
+    def to_numpy(self, x):
+        if isinstance(x, self.np.ndarray):
+            return x
+        return self.np.array(x)
 
     def one_qubit_base(self, state, nqubits, target, kernel, qubits=None, gate=None):
         ncontrols = len(qubits) - 1 if qubits is not None else 0
@@ -82,12 +89,17 @@ class NumbaBackend(AbstractBackend):
     def initial_state(self, nqubits, dtype, is_matrix=False):
         if isinstance(dtype, str):
             dtype = getattr(self.np, dtype)
+        size = 2 ** nqubits
         if is_matrix:
-            return self.ops.initial_density_matrix(nqubits, dtype)
-        return self.ops.initial_state_vector(nqubits, dtype)
+            state = self.np.empty((size, size), dtype=dtype)
+            return self.ops.initial_density_matrix(state)
+        state = self.np.empty((size,), dtype=dtype)
+        return self.ops.initial_state_vector(state)
 
     def collapse_state(self, state, qubits, result, nqubits, normalize=True):
-        return self.ops.collapse_state(state, qubits, result, nqubits, normalize)
+        if normalize:
+            return self.ops.collapse_state_normalized(state, qubits, result, nqubits)
+        return self.ops.collapse_state(state, qubits, result, nqubits)
 
     def measure_frequencies(self, frequencies, probs, nshots, nqubits, seed=1234, nthreads=None):
         if nthreads is None:
@@ -104,6 +116,7 @@ class CupyBackend(AbstractBackend): # pragma: no cover
 
     def __init__(self):
         import os
+        import numpy as np
         import cupy as cp
         try:
             if not cp.cuda.runtime.getDeviceCount(): # pragma: no cover
@@ -112,6 +125,7 @@ class CupyBackend(AbstractBackend): # pragma: no cover
             raise ImportError("Could not detect cupy compatible devices.")
 
         self.name = "cupy"
+        self.np = np
         self.cp = cp
         base_dir = os.path.dirname(os.path.realpath(__file__))
 
@@ -124,6 +138,8 @@ class CupyBackend(AbstractBackend): # pragma: no cover
             kernels.append(f"multicontrol_{kernel}_kernel<complex<float>>")
         kernels.append("collapse_state_kernel<complex<double>>")
         kernels.append("collapse_state_kernel<complex<float>>")
+        kernels.append("initial_state_kernel<complex<double>>")
+        kernels.append("initial_state_kernel<complex<float>>")
         kernels = tuple(kernels)
         gates_dir = os.path.join(base_dir, "gates.cu.cc")
         with open(gates_dir, "r") as file:
@@ -145,10 +161,9 @@ class CupyBackend(AbstractBackend): # pragma: no cover
         return self.cp.asarray(x, dtype=dtype)
 
     def to_numpy(self, x):
+        if isinstance(x, self.np.ndarray):
+            return x
         return x.get()
-
-    def free_all_blocks(self):
-        self.cp._default_memory_pool.free_all_blocks()
 
     def get_kernel_type(self, state):
         if state.dtype == self.cp.complex128:
@@ -167,7 +182,7 @@ class CupyBackend(AbstractBackend): # pragma: no cover
         if gate is None:
             args = (state, tk, m)
         else:
-            args = (state, tk, m, self.cast(gate, dtype=state.dtype))
+            args = (state, tk, m, self.cast(gate, dtype=state.dtype).flatten())
 
         ktype = self.get_kernel_type(state)
         if ncontrols:
@@ -199,7 +214,7 @@ class CupyBackend(AbstractBackend): # pragma: no cover
         if gate is None:
             args = (state, tk1, tk2, m1, m2, uk1, uk2)
         else:
-            args = (state, tk1, tk2, m1, m2, uk1, uk2, self.cast(gate))
+            args = (state, tk1, tk2, m1, m2, uk1, uk2, self.cast(gate).flatten())
             assert state.dtype == args[-1].dtype
 
         ktype = self.get_kernel_type(state)
@@ -216,12 +231,22 @@ class CupyBackend(AbstractBackend): # pragma: no cover
 
     def initial_state(self, nqubits, dtype, is_matrix=False):
         n = 1 << nqubits
+        if dtype in {"complex128", self.np.complex128, self.cp.complex128}:
+            ktype = "complex<double>"
+        elif dtype in {"complex64", self.np.complex64, self.cp.complex64}:
+            ktype = "complex<float>"
+        else: # pragma: no cover
+            raise TypeError("Unknown dtype {} passed in initial state operator."
+                            "".format(dtype))
+        kernel = self.gates.get_function(f"initial_state_kernel<{ktype}>")
+
         if is_matrix:
-            state = self.cp.zeros((n, n), dtype=dtype)
-            state[0, 0] = 1
+            state = self.cp.zeros(n * n, dtype=dtype)
+            kernel((1,), (1,), [state])
+            state = state.reshape((n, n))
         else:
             state = self.cp.zeros(n, dtype=dtype)
-            state[0] = 1
+            kernel((1,), (1,), [state])
         return state
 
     def collapse_state(self, state, qubits, result, nqubits, normalize=True):
@@ -231,15 +256,13 @@ class CupyBackend(AbstractBackend): # pragma: no cover
 
         state = self.cast(state)
         ktype = self.get_kernel_type(state)
-        args = [state, self.cast(qubits, dtype=self.cp.int32),
-                self.cast(result, dtype=self.cp.int32), ntargets]
+        args = [state, self.cast(qubits, dtype=self.cp.int32), result, ntargets]
         kernel = self.gates.get_function(f"collapse_state_kernel<{ktype}>")
         kernel((nblocks,), (block_size,), args)
 
         if normalize:
             norm = self.cp.sqrt(self.cp.sum(self.cp.square(self.cp.abs(state))))
             state = state / norm
-
         return state
 
     def measure_frequencies(self, frequencies, probs, nshots, nqubits, seed=1234):

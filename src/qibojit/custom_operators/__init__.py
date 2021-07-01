@@ -7,14 +7,14 @@ class Backend:
         self.available_backends = {"numba": NumbaBackend, "cupy": CupyBackend}
         self.constructed_backends = {}
         try:
-            self.active_backend = self.construct_backend("cupy")
+            self.active_backend = self.get("cupy")
         except (ModuleNotFoundError, ImportError, RuntimeError):
             # if cupy or GPU is not available fall back to numba
             # shall we include a fallback warning here?
             self.available_backends.pop("cupy")
-            self.active_backend = self.construct_backend("numba")
+            self.active_backend = self.get("numba")
 
-    def construct_backend(self, name):
+    def get(self, name):
         if name not in self.constructed_backends:
             if name in self.available_backends:
                 backend_class = self.available_backends.get(name)
@@ -28,7 +28,7 @@ class Backend:
         return self.active_backend.name
 
     def set(self, name):
-        self.active_backend = self.construct_backend(name)
+        self.active_backend = self.get(name)
 
     def __getattr__(self, x):
         return getattr(self.active_backend, x)
@@ -49,10 +49,6 @@ def cast(x, dtype=None):
 
 def to_numpy(x):
     return backend.to_numpy(x)
-
-
-def free_all_blocks():
-    backend.free_all_blocks()
 
 
 def apply_gate(state, gate, nqubits, target, qubits=None):
@@ -100,5 +96,5 @@ def collapse_state(state, qubits, result, nqubits, normalize=True):
 def measure_frequencies(frequencies, probs, nshots, nqubits, seed=1234, nthreads=None):
     # always fall back to numba CPU backend because this op is not implemented
     # on GPU
-    numba_backend = backend.constructed_backends.get("numba")
+    numba_backend = backend.get("numba")
     return numba_backend.measure_frequencies(frequencies, probs, nshots, nqubits, seed, nthreads)

@@ -246,9 +246,8 @@ __device__ long collapse_index(const int* qubits, long g, long h, int ntargets) 
 
 template <typename T>
 __global__ void collapse_state_kernel(T* state, const int* qubits,
-                                      const long* results, int ntargets) {
+                                      const long result, int ntargets) {
   const auto g = blockIdx.x * blockDim.x + threadIdx.x;
-  const long result = results[0];
   const long nsubstates = (long)1 << ntargets;
   for (auto h = 0; h < result; h++) {
     state[collapse_index(qubits, g, h, ntargets)] = T(0, 0);
@@ -256,4 +255,10 @@ __global__ void collapse_state_kernel(T* state, const int* qubits,
   for (auto h = result + 1; h < nsubstates; h++) {
     state[collapse_index(qubits, g, h, ntargets)] = T(0, 0);
   }
+}
+
+
+template <typename T>
+__global__ void initial_state_kernel(T* state) {
+  state[0] = T(1, 0);
 }

@@ -3,17 +3,18 @@ from numba import prange, njit
 
 
 @njit(parallel=True, cache=True)
-def initial_state_vector(nqubits, dtype):
-    size = 2 ** nqubits
-    state = np.zeros((size,), dtype=dtype)
+def initial_state_vector(state):
     state[0] = 1
+    for i in prange(1, len(state)): # pylint: disable=not-an-iterable
+        state[i] = 0
     return state
 
 
 @njit(parallel=True, cache=True)
-def initial_density_matrix(nqubits, dtype):
-    size = 2 ** nqubits
-    state = np.zeros((size, size), dtype=dtype)
+def initial_density_matrix(state):
+    for i in prange(len(state)): # pylint: disable=not-an-iterable
+        for j in prange(len(state)): # pylint: disable=not-an-iterable
+            state[i, j] = 0
     state[0, 0] = 1
     return state
 
@@ -29,7 +30,21 @@ def collapse_index(g, h, qubits):
 
 
 @njit(parallel=True, cache=True)
-def collapse_state(state, qubits, result, nqubits, normalize=True):
+def collapse_state(state, qubits, result, nqubits):
+    qubits = tuple(qubits)
+    nstates = 1 << (nqubits - len(qubits))
+    nsubstates = 1 << len(qubits)
+
+    for g in prange(nstates):  # pylint: disable=not-an-iterable
+        for h in range(result):
+            state[collapse_index(g, h, qubits)] = 0
+        for h in range(result + 1, nsubstates):
+            state[collapse_index(g, h, qubits)] = 0
+    return state
+
+
+@njit(parallel=True, cache=True)
+def collapse_state_normalized(state, qubits, result, nqubits):
     qubits = tuple(qubits)
     nstates = 1 << (nqubits - len(qubits))
     nsubstates = 1 << len(qubits)
@@ -42,12 +57,10 @@ def collapse_state(state, qubits, result, nqubits, normalize=True):
         for h in range(result + 1, nsubstates):
             state[collapse_index(g, h, qubits)] = 0
 
-    if normalize:
-        norm = np.sqrt(norms)
-        for g in prange(nstates):  # pylint: disable=not-an-iterable
-            i = collapse_index(g, result, qubits)
-            state[i] = state[i] / norm
-
+    norm = np.sqrt(norms)
+    for g in prange(nstates):  # pylint: disable=not-an-iterable
+        i = collapse_index(g, result, qubits)
+        state[i] = state[i] / norm
     return state
 
 
