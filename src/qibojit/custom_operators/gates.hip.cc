@@ -347,7 +347,7 @@ __global__ void multicontrol_apply_two_qubit_gate_kernel_complex_double(complex<
                                                          const complex<double>* gate,
                                                          const int* qubits,
                                                          int ncontrols) {
-    multicontrol_apply_two_qubit_gate_kernel(state, tk1, tk2, m1, m2, gate, qubits, ncontrols);
+    multicontrol_apply_two_qubit_gate_kernel(state, tk1, tk2, m1, m2, uk1, uk2, gate, qubits, ncontrols);
 }
 
 __global__ void multicontrol_apply_two_qubit_gate_kernel_complex_float(complex<float>* state,
@@ -357,7 +357,7 @@ __global__ void multicontrol_apply_two_qubit_gate_kernel_complex_float(complex<f
                                                          const complex<float>* gate,
                                                          const int* qubits,
                                                          int ncontrols) {
-    multicontrol_apply_two_qubit_gate_kernel(state, tk1, tk2, m1, m2, gate, qubits, ncontrols);
+    multicontrol_apply_two_qubit_gate_kernel(state, tk1, tk2, m1, m2, uk1, uk2, gate, qubits, ncontrols);
 }
 
 template<typename T>
@@ -387,7 +387,7 @@ __global__ void multicontrol_apply_fsim_kernel_complex_float(complex<float>* sta
                                                long tk1, long tk2,
                                                int m1, int m2,
                                                long uk1, long uk2,
-                                               const complex<double>* gate,
+                                               const complex<float>* gate,
                                                const int* qubits,
                                                int ncontrols) {
     multicontrol_apply_fsim_kernel(state, tk1, tk2, m1, m2, uk1, uk2, gate, qubits, ncontrols);
@@ -450,12 +450,12 @@ __device__ void collapse_state_kernel(T* state, const int* qubits,
 
 __global__ void collapse_state_kernel_complex_double(complex<double>* state, const int* qubits,
                                       const long result, int ntargets) {
-    collapse_state_kernel(state, qubits, results, ntargets);
+    collapse_state_kernel(state, qubits, result, ntargets);
 }
 
 __global__ void collapse_state_kernel_complex_float(complex<float>* state, const int* qubits,
                                       const long result, int ntargets) {
-    collapse_state_kernel(state, qubits, results, ntargets);
+    collapse_state_kernel(state, qubits, result, ntargets);
 }
 
 template <typename T>
