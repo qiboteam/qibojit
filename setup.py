@@ -27,6 +27,7 @@ if sys.platform == 'darwin': # remove cupy for macos
     for index in range(len(requirements)):
         if 'cupy' in requirements[index]:
             requirements.pop(index)
+            break
 
 
 # load long description from README
