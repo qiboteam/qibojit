@@ -65,14 +65,14 @@ def collapse_state_normalized(state, qubits, result, nqubits):
 
 
 @njit(cache=True, parallel=True)
-def measure_frequencies(frequencies, probs, nshots, nqubits, seed=1234, nthreads=None):
+def measure_frequencies(frequencies, probs, nshots, nqubits, seed, nthreads):
     nstates = frequencies.shape[0]
     thread_nshots = np.zeros(nthreads, dtype=frequencies.dtype)
     thread_nshots[:] = nshots // nthreads
     thread_nshots[-1] += nshots % nthreads
 
     np.random.seed(seed)
-    thread_seed = np.random.randint(0, int(1e8), size=(nthreads,))
+    thread_seed = [np.random.randint(0, int(1e8)) for _ in range(nthreads)]
 
     thread_frequencies = np.zeros(shape=(nthreads, nstates), dtype=frequencies.dtype)
     for n in prange(nthreads):  # pylint: disable=not-an-iterable

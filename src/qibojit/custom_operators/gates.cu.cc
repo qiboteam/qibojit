@@ -241,7 +241,7 @@ __device__ long collapse_index(const int* qubits, long g, long h, int ntargets) 
     i += ((long)((int)(h >> iq) % 2) * k);
   }
   return i;
-};
+}
 
 
 template <typename T>
