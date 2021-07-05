@@ -7,8 +7,8 @@ jobs:
   build:
     strategy:
       matrix:
-        os: [ubuntu-latest] # TODO update this when going online
-        python-version: [3.8]
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        python-version: [3.6, 3.7, 3.8, 3.9]
     runs-on: ${{ matrix.os }}
     steps:
     - uses: actions/checkout@v1
