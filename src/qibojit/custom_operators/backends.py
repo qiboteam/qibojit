@@ -117,8 +117,8 @@ class CupyBackend(AbstractBackend): # pragma: no cover
     def __init__(self):
         import os
         import numpy as np
-        import cupy as cp
-        import cupy_backends
+        import cupy as cp  # pylint: disable=import-error
+        import cupy_backends  # pylint: disable=import-error
         try:
             if not cp.cuda.runtime.getDeviceCount(): # pragma: no cover
                 raise RuntimeError("Cannot use cupy backend if GPU is not available.")

@@ -1,5 +1,4 @@
 # Runtime requirements for qibojit
 
 numba
-cupy-cuda112
 psutil
