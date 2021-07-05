@@ -46,6 +46,8 @@ class NumbaBackend(AbstractBackend):
         self.gates = gates
         self.ops = ops
         self.np = np
+        self.tracing(np.complex64)
+        self.tracing(np.complex128)
 
     def cast(self, x, dtype=None):
         if not isinstance(x, self.np.ndarray):
@@ -58,6 +60,37 @@ class NumbaBackend(AbstractBackend):
         if isinstance(x, self.np.ndarray):
             return x
         return self.np.array(x)
+
+    def tracing(self, dtype):
+        """Dummy calls to all kernels during backend creation to increase dry run performance."""
+        qubits = (0, 1)
+        state = (self.np.random.random(4) + 1j * self.np.random.random(4)).astype(dtype)
+        gate = (self.np.random.random((2, 2)) + 1j * self.np.random.random((2, 2))).astype(dtype)
+        state = self.one_qubit_base(state, 2, 0, "apply_gate", gate=gate)
+        state = self.one_qubit_base(state, 2, 0, "apply_gate", qubits=qubits, gate=gate)
+        for pauli in ["x", "y", "z"]:
+            state = self.one_qubit_base(state, 2, 0, f"apply_{pauli}")
+            state = self.one_qubit_base(state, 2, 0, f"apply_{pauli}", qubits=qubits)
+        state = self.one_qubit_base(state, 2, 0, "apply_z_pow", gate=0.1)
+        state = self.one_qubit_base(state, 2, 0, "apply_z_pow", qubits=qubits, gate=0.1)
+
+        qubits = (0, 1, 2)
+        state = (self.np.random.random(8) + 1j * self.np.random.random(8)).astype(dtype)
+        gate1 = (self.np.random.random((4, 4)) + 1j * self.np.random.random((4, 4))).astype(dtype)
+        gate2 = (self.np.random.random(4) + 1j * self.np.random.random(4)).astype(dtype)
+        state = self.two_qubit_base(state, 3, 0, 1, "apply_two_qubit_gate", gate=gate1)
+        state = self.two_qubit_base(state, 3, 0, 1, "apply_two_qubit_gate", qubits=qubits, gate=gate1)
+        state = self.two_qubit_base(state, 3, 0, 1, "apply_swap")
+        state = self.two_qubit_base(state, 3, 0, 1, "apply_swap", qubits=qubits)
+        state = self.two_qubit_base(state, 3, 0, 1, "apply_fsim", gate=gate2)
+        state = self.two_qubit_base(state, 3, 0, 1, "apply_fsim", qubits=qubits, gate=gate2)
+
+        probs = self.np.abs(state) ** 2
+        freqs = self.np.zeros(8, dtype=self.np.int64)
+        freqs = self.measure_frequencies(freqs, probs, 100, 3, 1234, None)
+        state = self.collapse_state(state, (0,), 0, 3, True)
+        state = self.initial_state(3, dtype, False)
+        state = self.initial_state(3, dtype, True)
 
     def one_qubit_base(self, state, nqubits, target, kernel, qubits=None, gate=None):
         ncontrols = len(qubits) - 1 if qubits is not None else 0
