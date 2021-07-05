@@ -85,7 +85,8 @@ class NumbaBackend(AbstractBackend):
         state = self.two_qubit_base(state, 3, 0, 1, "apply_fsim", gate=gate2)
         state = self.two_qubit_base(state, 3, 0, 1, "apply_fsim", qubits=qubits, gate=gate2)
 
-        probs = self.np.abs(state) ** 2
+        probs = self.np.random.random(8)
+        probs = probs / probs.sum()
         freqs = self.np.zeros(8, dtype=self.np.int64)
         freqs = self.measure_frequencies(freqs, probs, 100, 3, 1234, None)
         state = self.collapse_state(state, (0,), 0, 3, True)
