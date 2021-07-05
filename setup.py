@@ -23,6 +23,11 @@ def get_version():
 # Read in requirements
 requirements = open('requirements.txt').readlines()
 requirements = [r.strip() for r in requirements]
+if sys.platform == 'darwin': # remove cupy for macos
+    for index in range(len(requirements)):
+        if 'cupy' in requirements[index]:
+            requirements.pop(index)
+            break
 
 
 # load long description from README
