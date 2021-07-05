@@ -29,6 +29,7 @@ jobs:
       run: |
         pytest --pyargs qibojit
     - name: Test with jit disabled
+      if: startsWith(matrix.os, 'ubuntu')
       run: |
         NUMBA_DISABLE_JIT=1 pytest --cov=qibojit --cov-report=xml --pyargs qibojit
     - name: Upload coverage to Codecov
