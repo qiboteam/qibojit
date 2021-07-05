@@ -2,6 +2,7 @@
 from setuptools import setup, find_packages
 import os
 import re
+import sys
 
 PACKAGE = "qibojit"
 
@@ -22,6 +23,10 @@ def get_version():
 # Read in requirements
 requirements = open('requirements.txt').readlines()
 requirements = [r.strip() for r in requirements]
+if sys.platform == 'darwin': # remove cupy for macos
+    for i in range(len(requirements)):
+        if 'cupy' in requirements[i]:
+            requirements.pop(i)
 
 
 # load long description from README
