@@ -62,7 +62,7 @@ class NumbaBackend(AbstractBackend):
         return self.np.array(x)
 
     def tracing(self, dtype):
-        """Dummy calls to all kernels during backend creation to increase dry run performance."""
+        """Compile kernels during backend creation to increase dry run performance."""
         qubits = (0, 1)
         state = (self.np.random.random(4) + 1j * self.np.random.random(4)).astype(dtype)
         gate = (self.np.random.random((2, 2)) + 1j * self.np.random.random((2, 2))).astype(dtype)
