@@ -77,7 +77,7 @@ class NumbaBackend(AbstractBackend):
         qubits = (0, 1, 2)
         state = (self.np.random.random(8) + 1j * self.np.random.random(8)).astype(dtype)
         gate1 = (self.np.random.random((4, 4)) + 1j * self.np.random.random((4, 4))).astype(dtype)
-        gate2 = (self.np.random.random(4) + 1j * self.np.random.random(4)).astype(dtype)
+        gate2 = (self.np.random.random(5) + 1j * self.np.random.random(5)).astype(dtype)
         state = self.two_qubit_base(state, 3, 0, 1, "apply_two_qubit_gate", gate=gate1)
         state = self.two_qubit_base(state, 3, 0, 1, "apply_two_qubit_gate", qubits=qubits, gate=gate1)
         state = self.two_qubit_base(state, 3, 0, 1, "apply_swap")
