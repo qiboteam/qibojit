@@ -4,9 +4,46 @@ from abc import ABC, abstractmethod
 class AbstractBackend(ABC):
 
     def __init__(self): # pragma: no cover
+        import numpy as np
         self.name = "abstract"
         self.gates = None
         self.ops = None
+        self.np = np
+
+    def tracing(self, dtype):
+        """Compile kernels during backend creation to increase dry run performance."""
+        qubits = (0, 1)
+        state = self.cast(self.np.random.random(4) + 1j * self.np.random.random(4), dtype=dtype)
+        gate = self.cast(self.np.random.random((2, 2)) + 1j * self.np.random.random((2, 2)), dtype=dtype)
+        state = self.one_qubit_base(state, 2, 0, "apply_gate", gate=gate)
+        state = self.one_qubit_base(state, 2, 0, "apply_gate", qubits=qubits, gate=gate)
+        for pauli in ["x", "y", "z"]:
+            state = self.one_qubit_base(state, 2, 0, f"apply_{pauli}")
+            state = self.one_qubit_base(state, 2, 0, f"apply_{pauli}", qubits=qubits)
+        state = self.one_qubit_base(state, 2, 0, "apply_z_pow", gate=0.1)
+        state = self.one_qubit_base(state, 2, 0, "apply_z_pow", qubits=qubits, gate=0.1)
+
+        qubits = (0, 1, 2)
+        state = self.cast(self.np.random.random(8) + 1j * self.np.random.random(8), dtype=dtype)
+        gate1 = self.cast(self.np.random.random((4, 4)) + 1j * self.np.random.random((4, 4)), dtype=dtype)
+        gate2 = self.cast(self.np.random.random(5) + 1j * self.np.random.random(5), dtype=dtype)
+        state = self.two_qubit_base(state, 3, 0, 1, "apply_two_qubit_gate", gate=gate1)
+        state = self.two_qubit_base(state, 3, 0, 1, "apply_two_qubit_gate", qubits=qubits, gate=gate1)
+        state = self.two_qubit_base(state, 3, 0, 1, "apply_swap")
+        state = self.two_qubit_base(state, 3, 0, 1, "apply_swap", qubits=qubits)
+        state = self.two_qubit_base(state, 3, 0, 1, "apply_fsim", gate=gate2)
+        state = self.two_qubit_base(state, 3, 0, 1, "apply_fsim", qubits=qubits, gate=gate2)
+
+        state = self.collapse_state(state, (0,), 0, 3, True)
+        state = self.initial_state(3, dtype, False)
+        state = self.initial_state(3, dtype, True)
+        try:
+            probs = self.np.random.random(8)
+            probs = probs / probs.sum()
+            freqs = self.np.zeros(8, dtype=self.np.int64)
+            freqs = self.measure_frequencies(freqs, probs, 100, 3, 1234, None)
+        except NotImplementedError:
+            pass
 
     @abstractmethod
     def cast(self, x, dtype=None): # pragma: no cover
@@ -33,21 +70,20 @@ class AbstractBackend(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def measure_frequencies(self, frequencies, probs, nshots, nqubits, seed=1234): # pragma: no cover
+    def measure_frequencies(self, frequencies, probs, nshots, nqubits, seed=1234, nthreads=None): # pragma: no cover
         raise NotImplementedError
 
 
 class NumbaBackend(AbstractBackend):
 
     def __init__(self):
-        import numpy as np
+        super().__init__()
         from qibojit.custom_operators import gates, ops
         self.name = "numba"
         self.gates = gates
         self.ops = ops
-        self.np = np
-        self.tracing(np.complex64)
-        self.tracing(np.complex128)
+        self.tracing(self.np.complex64)
+        self.tracing(self.np.complex128)
 
     def cast(self, x, dtype=None):
         if not isinstance(x, self.np.ndarray):
@@ -60,38 +96,6 @@ class NumbaBackend(AbstractBackend):
         if isinstance(x, self.np.ndarray):
             return x
         return self.np.array(x)
-
-    def tracing(self, dtype):
-        """Compile kernels during backend creation to increase dry run performance."""
-        qubits = (0, 1)
-        state = (self.np.random.random(4) + 1j * self.np.random.random(4)).astype(dtype)
-        gate = (self.np.random.random((2, 2)) + 1j * self.np.random.random((2, 2))).astype(dtype)
-        state = self.one_qubit_base(state, 2, 0, "apply_gate", gate=gate)
-        state = self.one_qubit_base(state, 2, 0, "apply_gate", qubits=qubits, gate=gate)
-        for pauli in ["x", "y", "z"]:
-            state = self.one_qubit_base(state, 2, 0, f"apply_{pauli}")
-            state = self.one_qubit_base(state, 2, 0, f"apply_{pauli}", qubits=qubits)
-        state = self.one_qubit_base(state, 2, 0, "apply_z_pow", gate=0.1)
-        state = self.one_qubit_base(state, 2, 0, "apply_z_pow", qubits=qubits, gate=0.1)
-
-        qubits = (0, 1, 2)
-        state = (self.np.random.random(8) + 1j * self.np.random.random(8)).astype(dtype)
-        gate1 = (self.np.random.random((4, 4)) + 1j * self.np.random.random((4, 4))).astype(dtype)
-        gate2 = (self.np.random.random(5) + 1j * self.np.random.random(5)).astype(dtype)
-        state = self.two_qubit_base(state, 3, 0, 1, "apply_two_qubit_gate", gate=gate1)
-        state = self.two_qubit_base(state, 3, 0, 1, "apply_two_qubit_gate", qubits=qubits, gate=gate1)
-        state = self.two_qubit_base(state, 3, 0, 1, "apply_swap")
-        state = self.two_qubit_base(state, 3, 0, 1, "apply_swap", qubits=qubits)
-        state = self.two_qubit_base(state, 3, 0, 1, "apply_fsim", gate=gate2)
-        state = self.two_qubit_base(state, 3, 0, 1, "apply_fsim", qubits=qubits, gate=gate2)
-
-        probs = self.np.random.random(8)
-        probs = probs / probs.sum()
-        freqs = self.np.zeros(8, dtype=self.np.int64)
-        freqs = self.measure_frequencies(freqs, probs, 100, 3, 1234, None)
-        state = self.collapse_state(state, (0,), 0, 3, True)
-        state = self.initial_state(3, dtype, False)
-        state = self.initial_state(3, dtype, True)
 
     def one_qubit_base(self, state, nqubits, target, kernel, qubits=None, gate=None):
         ncontrols = len(qubits) - 1 if qubits is not None else 0
@@ -149,8 +153,8 @@ class CupyBackend(AbstractBackend): # pragma: no cover
                "apply_two_qubit_gate", "apply_fsim", "apply_swap")
 
     def __init__(self):
+        super().__init__()
         import os
-        import numpy as np
         import cupy as cp  # pylint: disable=import-error
         import cupy_backends  # pylint: disable=import-error
         try:
@@ -160,7 +164,6 @@ class CupyBackend(AbstractBackend): # pragma: no cover
             raise ImportError("Could not detect cupy compatible devices.")
 
         self.name = "cupy"
-        self.np = np
         self.cp = cp
         base_dir = os.path.dirname(os.path.realpath(__file__))
         is_hip = cupy_backends.cuda.api.runtime.is_hip
@@ -189,6 +192,9 @@ class CupyBackend(AbstractBackend): # pragma: no cover
             code = r"{}".format(file.read())
             self.gates = cp.RawModule(code=code, options=("--std=c++11",),
                                       name_expressions=kernels)
+
+        self.tracing(cp.complex64)
+        self.tracing(cp.complex128)
 
     def calculate_blocks(self, nstates):
         block_size = self.DEFAULT_BLOCK_SIZE
@@ -308,6 +314,6 @@ class CupyBackend(AbstractBackend): # pragma: no cover
             state = state / norm
         return state
 
-    def measure_frequencies(self, frequencies, probs, nshots, nqubits, seed=1234):
+    def measure_frequencies(self, frequencies, probs, nshots, nqubits, seed=1234, nthreads=None):
         raise NotImplementedError("`measure_frequencies` method is not "
                                   "implemented for GPU.")
