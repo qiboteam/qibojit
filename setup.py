@@ -39,6 +39,7 @@ setup(
     url="https://github.com/qiboteam/qibojit",
     packages=find_packages("src"),
     package_dir={"": "src"},
+    package_data={"": ["*.cc"]},
     zip_safe=False,
     classifiers=[
         "Programming Language :: Python :: 3",
