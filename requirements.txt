@@ -1,4 +1,4 @@
 # Runtime requirements for qibojit
 
-numba
+numba>=0.51.0
 psutil
