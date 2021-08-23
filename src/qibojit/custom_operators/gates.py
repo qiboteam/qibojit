@@ -1,7 +1,7 @@
 from numba import prange, njit
 
 
-@njit(inline="always", cache=True)
+@njit(cache=True)
 def multicontrol_index(g, qubits):
     i = 0
     i += g
