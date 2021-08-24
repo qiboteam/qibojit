@@ -24,7 +24,6 @@ def test_initial_state(backend, dtype, is_matrix):
 @pytest.mark.parametrize("normalize", [False, True])
 def test_collapse_state(backend, nqubits, targets, results, normalize, dtype):
     atol = 1e-7 if dtype == "complex64" else 1e-14
-    shape = (2 ** nqubits,)
     state = random_state(nqubits, dtype)
     slicer = nqubits * [slice(None)]
     for t, r in zip(targets, results):
