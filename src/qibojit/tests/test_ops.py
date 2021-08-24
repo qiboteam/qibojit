@@ -2,6 +2,7 @@ import pytest
 import itertools
 import numpy as np
 from qibojit import custom_operators as op
+from qibojit.tests.test_gates import qubits_tensor, random_state
 
 
 @pytest.mark.parametrize("is_matrix", [False, True])
@@ -24,8 +25,7 @@ def test_initial_state(backend, dtype, is_matrix):
 def test_collapse_state(backend, nqubits, targets, results, normalize, dtype):
     atol = 1e-7 if dtype == "complex64" else 1e-14
     shape = (2 ** nqubits,)
-    state = np.random.random(shape) + 1j * np.random.random(shape)
-    state = state.astype(dtype)
+    state = random_state(nqubits, dtype)
     slicer = nqubits * [slice(None)]
     for t, r in zip(targets, results):
         slicer[t] = r
@@ -46,6 +46,25 @@ def test_collapse_state(backend, nqubits, targets, results, normalize, dtype):
     np.testing.assert_allclose(state, target_state, atol=atol)
 
 
+@pytest.mark.parametrize("nqubits", [3, 4, 7, 8, 9, 10])
+@pytest.mark.parametrize("ndevices", [2, 4, 8])
+def test_transpose_state(nqubits, ndevices, dtype):
+    for _ in range(10):
+        # Generate global qubits randomly
+        all_qubits = np.arange(nqubits)
+        np.random.shuffle(all_qubits)
+        qubit_order = list(all_qubits)
+        state = random_state(nqubits, dtype)
+        state_tensor = np.reshape(state, nqubits * (2,))
+        target_state = np.transpose(state_tensor, qubit_order).flatten()
+
+        new_state = np.zeros_like(state)
+        state = np.reshape(state, (ndevices, int(state.shape[0]) // ndevices))
+        pieces = [state[i] for i in range(ndevices)]
+        new_state = op.transpose_state(pieces, new_state, nqubits, qubit_order)
+        np.testing.assert_allclose(new_state, target_state)
+
+
 @pytest.mark.parametrize("realtype", ["float32", "float64"])
 @pytest.mark.parametrize("inttype", ["int32", "int64"])
 @pytest.mark.parametrize("nthreads", [None, 4])
@@ -60,6 +79,58 @@ def test_measure_frequencies(backend, realtype, inttype, nthreads):
         target_frequencies = np.array([72, 65, 63, 54, 57, 55, 67, 50, 53, 67, 69,
                                        68, 64, 68, 66, 62], dtype=inttype)
         np.testing.assert_allclose(frequencies, target_frequencies)
+
+
+@pytest.mark.parametrize("nqubits", [4, 5, 7, 8, 9, 10])
+def test_swap_pieces_zero_global(nqubits, dtype):
+    state = random_state(nqubits, dtype)
+    target_state = np.copy(state)
+    shape = (2, int(state.shape[0]) // 2)
+    state = np.reshape(state, shape)
+
+    for _ in range(10):
+        local = np.random.randint(1, nqubits)
+        qubits = qubits_tensor(nqubits, [0, local])
+        target_state = op.apply_swap(target_state, nqubits, 0, local, qubits)
+        target_state = np.reshape(op.to_numpy(target_state), shape)
+        piece0, piece1 = state[0], state[1]
+        op.swap_pieces(piece0, piece1, local - 1, nqubits - 1)
+        np.testing.assert_allclose(piece0, target_state[0])
+        np.testing.assert_allclose(piece1, target_state[1])
+
+
+@pytest.mark.skip
+@pytest.mark.parametrize("nqubits", [5, 7, 8, 9, 10])
+def test_swap_pieces(nqubits, dtype):
+    state = random_state(nqubits, dtype)
+    target_state = np.copy(state)
+    shape = (2, int(state.shape[0]) // 2)
+
+    for _ in range(10):
+        global_qubit = np.random.randint(0, nqubits)
+        local_qubit = np.random.randint(0, nqubits)
+        while local_qubit == global_qubit:
+            local_qubit = np.random.randint(0, nqubits)
+
+        transpose_order = ([global_qubit] + list(range(global_qubit)) +
+                           list(range(global_qubit + 1, nqubits)))
+
+        qubits = qubits_tensor(nqubits, [global_qubit, local_qubit])
+        target_state = op.apply_swap(
+            target_state, nqubits, global_qubit, local_qubit, qubits)
+        target_state = op.to_numpy(target_state)
+        target_state = np.reshape(target_state, nqubits * (2,))
+        target_state = np.transpose(target_state, transpose_order)
+        target_state = np.reshape(target_state, shape)
+
+        state = np.reshape(state, nqubits * (2,))
+        state = np.transpose(state, transpose_order)
+        state = np.reshape(state, shape)
+        piece0, piece1 = state[0], state[1]
+        new_global = local_qubit - int(global_qubit < local_qubit)
+        op.swap_pieces(piece0, piece1, new_global, nqubits - 1)
+        np.testing.assert_allclose(piece0, target_state[0])
+        np.testing.assert_allclose(piece1, target_state[1])
 
 
 NONZERO = list(itertools.combinations(range(8), r=1))

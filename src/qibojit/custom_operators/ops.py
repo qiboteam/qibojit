@@ -90,3 +90,29 @@ def measure_frequencies(frequencies, probs, nshots, nqubits, seed, nthreads):
             frequencies_private[shot] += 1
     frequencies += thread_frequencies.sum(axis=0)
     return frequencies
+
+
+@njit(cache=True, parallel=True)
+def transpose_state(pieces, state, nqubits, order):
+    nstates = 1 << nqubits
+    ndevices = len(pieces)
+    npiece = nstates // ndevices
+    qubit_exponents = [1 << (nqubits - x - 1) for x in order[::-1]]
+
+    for g in prange(nstates): # pylint: disable=not-an-iterable
+        k = 0
+        for q in range(nqubits):
+            if ((g >> q) % 2):
+                k += qubit_exponents[q]
+        state[g] = pieces[k // npiece][k % npiece]
+    return state
+
+
+@njit(cache=True, parallel=True)
+def swap_pieces(piece0, piece1, new_global, nlocal):
+    m = nlocal - new_global - 1
+    tk = 1 << m
+    nstates = 1 << (nlocal - 1)
+    for g in prange(nstates): # pylint: disable=not-an-iterable
+        i = ((g >> m) << (m + 1)) + (g & (tk - 1))
+        piece0[i + tk], piece1[i] = piece1[i], piece0[i + tk]

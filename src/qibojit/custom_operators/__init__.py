@@ -93,8 +93,19 @@ def collapse_state(state, qubits, result, nqubits, normalize=True):
     return backend.collapse_state(state, qubits, result, nqubits, normalize)
 
 
+def transpose_state(pieces, state, nqubits, order):
+    # always fall back to numba CPU backend because for ops not implemented on GPU
+    numba_backend = backend.get("numba")
+    return numba_backend.transpose_state(pieces, state, nqubits, order)
+
+
+def swap_pieces(piece0, piece1, new_global, nlocal):
+    # always fall back to numba CPU backend because for ops not implemented on GPU
+    numba_backend = backend.get("numba")
+    return numba_backend.swap_pieces(piece0, piece1, new_global, nlocal)
+
+
 def measure_frequencies(frequencies, probs, nshots, nqubits, seed=1234, nthreads=None):
-    # always fall back to numba CPU backend because this op is not implemented
-    # on GPU
+    # always fall back to numba CPU backend because for ops not implemented on GPU
     numba_backend = backend.get("numba")
     return numba_backend.measure_frequencies(frequencies, probs, nshots, nqubits, seed, nthreads)
