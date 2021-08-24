@@ -46,76 +46,75 @@ def test_collapse_state(backend, nqubits, targets, results, normalize, dtype):
     np.testing.assert_allclose(state, target_state, atol=atol)
 
 
-@pytest.mark.parametrize("nqubits", [3, 4, 7, 8, 9, 10])
+def generate_transpose_qubits(nqubits):
+    """Generates global qubits randomly."""
+    qubits = np.arange(nqubits)
+    np.random.shuffle(qubits)
+    return qubits
+
+
+CONFIG = ((n, generate_transpose_qubits(n))
+          for _ in range(5) for n in range(3, 11))
+@pytest.mark.parametrize("nqubits,qubits", CONFIG)
 @pytest.mark.parametrize("ndevices", [2, 4, 8])
-def test_transpose_state(nqubits, ndevices, dtype):
-    for _ in range(10):
-        # Generate global qubits randomly
-        all_qubits = np.arange(nqubits)
-        np.random.shuffle(all_qubits)
-        qubit_order = list(all_qubits)
-        state = random_state(nqubits, dtype)
-        state_tensor = np.reshape(state, nqubits * (2,))
-        target_state = np.transpose(state_tensor, qubit_order).flatten()
-
-        new_state = np.zeros_like(state)
-        state = np.reshape(state, (ndevices, int(state.shape[0]) // ndevices))
-        pieces = [state[i] for i in range(ndevices)]
-        new_state = op.transpose_state(pieces, new_state, nqubits, qubit_order)
-        np.testing.assert_allclose(new_state, target_state)
+def test_transpose_state(nqubits, qubits, ndevices, dtype):
+    qubit_order = list(qubits)
+    state = random_state(nqubits, dtype)
+    state_tensor = np.reshape(state, nqubits * (2,))
+    target_state = np.transpose(state_tensor, qubit_order).flatten()
+    new_state = np.zeros_like(state)
+    state = np.reshape(state, (ndevices, int(state.shape[0]) // ndevices))
+    pieces = [state[i] for i in range(ndevices)]
+    new_state = op.transpose_state(pieces, new_state, nqubits, qubit_order)
+    np.testing.assert_allclose(new_state, target_state)
 
 
-@pytest.mark.skip
-@pytest.mark.parametrize("nqubits", [4, 5, 7, 8, 9, 10])
-def test_swap_pieces_zero_global(nqubits, dtype):
+CONFIG = ((n, np.random.randint(1, n)) for _ in range(10) for n in range(4, 11))
+@pytest.mark.parametrize("nqubits,local", CONFIG)
+def test_swap_pieces_zero_global(nqubits, local, dtype):
     state = random_state(nqubits, dtype)
     target_state = np.copy(state)
     shape = (2, int(state.shape[0]) // 2)
     state = np.reshape(state, shape)
 
-    for _ in range(10):
-        local = np.random.randint(1, nqubits)
-        qubits = qubits_tensor(nqubits, [0, local])
-        target_state = op.apply_swap(target_state, nqubits, 0, local, qubits)
-        target_state = np.reshape(op.to_numpy(target_state), shape)
-        piece0, piece1 = state[0], state[1]
-        op.swap_pieces(piece0, piece1, local - 1, nqubits - 1)
-        np.testing.assert_allclose(piece0, target_state[0])
-        np.testing.assert_allclose(piece1, target_state[1])
+    qubits = qubits_tensor(nqubits, [0, local])
+    target_state = op.apply_swap(target_state, nqubits, 0, local, qubits)
+    target_state = np.reshape(op.to_numpy(target_state), shape)
+    piece0, piece1 = state[0], state[1]
+    op.swap_pieces(piece0, piece1, local - 1, nqubits - 1)
+    np.testing.assert_allclose(piece0, target_state[0])
+    np.testing.assert_allclose(piece1, target_state[1])
 
 
-@pytest.mark.skip
-@pytest.mark.parametrize("nqubits", [5, 7, 8, 9, 10])
-def test_swap_pieces(nqubits, dtype):
+CONFIG = ((n, np.random.randint(0, n), np.random.randint(0, n))
+          for _ in range(10) for n in range(5, 11))
+@pytest.mark.parametrize("nqubits,qlocal,qglobal", CONFIG)
+def test_swap_pieces(nqubits, qlocal, qglobal, dtype):
     state = random_state(nqubits, dtype)
     target_state = np.copy(state)
     shape = (2, int(state.shape[0]) // 2)
 
-    for _ in range(10):
-        global_qubit = np.random.randint(0, nqubits)
-        local_qubit = np.random.randint(0, nqubits)
-        while local_qubit == global_qubit:
-            local_qubit = np.random.randint(0, nqubits)
+    while qlocal == qglobal:
+        qlocal = np.random.randint(0, nqubits)
 
-        transpose_order = ([global_qubit] + list(range(global_qubit)) +
-                           list(range(global_qubit + 1, nqubits)))
+    transpose_order = ([qglobal] + list(range(qglobal)) +
+                        list(range(qglobal + 1, nqubits)))
 
-        qubits = qubits_tensor(nqubits, [global_qubit, local_qubit])
-        target_state = op.apply_swap(
-            target_state, nqubits, global_qubit, local_qubit, qubits)
-        target_state = op.to_numpy(target_state)
-        target_state = np.reshape(target_state, nqubits * (2,))
-        target_state = np.transpose(target_state, transpose_order)
-        target_state = np.reshape(target_state, shape)
+    qubits = qubits_tensor(nqubits, [qglobal, qlocal])
+    target_state = op.apply_swap(target_state, nqubits, qglobal, qlocal, qubits)
+    target_state = op.to_numpy(target_state)
+    target_state = np.reshape(target_state, nqubits * (2,))
+    target_state = np.transpose(target_state, transpose_order)
+    target_state = np.reshape(target_state, shape)
 
-        state = np.reshape(state, nqubits * (2,))
-        state = np.transpose(state, transpose_order)
-        state = np.reshape(state, shape)
-        piece0, piece1 = state[0], state[1]
-        new_global = local_qubit - int(global_qubit < local_qubit)
-        op.swap_pieces(piece0, piece1, new_global, nqubits - 1)
-        np.testing.assert_allclose(piece0, target_state[0])
-        np.testing.assert_allclose(piece1, target_state[1])
+    state = np.reshape(state, nqubits * (2,))
+    state = np.transpose(state, transpose_order)
+    state = np.reshape(state, shape)
+    piece0, piece1 = state[0], state[1]
+    new_global = qlocal - int(qglobal < qlocal)
+    op.swap_pieces(piece0, piece1, new_global, nqubits - 1)
+    np.testing.assert_allclose(piece0, target_state[0])
+    np.testing.assert_allclose(piece1, target_state[1])
 
 
 @pytest.mark.parametrize("realtype", ["float32", "float64"])
