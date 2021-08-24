@@ -65,22 +65,7 @@ def test_transpose_state(nqubits, ndevices, dtype):
         np.testing.assert_allclose(new_state, target_state)
 
 
-@pytest.mark.parametrize("realtype", ["float32", "float64"])
-@pytest.mark.parametrize("inttype", ["int32", "int64"])
-@pytest.mark.parametrize("nthreads", [None, 4])
-def test_measure_frequencies(backend, realtype, inttype, nthreads):
-    probs = np.ones(16, dtype=realtype) / 16
-    frequencies = np.zeros(16, dtype=inttype)
-    frequencies = op.measure_frequencies(frequencies, probs, nshots=1000,
-                                         nqubits=4, seed=1234,
-                                         nthreads=nthreads)
-    assert np.sum(frequencies) == 1000
-    if nthreads is not None:
-        target_frequencies = np.array([72, 65, 63, 54, 57, 55, 67, 50, 53, 67, 69,
-                                       68, 64, 68, 66, 62], dtype=inttype)
-        np.testing.assert_allclose(frequencies, target_frequencies)
-
-
+@pytest.mark.skip
 @pytest.mark.parametrize("nqubits", [4, 5, 7, 8, 9, 10])
 def test_swap_pieces_zero_global(nqubits, dtype):
     state = random_state(nqubits, dtype)
@@ -131,6 +116,22 @@ def test_swap_pieces(nqubits, dtype):
         op.swap_pieces(piece0, piece1, new_global, nqubits - 1)
         np.testing.assert_allclose(piece0, target_state[0])
         np.testing.assert_allclose(piece1, target_state[1])
+
+
+@pytest.mark.parametrize("realtype", ["float32", "float64"])
+@pytest.mark.parametrize("inttype", ["int32", "int64"])
+@pytest.mark.parametrize("nthreads", [None, 4])
+def test_measure_frequencies(backend, realtype, inttype, nthreads):
+    probs = np.ones(16, dtype=realtype) / 16
+    frequencies = np.zeros(16, dtype=inttype)
+    frequencies = op.measure_frequencies(frequencies, probs, nshots=1000,
+                                         nqubits=4, seed=1234,
+                                         nthreads=nthreads)
+    assert np.sum(frequencies) == 1000
+    if nthreads is not None:
+        target_frequencies = np.array([72, 65, 63, 54, 57, 55, 67, 50, 53, 67, 69,
+                                       68, 64, 68, 66, 62], dtype=inttype)
+        np.testing.assert_allclose(frequencies, target_frequencies)
 
 
 NONZERO = list(itertools.combinations(range(8), r=1))
