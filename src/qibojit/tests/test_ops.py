@@ -2,6 +2,7 @@ import pytest
 import itertools
 import numpy as np
 from qibojit import custom_operators as op
+from qibojit.tests.test_gates import qubits_tensor, random_state
 
 
 @pytest.mark.parametrize("is_matrix", [False, True])
@@ -23,9 +24,7 @@ def test_initial_state(backend, dtype, is_matrix):
 @pytest.mark.parametrize("normalize", [False, True])
 def test_collapse_state(backend, nqubits, targets, results, normalize, dtype):
     atol = 1e-7 if dtype == "complex64" else 1e-14
-    shape = (2 ** nqubits,)
-    state = np.random.random(shape) + 1j * np.random.random(shape)
-    state = state.astype(dtype)
+    state = random_state(nqubits, dtype)
     slicer = nqubits * [slice(None)]
     for t, r in zip(targets, results):
         slicer[t] = r
@@ -44,6 +43,77 @@ def test_collapse_state(backend, nqubits, targets, results, normalize, dtype):
     state = op.collapse_state(state, tuple(qubits), result, nqubits, normalize)
     state = op.to_numpy(state)
     np.testing.assert_allclose(state, target_state, atol=atol)
+
+
+def generate_transpose_qubits(nqubits):
+    """Generates global qubits randomly."""
+    qubits = np.arange(nqubits)
+    np.random.shuffle(qubits)
+    return qubits
+
+
+CONFIG = ((n, generate_transpose_qubits(n))
+          for _ in range(5) for n in range(3, 11))
+@pytest.mark.parametrize("nqubits,qubits", CONFIG)
+@pytest.mark.parametrize("ndevices", [2, 4, 8])
+def test_transpose_state(nqubits, qubits, ndevices, dtype):
+    qubit_order = list(qubits)
+    state = random_state(nqubits, dtype)
+    state_tensor = np.reshape(state, nqubits * (2,))
+    target_state = np.transpose(state_tensor, qubit_order).flatten()
+    new_state = np.zeros_like(state)
+    state = np.reshape(state, (ndevices, int(state.shape[0]) // ndevices))
+    pieces = [state[i] for i in range(ndevices)]
+    new_state = op.transpose_state(pieces, new_state, nqubits, qubit_order)
+    np.testing.assert_allclose(new_state, target_state)
+
+
+CONFIG = ((n, np.random.randint(1, n)) for _ in range(10) for n in range(4, 11))
+@pytest.mark.parametrize("nqubits,local", CONFIG)
+def test_swap_pieces_zero_global(nqubits, local, dtype):
+    state = random_state(nqubits, dtype)
+    target_state = np.copy(state)
+    shape = (2, int(state.shape[0]) // 2)
+    state = np.reshape(state, shape)
+
+    qubits = qubits_tensor(nqubits, [0, local])
+    target_state = op.apply_swap(target_state, nqubits, 0, local, qubits)
+    target_state = np.reshape(op.to_numpy(target_state), shape)
+    piece0, piece1 = state[0], state[1]
+    op.swap_pieces(piece0, piece1, local - 1, nqubits - 1)
+    np.testing.assert_allclose(piece0, target_state[0])
+    np.testing.assert_allclose(piece1, target_state[1])
+
+
+CONFIG = ((n, np.random.randint(0, n), np.random.randint(0, n))
+          for _ in range(10) for n in range(5, 11))
+@pytest.mark.parametrize("nqubits,qlocal,qglobal", CONFIG)
+def test_swap_pieces(nqubits, qlocal, qglobal, dtype):
+    state = random_state(nqubits, dtype)
+    target_state = np.copy(state)
+    shape = (2, int(state.shape[0]) // 2)
+
+    while qlocal == qglobal:
+        qlocal = np.random.randint(0, nqubits)
+
+    transpose_order = ([qglobal] + list(range(qglobal)) +
+                        list(range(qglobal + 1, nqubits)))
+
+    qubits = qubits_tensor(nqubits, [qglobal, qlocal])
+    target_state = op.apply_swap(target_state, nqubits, qglobal, qlocal, qubits)
+    target_state = op.to_numpy(target_state)
+    target_state = np.reshape(target_state, nqubits * (2,))
+    target_state = np.transpose(target_state, transpose_order)
+    target_state = np.reshape(target_state, shape)
+
+    state = np.reshape(state, nqubits * (2,))
+    state = np.transpose(state, transpose_order)
+    state = np.reshape(state, shape)
+    piece0, piece1 = state[0], state[1]
+    new_global = qlocal - int(qglobal < qlocal)
+    op.swap_pieces(piece0, piece1, new_global, nqubits - 1)
+    np.testing.assert_allclose(piece0, target_state[0])
+    np.testing.assert_allclose(piece1, target_state[1])
 
 
 @pytest.mark.parametrize("realtype", ["float32", "float64"])

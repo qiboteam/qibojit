@@ -33,6 +33,14 @@ class AbstractBackend(ABC):
         raise NotImplementedError
 
     @abstractmethod
+    def transpose_state(self, pieces, state, nqubits, order): # pragma: no cover
+        raise NotImplementedError
+
+    @abstractmethod
+    def swap_pieces(self, piece0, piece1, new_global, nlocal): # pragma: no cover
+        raise NotImplementedError
+
+    @abstractmethod
     def measure_frequencies(self, frequencies, probs, nshots, nqubits, seed=1234): # pragma: no cover
         raise NotImplementedError
 
@@ -100,6 +108,12 @@ class NumbaBackend(AbstractBackend):
         if normalize:
             return self.ops.collapse_state_normalized(state, qubits, result, nqubits)
         return self.ops.collapse_state(state, qubits, result, nqubits)
+
+    def transpose_state(self, pieces, state, nqubits, order):
+        return self.ops.transpose_state(tuple(pieces), state, nqubits, tuple(order))
+
+    def swap_pieces(self, piece0, piece1, new_global, nlocal):
+        return self.ops.swap_pieces(piece0, piece1, new_global, nlocal)
 
     def measure_frequencies(self, frequencies, probs, nshots, nqubits, seed=1234, nthreads=None):
         if nthreads is None:
@@ -273,6 +287,14 @@ class CupyBackend(AbstractBackend): # pragma: no cover
             norm = self.cp.sqrt(self.cp.sum(self.cp.square(self.cp.abs(state))))
             state = state / norm
         return state
+
+    def transpose_state(self, pieces, state, nqubits, order):
+        raise NotImplementedError("`transpose_state` method is not "
+                                  "implemented for GPU.")
+
+    def swap_pieces(self, piece0, piece1, new_global, nlocal):
+        raise NotImplementedError("`swap_pieces` method is not "
+                                  "implemented for GPU.")
 
     def measure_frequencies(self, frequencies, probs, nshots, nqubits, seed=1234):
         raise NotImplementedError("`measure_frequencies` method is not "
