@@ -210,13 +210,9 @@ def multicontrol_apply_fsim_kernel(state, gate, qubits, nstates, m1, m2, swap_ta
 
 
 @njit(parallel=True, cache=True)
-def apply_multiqubit_gate_kernel(state, gate, nstates, ms, tks, indices):
+def apply_multiqubit_gate_kernel(state, gate, qubits, nstates, ms, tks, indices):
     for g in prange(nstates):  # pylint: disable=not-an-iterable
-        ig = 0
-        ig += g
-        for m, tk in zip(ms, tks):
-            ig = ((ig >> m) << (m + 1)) + (ig & (tk - 1))
-
+        ig = multicontrol_index(g, qubits) - indices[-1]
         buffer = []
         for idx in indices:
             buffer.append(state[ig + idx])

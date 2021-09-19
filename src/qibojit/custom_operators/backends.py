@@ -103,13 +103,18 @@ class NumbaBackend(AbstractBackend):
                 yield sum(comb)
 
     def multiqubit_base(self, state, nqubits, targets, qubits=None, gate=None):
-        nstates = 1 << (nqubits - len(targets))
+        if qubits is None:
+            ncontrols = 0
+            qubits = tuple(sorted(nqubits - q - 1 for q in targets))
+        else:
+            ncontrols = len(qubits) - 2
+        nstates = 1 << (nqubits - len(targets) - ncontrols)
         ms = tuple(sorted(nqubits - t - 1 for t in targets))
         tks = tuple(1 << m for m in ms)
         uks = tuple(1 << (nqubits - t - 1) for t in targets[::-1])
         indices = tuple(self.multiqubit_indices(uks))
         kernel = getattr(self.gates, "apply_multiqubit_gate_kernel")
-        return kernel(state, gate, nstates, ms, tks, indices)
+        return kernel(state, gate, qubits, nstates, ms, tks, indices)
 
     def initial_state(self, nqubits, dtype, is_matrix=False):
         if isinstance(dtype, str):
