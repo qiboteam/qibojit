@@ -135,3 +135,32 @@ def test_apply_fsim(backend, nqubits, targets, controls, dtype):
     state = op.apply_fsim(state, gate, nqubits, target1, target2, qubits)
     state = op.to_numpy(state)
     np.testing.assert_allclose(state, target_state, atol=ATOL.get(dtype))
+
+
+@pytest.mark.parametrize(("nqubits", "targets", "controls"),
+                         [(2, [0], []), (2, [1], []), (3, [1], []),
+                          (5, [3, 4], []), (4, [2, 0], []), (2, [0, 1], []),
+                          (8, [6, 3], []), (5, [2, 3], []), (5, [3, 1], []),
+                          (3, [0, 1, 2], []), (4, [2, 1, 3], []),
+                          (5, [0, 2, 3], []), (8, [2, 6, 3], []),
+                          (5, [0, 2, 3, 4], []), (8, [0, 4, 2, 5, 7], []),
+                          (6, [2, 5], []), (3, [0, 1], [2]), (4, [1, 3], [0]),
+                          (5, [2, 3], [1, 4]), (5, [3, 1], [0, 2]),
+                          (6, [2, 5], [0, 1, 3, 4]),
+                          (4, [2, 1, 3], [0]), (5, [0, 2, 3], [1]),
+                          (8, [2, 6, 3], [4, 7]), (5, [0, 2, 3, 4], [1]),
+                          (8, [0, 4, 2, 5, 7], [1, 3]),
+                          (10, [0, 4, 2, 5, 9], [1, 3, 7, 8])])
+def test_apply_multiqubit_gate(nqubits, targets, controls, dtype):
+    qibo.set_backend("numpy")
+    state = random_state(nqubits, dtype=dtype)
+    rank = 2 ** len(targets)
+    matrix = random_complex((rank, rank), dtype=dtype)
+
+    gate = qibo.gates.Unitary(matrix, *targets).controlled_by(*controls)
+    target_state = gate(np.copy(state))
+
+    qubits = qubits_tensor(nqubits, targets, controls) if controls else None
+    state = op.apply_multiqubit_gate(state, matrix, nqubits, targets, qubits)
+    state = op.to_numpy(state)
+    np.testing.assert_allclose(state, target_state, atol=ATOL.get(dtype))
