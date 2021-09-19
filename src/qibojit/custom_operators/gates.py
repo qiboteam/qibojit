@@ -1,3 +1,4 @@
+import itertools
 from numba import prange, njit
 
 
@@ -205,4 +206,22 @@ def multicontrol_apply_fsim_kernel(state, gate, qubits, nstates, m1, m2, swap_ta
         state[i1], state[i2] = (gate[0] * state[i1] + gate[1] * state[i2],
                                 gate[2] * state[i1] + gate[3] * state[i2])
         state[i] *= gate[4]
+    return state
+
+
+@njit(parallel=True, cache=True)
+def apply_multiqubit_gate_kernel(state, gate, nstates, ms, tks, indices):
+    for g in prange(nstates):  # pylint: disable=not-an-iterable
+        ig = 0
+        ig += g
+        for m, tk in zip(ms, tks):
+            ig = ((ig >> m) << (m + 1)) + (ig & (tk - 1))
+
+        buffer = []
+        for idx in indices:
+            buffer.append(state[ig + idx])
+        for i, idx in enumerate(indices):
+            state[ig + idx] = 0
+            for j, sbuffer in enumerate(buffer):
+                state[ig + idx] += gate[i, j] * sbuffer
     return state
