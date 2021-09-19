@@ -98,17 +98,11 @@ class NumbaBackend(AbstractBackend):
 
     def multiqubit_base(self, state, nqubits, targets, qubits=None, gate=None):
         if qubits is None:
-            ncontrols = 0
             qubits = tuple(sorted(nqubits - q - 1 for q in targets))
-        else:
-            ncontrols = len(qubits) - len(targets)
-
-        nstates = 1 << (nqubits - len(targets) - ncontrols)
-        uks = tuple(1 << (nqubits - t - 1) for t in targets[::-1])
-        bitstrings = self.itertools.product((0, 1), repeat=len(uks))
-        indices = tuple(sum(b * u for b, u in zip(bitstring[::-1], uks))
+        nstates = 1 << (nqubits - len(qubits))
+        bitstrings = self.itertools.product((0, 1), repeat=len(targets))
+        indices = tuple(sum(b * (1 << (nqubits - t - 1)) for b, t in zip(bitstring, targets))
                         for bitstring in bitstrings)
-
         kernel = self.gates.apply_multiqubit_gate_kernel
         return kernel(state, gate, qubits, nstates, indices)
 
