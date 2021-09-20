@@ -1,4 +1,3 @@
-import numpy as np
 from numba import prange, njit
 from types import FunctionType
 
@@ -231,20 +230,16 @@ def generate_multiqubit_gate_kernel(ntargets):
     yield f"def apply_multi{ntargets}_gate_kernel(state, gate, qubits, nstates, indices):"
     yield f"\tfor g in prange(nstates):"
     yield f"\t\tig = multicontrol_index(g, qubits) - indices[{n - 1}]"
-    yield f"\t\tbuffer = np.empty({n}, dtype=state.dtype)"
-    yield f"\t\tfor i, idx in enumerate(indices):"
-    yield f"\t\t\tbuffer[i] = state[ig + idx]"
-    yield f"\t\t\tstate[ig + idx] = 0"
-    yield f"\t\t\tfor j in range(min(i + 1, {n})):"
-    yield f"\t\t\t\tstate[ig + idx] += gate[i, j] * buffer[j]"
-    yield f"\t\t\tfor j in range(i + 1, {n}):"
-    yield f"\t\t\t\tstate[ig + idx] += gate[i, j] * state[ig + indices[j]]"
+    for i in range(n):
+        yield f"\t\tbuffer{i} = state[ig + indices[{i}]]"
+    for i in range(n):
+        new_state = " + ".join(f"gate[{i}, {j}] * buffer{j}" for j in range(n))
+        yield f"\t\tstate[ig + indices[{i}]] = {new_state}"
     yield f"\treturn state"
 
 
-def create_multiqubit_kernel(n):
-    code = "\n".join(generate_multiqubit_gate_kernel(n))
+def create_multiqubit_kernel(ntargets):
+    code = "\n".join(generate_multiqubit_gate_kernel(ntargets))
     code = compile(code, "<string>", "exec")
-    globvars = {"prange": prange, "multicontrol_index": multicontrol_index, "np": np}
-    kernel = FunctionType(code.co_consts[0], globvars)
+    kernel = FunctionType(code.co_consts[0], globals())
     return njit(parallel=True)(kernel)
