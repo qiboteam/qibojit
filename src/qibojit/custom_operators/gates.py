@@ -232,8 +232,9 @@ def generate_multiqubit_gate_kernel(ntargets):
     yield f"\t\tig = multicontrol_index(g, qubits) - indices[{n - 1}]"
     for i in range(n):
         yield f"\t\tbuffer{i} = state[ig + indices[{i}]]"
-    for i in range(n):
-        new_state = " + ".join(f"gate[{i}, {j}] * buffer{j}" for j in range(n))
+        new_state = [f"gate[{i}, {j}] * buffer{j}" for j in range(min(i + 1, n))]
+        new_state.extend(f"gate[{i}, {j}] * state[ig + indices[{j}]]" for j in range(i + 1, n))
+        new_state = " + ".join(new_state)
         yield f"\t\tstate[ig + indices[{i}]] = {new_state}"
     yield f"\treturn state"
 

@@ -56,8 +56,13 @@ class NumbaBackend(AbstractBackend):
         self.ops = ops
         self.np = np
         self.itertools = itertools
-        self.multiqubit_kernels = {n: self.gates.create_multiqubit_kernel(n)
-                                   for n in range(1, 10)}
+        self._multiqubit_kernels = {n: self.gates.create_multiqubit_kernel(n)
+                                    for n in range(1, 7)}
+
+    def multiqubit_kernel(self, n):
+        if n not in self._multiqubit_kernels:
+            self._multiqubit_kernels[n] = self.gates.create_multiqubit_kernel(n)
+        return self._multiqubit_kernels.get(n)
 
     def cast(self, x, dtype=None):
         if not isinstance(x, self.np.ndarray):
@@ -106,7 +111,7 @@ class NumbaBackend(AbstractBackend):
         bitstrings = self.itertools.product((0, 1), repeat=ntargets)
         indices = tuple(sum(b * (1 << (nqubits - t - 1)) for b, t in zip(bitstring, targets))
                         for bitstring in bitstrings)
-        kernel = self.multiqubit_kernels.get(ntargets)
+        kernel = self.multiqubit_kernel(ntargets)
         return kernel(state, gate, qubits, nstates, indices)
 
     def initial_state(self, nqubits, dtype, is_matrix=False):
