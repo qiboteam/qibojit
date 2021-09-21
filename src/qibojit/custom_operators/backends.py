@@ -58,7 +58,8 @@ class NumbaBackend(AbstractBackend):
         self.itertools = itertools
         self._multiqubit_kernels = {
             3: self.gates.apply_three_qubit_gate_kernel,
-            4: self.gates.apply_four_qubit_gate_kernel
+            4: self.gates.apply_four_qubit_gate_kernel,
+            5: self.gates.apply_five_qubit_gate_kernel
             }
 
     def multiqubit_kernel(self, n):
