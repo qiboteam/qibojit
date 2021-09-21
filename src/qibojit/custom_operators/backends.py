@@ -56,8 +56,10 @@ class NumbaBackend(AbstractBackend):
         self.ops = ops
         self.np = np
         self.itertools = itertools
-        self._multiqubit_kernels = {n: self.gates.create_multiqubit_kernel(n)
-                                    for n in range(1, 7)}
+        self._multiqubit_kernels = {
+            3: self.gates.apply_three_qubit_gate_kernel,
+            4: self.gates.apply_four_qubit_gate_kernel
+            }
 
     def multiqubit_kernel(self, n):
         if n not in self._multiqubit_kernels:  # pragma: no cover
