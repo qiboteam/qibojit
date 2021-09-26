@@ -210,16 +210,26 @@ def multicontrol_apply_fsim_kernel(state, gate, qubits, nstates, m1, m2, swap_ta
 
 
 @njit(parallel=True, cache=True)
-def apply_multiqubit_gate_kernel(state, gate, qubits, nstates, indices):
-    n = len(indices)
+def apply_multiqubit_gate_kernel(state, gate, qubits, nstates, targets):
+    ntargets = len(targets)
+    nsubstates = 1 << ntargets
+    stargets = sum(targets)
     for g in prange(nstates):  # pylint: disable=not-an-iterable
-        ig = multicontrol_index(g, qubits) - indices[n - 1]
-        buffer = np.empty(len(indices), dtype=state.dtype)
-        for i, idx in enumerate(indices):
-            buffer[i] = state[ig + idx]
-            state[ig + idx] = 0
-            for j in range(min(i + 1, n)):
-                state[ig + idx] += gate[i, j] * buffer[j]
-            for j in range(i + 1, n):
-                state[ig + idx] += gate[i, j] * state[ig + indices[j]]
+        ig = multicontrol_index(g, qubits) - stargets
+        buffer = np.empty(nsubstates, dtype=state.dtype)
+        for i in range(nsubstates):
+            t = 0
+            t += ig
+            for u, v in enumerate(targets):
+                t += ((i >> (ntargets - u - 1)) % 2) * v
+            buffer[i] = state[t]
+            state[t] = 0
+            for j in range(min(i + 1, nsubstates)):
+                state[t] += gate[i, j] * buffer[j]
+            for j in range(i + 1, nsubstates):
+                s = 0
+                s += ig
+                for u, v in enumerate(targets):
+                    s += ((j >> (ntargets - u - 1)) % 2) * v
+                state[t] += gate[i, j] * state[s]
     return state

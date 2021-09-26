@@ -48,14 +48,12 @@ class AbstractBackend(ABC):
 class NumbaBackend(AbstractBackend):
 
     def __init__(self):
-        import itertools
         import numpy as np
         from qibojit.custom_operators import gates, ops
         self.name = "numba"
         self.gates = gates
         self.ops = ops
         self.np = np
-        self.itertools = itertools
 
     def cast(self, x, dtype=None):
         if not isinstance(x, self.np.ndarray):
@@ -100,11 +98,9 @@ class NumbaBackend(AbstractBackend):
         if qubits is None:
             qubits = tuple(sorted(nqubits - q - 1 for q in targets))
         nstates = 1 << (nqubits - len(qubits))
-        bitstrings = self.itertools.product((0, 1), repeat=len(targets))
-        indices = tuple(sum(b * (1 << (nqubits - t - 1)) for b, t in zip(bitstring, targets))
-                        for bitstring in bitstrings)
+        targets = tuple(1 << (nqubits - t - 1) for t in targets)
         kernel = self.gates.apply_multiqubit_gate_kernel
-        return kernel(state, gate, qubits, nstates, indices)
+        return kernel(state, gate, qubits, nstates, targets)
 
     def initial_state(self, nqubits, dtype, is_matrix=False):
         if isinstance(dtype, str):
