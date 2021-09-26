@@ -211,7 +211,7 @@ def multicontrol_apply_fsim_kernel(state, gate, qubits, nstates, m1, m2, swap_ta
 
 @njit(parallel=True, cache=True)
 def apply_three_qubit_gate_kernel(state, gate, qubits, nstates, targets):
-	for g in prange(nstates):
+	for g in prange(nstates):  # pylint: disable=not-an-iterable
 		ig = multicontrol_index(g, qubits)
 		t0 = ig - targets[0] - targets[1] - targets[2]
 		buffer0 = state[t0]
@@ -243,7 +243,7 @@ def apply_three_qubit_gate_kernel(state, gate, qubits, nstates, targets):
 
 @njit(parallel=True, cache=True)
 def apply_four_qubit_gate_kernel(state, gate, qubits, nstates, targets):
-	for g in prange(nstates):
+	for g in prange(nstates):  # pylint: disable=not-an-iterable
 		ig = multicontrol_index(g, qubits)
 		t0 = ig - targets[0] - targets[1] - targets[2] - targets[3]
 		buffer0 = state[t0]
@@ -299,7 +299,7 @@ def apply_four_qubit_gate_kernel(state, gate, qubits, nstates, targets):
 
 @njit(parallel=True, cache=True)
 def apply_five_qubit_gate_kernel(state, gate, qubits, nstates, targets):
-	for g in prange(nstates):
+	for g in prange(nstates):  # pylint: disable=not-an-iterable
 		ig = multicontrol_index(g, qubits)
 		t0 = ig - targets[0] - targets[1] - targets[2] - targets[3] - targets[4]
 		buffer0 = state[t0]
