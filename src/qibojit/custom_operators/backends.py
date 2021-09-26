@@ -99,9 +99,8 @@ class NumbaBackend(AbstractBackend):
             qubits = tuple(sorted(nqubits - q - 1 for q in targets))
         nstates = 1 << (nqubits - len(qubits))
         targets = tuple(nqubits - t - 1 for t in targets[::-1])
-        total = sum(1 << t for t in targets)
         kernel = self.gates.apply_multiqubit_gate_kernel
-        return kernel(state, gate, qubits, nstates, targets, total)
+        return kernel(state, gate, qubits, nstates, targets)
 
     def initial_state(self, nqubits, dtype, is_matrix=False):
         if isinstance(dtype, str):

@@ -218,18 +218,18 @@ def multitarget_index(i, targets):
 
 
 @njit(parallel=True, cache=True)
-def apply_multiqubit_gate_kernel(state, gate, qubits, nstates, targets, total):
+def apply_multiqubit_gate_kernel(state, gate, qubits, nstates, targets):
     nsubstates = 1 << len(targets)
     for g in prange(nstates):  # pylint: disable=not-an-iterable
-        ig = multicontrol_index(g, qubits) - total
+        ig = multicontrol_index(g, qubits)
         buffer = np.empty(nsubstates, dtype=state.dtype)
         for i in range(nsubstates):
-            t = ig + multitarget_index(i, targets)
+            t = ig - multitarget_index(nsubstates - i - 1, targets)
             buffer[i] = state[t]
             state[t] = 0
             for j in range(min(i + 1, nsubstates)):
                 state[t] += gate[i, j] * buffer[j]
             for j in range(i + 1, nsubstates):
-                s = ig + multitarget_index(j, targets)
+                s = ig - multitarget_index(nsubstates - j - 1, targets)
                 state[t] += gate[i, j] * state[s]
     return state
