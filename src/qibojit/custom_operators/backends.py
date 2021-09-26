@@ -48,14 +48,12 @@ class AbstractBackend(ABC):
 class NumbaBackend(AbstractBackend):
 
     def __init__(self):
-        import itertools
         import numpy as np
         from qibojit.custom_operators import gates, ops
         self.name = "numba"
         self.gates = gates
         self.ops = ops
         self.np = np
-        self.itertools = itertools
         self.multiqubit_kernels = {
             3: self.gates.apply_three_qubit_gate_kernel,
             4: self.gates.apply_four_qubit_gate_kernel,
