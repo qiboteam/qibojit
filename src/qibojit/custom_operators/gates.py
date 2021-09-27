@@ -226,10 +226,7 @@ def apply_multiqubit_gate_kernel(state, gate, qubits, nstates, targets):
         for i in range(nsubstates):
             t = ig - multitarget_index(nsubstates - i - 1, targets)
             buffer[i] = state[t]
-            state[t] = 0
-            for j in range(min(i + 1, nsubstates)):
-                state[t] += gate[i, j] * buffer[j]
-            for j in range(i + 1, nsubstates):
-                s = ig - multitarget_index(nsubstates - j - 1, targets)
-                state[t] += gate[i, j] * state[s]
+        for i in range(nsubstates):
+            t = ig - multitarget_index(nsubstates - i - 1, targets)
+            state[t] = np.dot(gate[i], buffer)
     return state
