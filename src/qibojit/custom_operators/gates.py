@@ -213,150 +213,91 @@ def multicontrol_apply_fsim_kernel(state, gate, qubits, nstates, m1, m2, swap_ta
 def multitarget_index(i, targets):
     t = 0
     for u, v in enumerate(targets):
-        t += ((i >> u) & 1) << v
+        t += ((i >> u) & 1) * v
     return t
 
 
 @njit(parallel=True, cache=True)
 def apply_three_qubit_gate_kernel(state, gate, qubits, nstates, targets):
-    for g in prange(nstates):  # pylint: disable=not-an-iterable
-        ig = multicontrol_index(g, qubits)
-        t0 = ig - targets[0] - targets[1] - targets[2]
-        buffer0 = state[t0]
-        t1 = ig - targets[1] - targets[2]
-        buffer1 = state[t1]
-        t2 = ig - targets[0] - targets[2]
-        buffer2 = state[t2]
-        t3 = ig - targets[2]
-        buffer3 = state[t3]
-        t4 = ig - targets[0] - targets[1]
-        buffer4 = state[t4]
-        t5 = ig - targets[1]
-        buffer5 = state[t5]
-        t6 = ig - targets[0]
-        buffer6 = state[t6]
-        t7 = ig
-        buffer7 = state[t7]
-
-        for i in range(8):
-            t = ig - multitarget_index(7 - i, targets)
-            state[t] = gate[i, 0] * buffer0 + gate[i, 1] * buffer1 + gate[i, 2] * buffer2 + gate[i, 3] * buffer3 + gate[i, 4] * buffer4 + gate[i, 5] * buffer5 + gate[i, 6] * buffer6 + gate[i, 7] * buffer7
-    return state
+	for g in prange(nstates):
+		ig = multicontrol_index(g, qubits)
+		buffer0 = state[ig - targets[0] - targets[1] - targets[2]]
+		buffer1 = state[ig - targets[1] - targets[2]]
+		buffer2 = state[ig - targets[0] - targets[2]]
+		buffer3 = state[ig - targets[2]]
+		buffer4 = state[ig - targets[0] - targets[1]]
+		buffer5 = state[ig - targets[1]]
+		buffer6 = state[ig - targets[0]]
+		buffer7 = state[ig]
+		for i in range(8):
+			t = multitarget_index(7 - i, targets)
+			state[t] = gate[i, 0] * buffer0 + gate[i, 1] * buffer1 + gate[i, 2] * buffer2 + gate[i, 3] * buffer3 + gate[i, 4] * buffer4 + gate[i, 5] * buffer5 + gate[i, 6] * buffer6 + gate[i, 7] * buffer7
+	return state
 
 
 @njit(parallel=True, cache=True)
 def apply_four_qubit_gate_kernel(state, gate, qubits, nstates, targets):
-    for g in prange(nstates):  # pylint: disable=not-an-iterable
-        ig = multicontrol_index(g, qubits)
-        t0 = ig - targets[0] - targets[1] - targets[2] - targets[3]
-        buffer0 = state[t0]
-        t1 = ig - targets[1] - targets[2] - targets[3]
-        buffer1 = state[t1]
-        t2 = ig - targets[0] - targets[2] - targets[3]
-        buffer2 = state[t2]
-        t3 = ig - targets[2] - targets[3]
-        buffer3 = state[t3]
-        t4 = ig - targets[0] - targets[1] - targets[3]
-        buffer4 = state[t4]
-        t5 = ig - targets[1] - targets[3]
-        buffer5 = state[t5]
-        t6 = ig - targets[0] - targets[3]
-        buffer6 = state[t6]
-        t7 = ig - targets[3]
-        buffer7 = state[t7]
-        t8 = ig - targets[0] - targets[1] - targets[2]
-        buffer8 = state[t8]
-        t9 = ig - targets[1] - targets[2]
-        buffer9 = state[t9]
-        t10 = ig - targets[0] - targets[2]
-        buffer10 = state[t10]
-        t11 = ig - targets[2]
-        buffer11 = state[t11]
-        t12 = ig - targets[0] - targets[1]
-        buffer12 = state[t12]
-        t13 = ig - targets[1]
-        buffer13 = state[t13]
-        t14 = ig - targets[0]
-        buffer14 = state[t14]
-        t15 = ig
-        buffer15 = state[t15]
-
-        for i in range(16):
-            t = ig - multitarget_index(15 - i, targets)
-            state[t] = gate[i, 0] * buffer0 + gate[i, 1] * buffer1 + gate[i, 2] * buffer2 + gate[i, 3] * buffer3 + gate[i, 4] * buffer4 + gate[i, 5] * buffer5 + gate[i, 6] * buffer6 + gate[i, 7] * buffer7 + gate[i, 8] * buffer8 + gate[i, 9] * buffer9 + gate[i, 10] * buffer10 + gate[i, 11] * buffer11 + gate[i, 12] * buffer12 + gate[i, 13] * buffer13 + gate[i, 14] * buffer14 + gate[i, 15] * buffer15
-    return state
+	for g in prange(nstates):
+		ig = multicontrol_index(g, qubits)
+		buffer0 = state[ig - targets[0] - targets[1] - targets[2] - targets[3]]
+		buffer1 = state[ig - targets[1] - targets[2] - targets[3]]
+		buffer2 = state[ig - targets[0] - targets[2] - targets[3]]
+		buffer3 = state[ig - targets[2] - targets[3]]
+		buffer4 = state[ig - targets[0] - targets[1] - targets[3]]
+		buffer5 = state[ig - targets[1] - targets[3]]
+		buffer6 = state[ig - targets[0] - targets[3]]
+		buffer7 = state[ig - targets[3]]
+		buffer8 = state[ig - targets[0] - targets[1] - targets[2]]
+		buffer9 = state[ig - targets[1] - targets[2]]
+		buffer10 = state[ig - targets[0] - targets[2]]
+		buffer11 = state[ig - targets[2]]
+		buffer12 = state[ig - targets[0] - targets[1]]
+		buffer13 = state[ig - targets[1]]
+		buffer14 = state[ig - targets[0]]
+		buffer15 = state[ig]
+		for i in range(16):
+			t = multitarget_index(15 - i, targets)
+			state[t] = gate[i, 0] * buffer0 + gate[i, 1] * buffer1 + gate[i, 2] * buffer2 + gate[i, 3] * buffer3 + gate[i, 4] * buffer4 + gate[i, 5] * buffer5 + gate[i, 6] * buffer6 + gate[i, 7] * buffer7 + gate[i, 8] * buffer8 + gate[i, 9] * buffer9 + gate[i, 10] * buffer10 + gate[i, 11] * buffer11 + gate[i, 12] * buffer12 + gate[i, 13] * buffer13 + gate[i, 14] * buffer14 + gate[i, 15] * buffer15
+	return state
 
 
 @njit(parallel=True, cache=True)
 def apply_five_qubit_gate_kernel(state, gate, qubits, nstates, targets):
-    for g in prange(nstates):  # pylint: disable=not-an-iterable
-        ig = multicontrol_index(g, qubits)
-        t0 = ig - targets[0] - targets[1] - targets[2] - targets[3] - targets[4]
-        buffer0 = state[t0]
-        t1 = ig - targets[1] - targets[2] - targets[3] - targets[4]
-        buffer1 = state[t1]
-        t2 = ig - targets[0] - targets[2] - targets[3] - targets[4]
-        buffer2 = state[t2]
-        t3 = ig - targets[2] - targets[3] - targets[4]
-        buffer3 = state[t3]
-        t4 = ig - targets[0] - targets[1] - targets[3] - targets[4]
-        buffer4 = state[t4]
-        t5 = ig - targets[1] - targets[3] - targets[4]
-        buffer5 = state[t5]
-        t6 = ig - targets[0] - targets[3] - targets[4]
-        buffer6 = state[t6]
-        t7 = ig - targets[3] - targets[4]
-        buffer7 = state[t7]
-        t8 = ig - targets[0] - targets[1] - targets[2] - targets[4]
-        buffer8 = state[t8]
-        t9 = ig - targets[1] - targets[2] - targets[4]
-        buffer9 = state[t9]
-        t10 = ig - targets[0] - targets[2] - targets[4]
-        buffer10 = state[t10]
-        t11 = ig - targets[2] - targets[4]
-        buffer11 = state[t11]
-        t12 = ig - targets[0] - targets[1] - targets[4]
-        buffer12 = state[t12]
-        t13 = ig - targets[1] - targets[4]
-        buffer13 = state[t13]
-        t14 = ig - targets[0] - targets[4]
-        buffer14 = state[t14]
-        t15 = ig - targets[4]
-        buffer15 = state[t15]
-        t16 = ig - targets[0] - targets[1] - targets[2] - targets[3]
-        buffer16 = state[t16]
-        t17 = ig - targets[1] - targets[2] - targets[3]
-        buffer17 = state[t17]
-        t18 = ig - targets[0] - targets[2] - targets[3]
-        buffer18 = state[t18]
-        t19 = ig - targets[2] - targets[3]
-        buffer19 = state[t19]
-        t20 = ig - targets[0] - targets[1] - targets[3]
-        buffer20 = state[t20]
-        t21 = ig - targets[1] - targets[3]
-        buffer21 = state[t21]
-        t22 = ig - targets[0] - targets[3]
-        buffer22 = state[t22]
-        t23 = ig - targets[3]
-        buffer23 = state[t23]
-        t24 = ig - targets[0] - targets[1] - targets[2]
-        buffer24 = state[t24]
-        t25 = ig - targets[1] - targets[2]
-        buffer25 = state[t25]
-        t26 = ig - targets[0] - targets[2]
-        buffer26 = state[t26]
-        t27 = ig - targets[2]
-        buffer27 = state[t27]
-        t28 = ig - targets[0] - targets[1]
-        buffer28 = state[t28]
-        t29 = ig - targets[1]
-        buffer29 = state[t29]
-        t30 = ig - targets[0]
-        buffer30 = state[t30]
-        t31 = ig
-        buffer31 = state[t31]
-
-        for i in range(32):
-            t = ig - multitarget_index(31 - i, targets)
-            state[t] = gate[i, 0] * buffer0 + gate[i, 1] * buffer1 + gate[i, 2] * buffer2 + gate[i, 3] * buffer3 + gate[i, 4] * buffer4 + gate[i, 5] * buffer5 + gate[i, 6] * buffer6 + gate[i, 7] * buffer7 + gate[i, 8] * buffer8 + gate[i, 9] * buffer9 + gate[i, 10] * buffer10 + gate[i, 11] * buffer11 + gate[i, 12] * buffer12 + gate[i, 13] * buffer13 + gate[i, 14] * buffer14 + gate[i, 15] * buffer15 + gate[i, 16] * buffer16 + gate[i, 17] * buffer17 + gate[i, 18] * buffer18 + gate[i, 19] * buffer19 + gate[i, 20] * buffer20 + gate[i, 21] * buffer21 + gate[i, 22] * buffer22 + gate[i, 23] * buffer23 + gate[i, 24] * buffer24 + gate[i, 25] * buffer25 + gate[i, 26] * buffer26 + gate[i, 27] * buffer27 + gate[i, 28] * buffer28 + gate[i, 29] * buffer29 + gate[i, 30] * buffer30 + gate[i, 31] * buffer31
-    return state
+	for g in prange(nstates):
+		ig = multicontrol_index(g, qubits)
+		buffer0 = state[ig - targets[0] - targets[1] - targets[2] - targets[3] - targets[4]]
+		buffer1 = state[ig - targets[1] - targets[2] - targets[3] - targets[4]]
+		buffer2 = state[ig - targets[0] - targets[2] - targets[3] - targets[4]]
+		buffer3 = state[ig - targets[2] - targets[3] - targets[4]]
+		buffer4 = state[ig - targets[0] - targets[1] - targets[3] - targets[4]]
+		buffer5 = state[ig - targets[1] - targets[3] - targets[4]]
+		buffer6 = state[ig - targets[0] - targets[3] - targets[4]]
+		buffer7 = state[ig - targets[3] - targets[4]]
+		buffer8 = state[ig - targets[0] - targets[1] - targets[2] - targets[4]]
+		buffer9 = state[ig - targets[1] - targets[2] - targets[4]]
+		buffer10 = state[ig - targets[0] - targets[2] - targets[4]]
+		buffer11 = state[ig - targets[2] - targets[4]]
+		buffer12 = state[ig - targets[0] - targets[1] - targets[4]]
+		buffer13 = state[ig - targets[1] - targets[4]]
+		buffer14 = state[ig - targets[0] - targets[4]]
+		buffer15 = state[ig - targets[4]]
+		buffer16 = state[ig - targets[0] - targets[1] - targets[2] - targets[3]]
+		buffer17 = state[ig - targets[1] - targets[2] - targets[3]]
+		buffer18 = state[ig - targets[0] - targets[2] - targets[3]]
+		buffer19 = state[ig - targets[2] - targets[3]]
+		buffer20 = state[ig - targets[0] - targets[1] - targets[3]]
+		buffer21 = state[ig - targets[1] - targets[3]]
+		buffer22 = state[ig - targets[0] - targets[3]]
+		buffer23 = state[ig - targets[3]]
+		buffer24 = state[ig - targets[0] - targets[1] - targets[2]]
+		buffer25 = state[ig - targets[1] - targets[2]]
+		buffer26 = state[ig - targets[0] - targets[2]]
+		buffer27 = state[ig - targets[2]]
+		buffer28 = state[ig - targets[0] - targets[1]]
+		buffer29 = state[ig - targets[1]]
+		buffer30 = state[ig - targets[0]]
+		buffer31 = state[ig]
+		for i in range(32):
+			t = multitarget_index(31 - i, targets)
+			state[t] = gate[i, 0] * buffer0 + gate[i, 1] * buffer1 + gate[i, 2] * buffer2 + gate[i, 3] * buffer3 + gate[i, 4] * buffer4 + gate[i, 5] * buffer5 + gate[i, 6] * buffer6 + gate[i, 7] * buffer7 + gate[i, 8] * buffer8 + gate[i, 9] * buffer9 + gate[i, 10] * buffer10 + gate[i, 11] * buffer11 + gate[i, 12] * buffer12 + gate[i, 13] * buffer13 + gate[i, 14] * buffer14 + gate[i, 15] * buffer15 + gate[i, 16] * buffer16 + gate[i, 17] * buffer17 + gate[i, 18] * buffer18 + gate[i, 19] * buffer19 + gate[i, 20] * buffer20 + gate[i, 21] * buffer21 + gate[i, 22] * buffer22 + gate[i, 23] * buffer23 + gate[i, 24] * buffer24 + gate[i, 25] * buffer25 + gate[i, 26] * buffer26 + gate[i, 27] * buffer27 + gate[i, 28] * buffer28 + gate[i, 29] * buffer29 + gate[i, 30] * buffer30 + gate[i, 31] * buffer31
+	return state
