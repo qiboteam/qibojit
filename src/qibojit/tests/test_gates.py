@@ -3,7 +3,7 @@ import numpy as np
 import qibo
 from qibojit import custom_operators as op
 
-ATOL = {"complex64": 1e-6, "complex128": 1e-12}
+ATOL = {"complex64": 1e-5, "complex128": 1e-10}
 
 def qubits_tensor(nqubits, targets, controls=[]):
     qubits = [nqubits - q - 1 for q in targets]
