@@ -219,34 +219,29 @@ def multitarget_index(i, targets):
 
 @njit(parallel=True, cache=True)
 def apply_three_qubit_gate_kernel(state, gate, qubits, nstates, targets):
-	for g in prange(nstates):  # pylint: disable=not-an-iterable
-		ig = multicontrol_index(g, qubits)
-		t0 = ig - targets[0] - targets[1] - targets[2]
-		buffer0 = state[t0]
-		t1 = ig - targets[1] - targets[2]
-		buffer1 = state[t1]
-		t2 = ig - targets[0] - targets[2]
-		buffer2 = state[t2]
-		t3 = ig - targets[2]
-		buffer3 = state[t3]
-		t4 = ig - targets[0] - targets[1]
-		buffer4 = state[t4]
-		t5 = ig - targets[1]
-		buffer5 = state[t5]
-		t6 = ig - targets[0]
-		buffer6 = state[t6]
-		t7 = ig
-		buffer7 = state[t7]
+    for g in prange(nstates):  # pylint: disable=not-an-iterable
+        ig = multicontrol_index(g, qubits)
+        t0 = ig - targets[0] - targets[1] - targets[2]
+        buffer0 = state[t0]
+        t1 = ig - targets[1] - targets[2]
+        buffer1 = state[t1]
+        t2 = ig - targets[0] - targets[2]
+        buffer2 = state[t2]
+        t3 = ig - targets[2]
+        buffer3 = state[t3]
+        t4 = ig - targets[0] - targets[1]
+        buffer4 = state[t4]
+        t5 = ig - targets[1]
+        buffer5 = state[t5]
+        t6 = ig - targets[0]
+        buffer6 = state[t6]
+        t7 = ig
+        buffer7 = state[t7]
 
-		state[t0] = gate[0, 0] * buffer0 + gate[0, 1] * buffer1 + gate[0, 2] * buffer2 + gate[0, 3] * buffer3 + gate[0, 4] * buffer4 + gate[0, 5] * buffer5 + gate[0, 6] * buffer6 + gate[0, 7] * buffer7
-		state[t1] = gate[1, 0] * buffer0 + gate[1, 1] * buffer1 + gate[1, 2] * buffer2 + gate[1, 3] * buffer3 + gate[1, 4] * buffer4 + gate[1, 5] * buffer5 + gate[1, 6] * buffer6 + gate[1, 7] * buffer7
-		state[t2] = gate[2, 0] * buffer0 + gate[2, 1] * buffer1 + gate[2, 2] * buffer2 + gate[2, 3] * buffer3 + gate[2, 4] * buffer4 + gate[2, 5] * buffer5 + gate[2, 6] * buffer6 + gate[2, 7] * buffer7
-		state[t3] = gate[3, 0] * buffer0 + gate[3, 1] * buffer1 + gate[3, 2] * buffer2 + gate[3, 3] * buffer3 + gate[3, 4] * buffer4 + gate[3, 5] * buffer5 + gate[3, 6] * buffer6 + gate[3, 7] * buffer7
-		state[t4] = gate[4, 0] * buffer0 + gate[4, 1] * buffer1 + gate[4, 2] * buffer2 + gate[4, 3] * buffer3 + gate[4, 4] * buffer4 + gate[4, 5] * buffer5 + gate[4, 6] * buffer6 + gate[4, 7] * buffer7
-		state[t5] = gate[5, 0] * buffer0 + gate[5, 1] * buffer1 + gate[5, 2] * buffer2 + gate[5, 3] * buffer3 + gate[5, 4] * buffer4 + gate[5, 5] * buffer5 + gate[5, 6] * buffer6 + gate[5, 7] * buffer7
-		state[t6] = gate[6, 0] * buffer0 + gate[6, 1] * buffer1 + gate[6, 2] * buffer2 + gate[6, 3] * buffer3 + gate[6, 4] * buffer4 + gate[6, 5] * buffer5 + gate[6, 6] * buffer6 + gate[6, 7] * buffer7
-		state[t7] = gate[7, 0] * buffer0 + gate[7, 1] * buffer1 + gate[7, 2] * buffer2 + gate[7, 3] * buffer3 + gate[7, 4] * buffer4 + gate[7, 5] * buffer5 + gate[7, 6] * buffer6 + gate[7, 7] * buffer7
-	return state
+        for i in range(8):
+            t = ig - multitarget_index(7 - i, targets)
+            state[t] = gate[i, 0] * buffer0 + gate[i, 1] * buffer1 + gate[i, 2] * buffer2 + gate[i, 3] * buffer3 + gate[i, 4] * buffer4 + gate[i, 5] * buffer5 + gate[i, 6] * buffer6 + gate[i, 7] * buffer7
+    return state
 
 
 @njit(parallel=True, cache=True)
