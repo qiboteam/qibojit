@@ -57,9 +57,7 @@ class NumbaBackend(AbstractBackend):
         self.multiqubit_kernels = {
             3: self.gates.apply_three_qubit_gate_kernel,
             4: self.gates.apply_four_qubit_gate_kernel,
-            5: self.gates.apply_five_qubit_gate_kernel,
-            6: self.gates.apply_six_qubit_gate_kernel,
-            7: self.gates.apply_seven_qubit_gate_kernel
+            5: self.gates.apply_five_qubit_gate_kernel
             }
 
     def cast(self, x, dtype=None):
@@ -105,8 +103,12 @@ class NumbaBackend(AbstractBackend):
         if qubits is None:
             qubits = tuple(sorted(nqubits - q - 1 for q in targets))
         nstates = 1 << (nqubits - len(qubits))
-        targets = tuple(1 << (nqubits - t - 1) for t in targets[::-1])
-        kernel = self.multiqubit_kernels.get(len(targets))
+        if len(targets) > 5:
+            kernel = self.gates.apply_multi_qubit_gate_kernel
+            targets = tuple(nqubits - t - 1 for t in targets[::-1])
+        else:
+            targets = tuple(1 << (nqubits - t - 1) for t in targets[::-1])
+            kernel = self.multiqubit_kernels.get(len(targets))
         return kernel(state, gate, qubits, nstates, targets)
 
     def initial_state(self, nqubits, dtype, is_matrix=False):
