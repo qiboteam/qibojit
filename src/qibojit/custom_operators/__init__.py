@@ -86,9 +86,7 @@ def apply_fsim(state, gate, nqubits, target1, target2, qubits=None):
 
 
 def apply_multiqubit_gate(state, gate, nqubits, targets, qubits=None):
-    # FIXME: fall back to numba temporarily until we implement this for GPU
-    numba_backend = backend.get("numba")
-    return numba_backend.multiqubit_base(state, nqubits, targets, qubits, gate)
+    return backend.multi_qubit_base(state, nqubits, targets, qubits, gate)
 
 
 def initial_state(nqubits, dtype, is_matrix=False):

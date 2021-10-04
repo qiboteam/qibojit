@@ -99,7 +99,7 @@ class NumbaBackend(AbstractBackend):
         kernel = getattr(self.gates, "{}_kernel".format(kernel))
         return kernel(state, gate, nstates, m1, m2, swap_targets)
 
-    def multiqubit_base(self, state, nqubits, targets, qubits=None, gate=None):
+    def multi_qubit_base(self, state, nqubits, targets, qubits=None, gate=None):
         if qubits is None:
             qubits = tuple(sorted(nqubits - q - 1 for q in targets))
         nstates = 1 << (nqubits - len(qubits))
@@ -175,6 +175,8 @@ class CupyBackend(AbstractBackend): # pragma: no cover
             kernels.append(f"{kernel}_kernel{self.kernel_float_suffix}")
             kernels.append(f"multicontrol_{kernel}_kernel{self.kernel_double_suffix}")
             kernels.append(f"multicontrol_{kernel}_kernel{self.kernel_float_suffix}")
+        kernels.append(f"apply_multi_qubit_gate_kernel{self.kernel_double_suffix}")
+        kernels.append(f"apply_multi_qubit_gate_kernel{self.kernel_float_suffix}")
         kernels.append(f"collapse_state_kernel{self.kernel_double_suffix}")
         kernels.append(f"collapse_state_kernel{self.kernel_float_suffix}")
         kernels.append(f"initial_state_kernel{self.kernel_double_suffix}")
@@ -264,6 +266,33 @@ class CupyBackend(AbstractBackend): # pragma: no cover
             kernel = self.gates.get_function(f"{kernel}_kernel{ktype}")
 
         nblocks, block_size = self.calculate_blocks(nstates)
+        kernel((nblocks,), (block_size,), args)
+        self.cp.cuda.stream.get_current_stream().synchronize()
+        return state
+
+    def multi_qubit_base(self, state, nqubits, targets, qubits=None, gate=None):
+        assert gate is not None
+        state = self.cast(state)
+        gate = self.cast(gate.flatten())
+        assert state.dtype == gate.dtype
+
+        ntargets = len(targets)
+        nactive = len(qubits) if qubits is not None else 0
+        nstates = 1 << (nqubits - nactive)
+        nsubstates = 1 << ntargets
+
+        if qubits is None:
+            qubits = self.cast(sorted(nqubits - q - 1 for q in targets), dtype=self.cp.int32)
+        else:
+            qubits = self.cast(qubits, dtype=self.cp.int32)
+        targets = self.cast(tuple(1 << (nqubits - t - 1) for t in targets[::-1]), dtype=self.cp.int64)
+
+        ktype = self.get_kernel_type(state)
+        kernel = self.gates.get_function(f"apply_multi_qubit_gate_kernel{ktype}")
+
+        nblocks, block_size = self.calculate_blocks(nstates)
+        buffer = self.cp.empty(nblocks * nsubstates, dtype=state.dtype)
+        args = (state, buffer, qubits, targets, nsubstates, ntargets, nactive)
         kernel((nblocks,), (block_size,), args)
         self.cp.cuda.stream.get_current_stream().synchronize()
         return state
