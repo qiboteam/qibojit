@@ -242,11 +242,12 @@ __device__ long multitarget_index(const long* targets, long i, int ntargets) {
 
 template<typename T>
 __device__ void _apply_multi_qubit(T& state, const T* buffer, const T* gate,
-                                   long nsubstates, long bufferrow) {
-  state = 0;
+                                   const long* targets, long nsubstates, int ntargets, long ig) {
+  state = T(0., 0.);
   for (auto i = 0; i < nsubstates; i++) {
     for (auto j = 0; j < nsubstates; j++) {
-      state = cadd(state, cmult(gate[nsubstates * i + j], buffer[bufferrow + j]));
+      const long t = ig - multitarget_index(targets, nsubstates - j - 1, ntargets);
+      state = cadd(state, cmult(gate[nsubstates * i + j], buffer[t]));
     }
   }
 }
@@ -260,15 +261,20 @@ __global__ void apply_multi_qubit_gate_kernel(T* state, T* buffer,
                                               int ntargets,
                                               int ncontrols) {
   const long g = blockIdx.x * blockDim.x + threadIdx.x;
-  const long brow = blockIdx.x * nsubstates;
+  //const long brow = blockIdx.x * nsubstates;
   const long ig = multicontrol_index(qubits, g, ncontrols);
   for (auto i = 0; i < nsubstates; i++) {
     const long t = ig - multitarget_index(targets, nsubstates - i - 1, ntargets);
-    buffer[brow + i] = state[t];
+    buffer[t] = state[t];
   }
   for (auto i = 0; i < nsubstates; i++) {
     const long t = ig - multitarget_index(targets, nsubstates - i - 1, ntargets);
-    _apply_multi_qubit<T>(state[t], buffer, gate, nsubstates, brow);
+    //_apply_multi_qubit<T>(state[t], buffer, gate, targets, nsubstates, ntargets, ig);
+    state[t] = T(0., 0.);
+    for (auto j = 0; j < nsubstates; j++) {
+      const long u = ig - multitarget_index(targets, nsubstates - j - 1, ntargets);
+      state[t] = cadd(state[t], cmult(gate[nsubstates * i + j], buffer[u]));
+    }
   }
 }
 

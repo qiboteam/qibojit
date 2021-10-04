@@ -277,22 +277,23 @@ class CupyBackend(AbstractBackend): # pragma: no cover
         assert state.dtype == gate.dtype
 
         ntargets = len(targets)
-        nactive = len(qubits) if qubits is not None else 0
-        nstates = 1 << (nqubits - nactive)
-        nsubstates = 1 << ntargets
-
         if qubits is None:
+            nactive = ntargets
             qubits = self.cast(sorted(nqubits - q - 1 for q in targets), dtype=self.cp.int32)
         else:
+            nactive = len(qubits)
             qubits = self.cast(qubits, dtype=self.cp.int32)
         targets = self.cast(tuple(1 << (nqubits - t - 1) for t in targets[::-1]), dtype=self.cp.int64)
+        nstates = 1 << (nqubits - nactive)
+        nsubstates = 1 << ntargets
 
         ktype = self.get_kernel_type(state)
         kernel = self.gates.get_function(f"apply_multi_qubit_gate_kernel{ktype}")
 
         nblocks, block_size = self.calculate_blocks(nstates)
-        buffer = self.cp.empty(nblocks * nsubstates, dtype=state.dtype)
-        args = (state, buffer, qubits, targets, nsubstates, ntargets, nactive)
+        #buffer = self.cp.empty(nblocks * nsubstates, dtype=state.dtype)
+        buffer = self.cp.empty(state.shape, dtype=state.dtype)
+        args = (state, buffer, gate, qubits, targets, nsubstates, ntargets, nactive)
         kernel((nblocks,), (block_size,), args)
         self.cp.cuda.stream.get_current_stream().synchronize()
         return state
