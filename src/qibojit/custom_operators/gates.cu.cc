@@ -260,21 +260,21 @@ __global__ void apply_multi_qubit_gate_kernel(T* state,
                                               long nsubstates,
                                               int ntargets,
                                               int ncontrols) {
+  extern __shared__ __align__(sizeof(T)) unsigned char _buffer[];
+  T* buffer = reinterpret_cast<T *>(_buffer);
   const long g = blockIdx.x * blockDim.x + threadIdx.x;
-  T * minibuffer = new T[nsubstates];
   const long ig = multicontrol_index(qubits, g, ncontrols);
   for (auto i = 0; i < nsubstates; i++) {
     const long t = ig - multitarget_index(targets, nsubstates - i - 1, ntargets);
-    minibuffer[i] = state[t];
+    buffer[threadIdx.x * nsubstates + i] = state[t];
   }
   for (auto i = 0; i < nsubstates; i++) {
     const long t = ig - multitarget_index(targets, nsubstates - i - 1, ntargets);
     state[t] = T(0., 0.);
     for (auto j = 0; j < nsubstates; j++) {
-      state[t] = cadd(state[t], cmult(gate[nsubstates * i + j], minibuffer[j]));
+      state[t] = cadd(state[t], cmult(gate[nsubstates * i + j], buffer[threadIdx.x * nsubstates + j]));
     }
   }
-  delete [] minibuffer;
 }
 
 

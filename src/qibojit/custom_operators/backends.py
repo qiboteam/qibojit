@@ -140,7 +140,7 @@ class NumbaBackend(AbstractBackend):
 
 class CupyBackend(AbstractBackend): # pragma: no cover
 
-    DEFAULT_BLOCK_SIZE = 1024
+    DEFAULT_BLOCK_SIZE = 32
     KERNELS = ("apply_gate", "apply_x", "apply_y", "apply_z", "apply_z_pow",
                "apply_two_qubit_gate", "apply_fsim", "apply_swap")
 
@@ -292,7 +292,8 @@ class CupyBackend(AbstractBackend): # pragma: no cover
 
         nblocks, block_size = self.calculate_blocks(nstates)
         args = (state, gate, qubits, targets, nsubstates, ntargets, nactive)
-        kernel((nblocks,), (block_size,), args)
+        #print(block_size*nsubstates*state.dtype.itemsize)
+        kernel((nblocks,), (block_size,), args, shared_mem=block_size*nsubstates*state.dtype.itemsize)
         self.cp.cuda.stream.get_current_stream().synchronize()
         return state
 
