@@ -19,11 +19,6 @@ def get_version():
             return mo.group(1)
 
 
-# Read in requirements
-requirements = open('requirements.txt').readlines()
-requirements = [r.strip() for r in requirements]
-
-
 # load long description from README
 this_directory = os.path.abspath(os.path.dirname(__file__))
 with open(os.path.join(this_directory, "README.md"), encoding="utf-8") as f:
@@ -45,7 +40,10 @@ setup(
         "Programming Language :: Python :: 3",
         "Topic :: Scientific/Engineering :: Physics",
     ],
-    install_requires=requirements,
+    install_requires=[
+        "numba>=0.51.0",
+        "psutil"
+    ],
     extras_require={
         "tests": ["qibo"],
     },
