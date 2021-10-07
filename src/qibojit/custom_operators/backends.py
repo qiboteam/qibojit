@@ -292,7 +292,7 @@ class CupyBackend(AbstractBackend): # pragma: no cover
 
         nblocks, block_size = self.calculate_blocks(nstates)
         #buffer = self.cp.empty(nblocks * nsubstates, dtype=state.dtype)
-        buffer = self.cp.empty(state.shape, dtype=state.dtype)
+        buffer = self.cp.copy(state)
         args = (state, buffer, gate, qubits, targets, nsubstates, ntargets, nactive)
         kernel((nblocks,), (block_size,), args)
         self.cp.cuda.stream.get_current_stream().synchronize()
