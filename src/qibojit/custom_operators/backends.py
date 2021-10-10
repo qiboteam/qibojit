@@ -188,6 +188,9 @@ class CupyBackend(AbstractBackend): # pragma: no cover
             self.gates = cp.RawModule(code=code, options=("--std=c++11",),
                                       name_expressions=kernels)
 
+        # Increase the maximum heap size for CUDA
+        self.cp.cuda.runtime.deviceSetLimit(self.cp.cuda.runtime.cudaLimitMallocHeapSize, 2**28)
+
     def calculate_blocks(self, nstates):
         block_size = self.DEFAULT_BLOCK_SIZE
         nblocks = (nstates + block_size - 1) // block_size
