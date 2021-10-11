@@ -245,7 +245,6 @@ __global__ void apply_three_qubit_gate_kernel(T* state,
                                               const T* gate,
                                               const int* qubits,
                                               const long* targets,
-                                              long nsubstates,
                                               int ntargets,
                                               int ncontrols) {
   // Compute the threads index
@@ -282,7 +281,6 @@ __global__ void apply_four_qubit_gate_kernel(T* state,
                                              const T* gate,
                                              const int* qubits,
                                              const long* targets,
-                                             long nsubstates,
                                              int ntargets,
                                              int ncontrols) {
   // Compute the threads index
@@ -327,7 +325,6 @@ __global__ void apply_five_qubit_gate_kernel(T* state,
                                              const T* gate,
                                              const int* qubits,
                                              const long* targets,
-                                             long nsubstates,
                                              int ntargets,
                                              int ncontrols) {
   // Compute the threads index

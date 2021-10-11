@@ -304,7 +304,7 @@ class CupyBackend(AbstractBackend): # pragma: no cover
             kernel((nblocks,), (block_size,), args)
         else:
             kernel = self.gates.get_function(self.multiqubit_kernels.get(len(targets))+ktype)
-            args = (state, gate, qubits, targets, nsubstates, ntargets, nactive)
+            args = (state, gate, qubits, targets, ntargets, nactive)
             kernel((nblocks,), (block_size,), args)
         self.cp.cuda.stream.get_current_stream().synchronize()
         return state
