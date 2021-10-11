@@ -175,6 +175,14 @@ class CupyBackend(AbstractBackend): # pragma: no cover
             kernels.append(f"{kernel}_kernel{self.kernel_float_suffix}")
             kernels.append(f"multicontrol_{kernel}_kernel{self.kernel_double_suffix}")
             kernels.append(f"multicontrol_{kernel}_kernel{self.kernel_float_suffix}")
+        self.multiqubit_kernels = {
+            3: "apply_three_qubit_gate_kernel",
+            4: "apply_four_qubit_gate_kernel",
+            5: "apply_five_qubit_gate_kernel"
+            }
+        for kernel in self.multiqubit_kernels:
+            kernels.append(self.multiqubit_kernels.get(kernel)+self.kernel_double_suffix)
+            kernels.append(self.multiqubit_kernels.get(kernel)+self.kernel_float_suffix)
         kernels.append(f"apply_multi_qubit_gate_kernel{self.kernel_double_suffix}")
         kernels.append(f"apply_multi_qubit_gate_kernel{self.kernel_float_suffix}")
         kernels.append(f"collapse_state_kernel{self.kernel_double_suffix}")
@@ -288,13 +296,16 @@ class CupyBackend(AbstractBackend): # pragma: no cover
         nsubstates = 1 << ntargets
 
         ktype = self.get_kernel_type(state)
-        kernel = self.gates.get_function(f"apply_multi_qubit_gate_kernel{ktype}")
-
         nblocks, block_size = self.calculate_blocks(nstates)
-        #buffer = self.cp.empty(nblocks * nsubstates, dtype=state.dtype)
-        buffer = self.cp.copy(state)
-        args = (state, buffer, gate, qubits, targets, nsubstates, ntargets, nactive)
-        kernel((nblocks,), (block_size,), args)
+        if len(targets) > 5:
+            kernel = self.gates.get_function(f"apply_multi_qubit_gate_kernel{ktype}")
+            buffer = self.cp.copy(state)
+            args = (state, buffer, gate, qubits, targets, nsubstates, ntargets, nactive)
+            kernel((nblocks,), (block_size,), args)
+        else:
+            kernel = self.gates.get_function(self.multiqubit_kernels.get(len(targets))+ktype)
+            args = (state, gate, qubits, targets, nsubstates, ntargets, nactive)
+            kernel((nblocks,), (block_size,), args)
         self.cp.cuda.stream.get_current_stream().synchronize()
         return state
 
