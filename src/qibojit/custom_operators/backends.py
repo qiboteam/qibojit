@@ -232,7 +232,7 @@ class CupyBackend(AbstractBackend): # pragma: no cover
         else:
             kernel = self.gates.get_function(f"{kernel}_kernel{ktype}")
 
-        kernel((32,), (512,), args+(nstates,))
+        kernel((32,), (256,), args+(nstates,))
         self.cp.cuda.stream.get_current_stream().synchronize()
         return state
 
@@ -264,8 +264,7 @@ class CupyBackend(AbstractBackend): # pragma: no cover
         else:
             kernel = self.gates.get_function(f"{kernel}_kernel{ktype}")
 
-        nblocks, block_size = self.calculate_blocks(nstates)
-        kernel((nblocks,), (block_size,), args)
+        kernel((32,), (256,), args+(nstates,))
         self.cp.cuda.stream.get_current_stream().synchronize()
         return state
 

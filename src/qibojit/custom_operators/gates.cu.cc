@@ -146,30 +146,42 @@ __global__ void apply_z_pow_kernel(T* state, long tk, int m,
 template<typename T>
 __global__ void apply_two_qubit_gate_kernel(T* state, long tk1, long tk2,
                                             int m1, int m2, long uk1, long uk2,
-                                            const T* gate) {
-  const long g = blockIdx.x * blockDim.x + threadIdx.x;
-  long i = ((long)((long)g >> m1) << (m1 + 1)) + (g & (tk1 - 1));
-  i = ((long)((long)i >> m2) << (m2 + 1)) + (i & (tk2 - 1));
-  _apply_two_qubit_gate<T>(state[i], state[i + uk1], state[i + uk2], state[i + uk1 + uk2], gate);
+                                            const T* gate, long nstates) {
+  const long nthreads = blockDim.x * gridDim.x;
+  for(long g = blockIdx.x * blockDim.x + threadIdx.x; g < nstates; g += nthreads)
+  {
+    //const long g = blockIdx.x * blockDim.x + threadIdx.x;
+    long i = ((long)((long)g >> m1) << (m1 + 1)) + (g & (tk1 - 1));
+    i = ((long)((long)i >> m2) << (m2 + 1)) + (i & (tk2 - 1));
+    _apply_two_qubit_gate<T>(state[i], state[i + uk1], state[i + uk2], state[i + uk1 + uk2], gate);
+  }
 }
 
 template<typename T>
 __global__ void apply_fsim_kernel(T* state, long tk1, long tk2,
                                   int m1, int m2, long uk1, long uk2,
-                                  const T* gate) {
-  const long g = blockIdx.x * blockDim.x + threadIdx.x;
-  long i = ((long)((long)g >> m1) << (m1 + 1)) + (g & (tk1 - 1));
-  i = ((long)((long)i >> m2) << (m2 + 1)) + (i & (tk2 - 1));
-  _apply_fsim<T>(state[i + uk1], state[i + uk2], state[i + uk1 + uk2], gate);
+                                  const T* gate, long nstates) {
+  const long nthreads = blockDim.x * gridDim.x;
+  for(long g = blockIdx.x * blockDim.x + threadIdx.x; g < nstates; g += nthreads)
+  {
+    //const long g = blockIdx.x * blockDim.x + threadIdx.x;
+    long i = ((long)((long)g >> m1) << (m1 + 1)) + (g & (tk1 - 1));
+    i = ((long)((long)i >> m2) << (m2 + 1)) + (i & (tk2 - 1));
+    _apply_fsim<T>(state[i + uk1], state[i + uk2], state[i + uk1 + uk2], gate);
+  }
 }
 
 template<typename T>
 __global__ void apply_swap_kernel(T* state, long tk1, long tk2,
-                                  int m1, int m2, long uk1, long uk2) {
-  const long g = blockIdx.x * blockDim.x + threadIdx.x;
-  long i = ((long)((long)g >> m1) << (m1 + 1)) + (g & (tk1 - 1));
-  i = ((long)((long)i >> m2) << (m2 + 1)) + (i & (tk2 - 1));
-  _apply_x<T>(state[i + tk2], state[i + tk1]);
+                                  int m1, int m2, long uk1, long uk2, long nstates) {
+  const long nthreads = blockDim.x * gridDim.x;
+  for(long g = blockIdx.x * blockDim.x + threadIdx.x; g < nstates; g += nthreads)
+  {
+    //const long g = blockIdx.x * blockDim.x + threadIdx.x;
+    long i = ((long)((long)g >> m1) << (m1 + 1)) + (g & (tk1 - 1));
+    i = ((long)((long)i >> m2) << (m2 + 1)) + (i & (tk2 - 1));
+    _apply_x<T>(state[i + tk2], state[i + tk1]);
+  }
 }
 
 template<typename T>
@@ -240,10 +252,15 @@ __global__ void multicontrol_apply_two_qubit_gate_kernel(T* state,
                                                          long uk1, long uk2,
                                                          const T* gate,
                                                          const int* qubits,
-                                                         int ncontrols) {
-  const long g = blockIdx.x * blockDim.x + threadIdx.x;
-  const long i = multicontrol_index(qubits, g, ncontrols);
-  _apply_two_qubit_gate<T>(state[i - uk1 - uk2], state[i - uk2], state[i - uk1], state[i], gate);
+                                                         int ncontrols,
+                                                         long nstates) {
+  const long nthreads = blockDim.x * gridDim.x;
+  for(long g = blockIdx.x * blockDim.x + threadIdx.x; g < nstates; g += nthreads)
+  {
+    //const long g = blockIdx.x * blockDim.x + threadIdx.x;
+    const long i = multicontrol_index(qubits, g, ncontrols);
+    _apply_two_qubit_gate<T>(state[i - uk1 - uk2], state[i - uk2], state[i - uk1], state[i], gate);
+  }
 }
 
 template<typename T>
@@ -253,10 +270,15 @@ __global__ void multicontrol_apply_fsim_kernel(T* state,
                                                long uk1, long uk2,
                                                const T* gate,
                                                const int* qubits,
-                                               int ncontrols) {
-  const long g = blockIdx.x * blockDim.x + threadIdx.x;
-  const long i = multicontrol_index(qubits, g, ncontrols);
-  _apply_fsim<T>(state[i - uk2], state[i - uk1], state[i], gate);
+                                               int ncontrols,
+                                               long nstates) {
+  const long nthreads = blockDim.x * gridDim.x;
+  for(long g = blockIdx.x * blockDim.x + threadIdx.x; g < nstates; g += nthreads)
+  {
+    //const long g = blockIdx.x * blockDim.x + threadIdx.x;
+    const long i = multicontrol_index(qubits, g, ncontrols);
+    _apply_fsim<T>(state[i - uk2], state[i - uk1], state[i], gate);
+  }
 }
 
 template<typename T>
@@ -265,10 +287,15 @@ __global__ void multicontrol_apply_swap_kernel(T* state,
                                                int m1, int m2,
                                                long uk1, long uk2,
                                                const int* qubits,
-                                               int ncontrols) {
-  const long g = blockIdx.x * blockDim.x + threadIdx.x;
-  const long i = multicontrol_index(qubits, g, ncontrols);
-  _apply_x<T>(state[i - tk1], state[i - tk2]);
+                                               int ncontrols,
+                                               long nstates) {
+  const long nthreads = blockDim.x * gridDim.x;
+  for(long g = blockIdx.x * blockDim.x + threadIdx.x; g < nstates; g += nthreads)
+  {
+    //const long g = blockIdx.x * blockDim.x + threadIdx.x;
+    const long i = multicontrol_index(qubits, g, ncontrols);
+    _apply_x<T>(state[i - tk1], state[i - tk2]);
+  }
 }
 
 
