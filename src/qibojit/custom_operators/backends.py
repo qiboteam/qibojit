@@ -296,16 +296,16 @@ class CupyBackend(AbstractBackend): # pragma: no cover
         nsubstates = 1 << ntargets
 
         ktype = self.get_kernel_type(state)
-        nblocks, block_size = self.calculate_blocks(nstates)
-        if len(targets) > 5:
+        if len(targets) > 3:
+            nblocks, block_size = 16, 512
             kernel = self.gates.get_function(f"apply_multi_qubit_gate_kernel{ktype}")
-            buffer = self.cp.copy(state)
-            args = (state, buffer, gate, qubits, targets, nsubstates, ntargets, nactive)
-            kernel((nblocks,), (block_size,), args)
+            buffer = self.cp.empty(nblocks * block_size * nsubstates, dtype=state.dtype)
+            args = (state, buffer, gate, qubits, targets, nsubstates, ntargets, nactive, nstates)
         else:
+            nblocks, block_size = self.calculate_blocks(nstates)
             kernel = self.gates.get_function(self.multiqubit_kernels.get(len(targets))+ktype)
             args = (state, gate, qubits, targets, ntargets, nactive)
-            kernel((nblocks,), (block_size,), args)
+        kernel((nblocks,), (block_size,), args)
         self.cp.cuda.stream.get_current_stream().synchronize()
         return state
 

@@ -398,17 +398,34 @@ __global__ void apply_multi_qubit_gate_kernel(T* state, T* buffer,
                                               const long* targets,
                                               long nsubstates,
                                               int ntargets,
-                                              int ncontrols) {
-  const long g = blockIdx.x * blockDim.x + threadIdx.x;
-  //const long brow = blockIdx.x * nsubstates;
-  const long ig = multicontrol_index(qubits, g, ncontrols);
-  for (auto i = 0; i < nsubstates; i++) {
-    const long t = ig - multitarget_index(targets, nsubstates - i - 1, ntargets);
-    //_apply_multi_qubit<T>(state[t], buffer, gate, targets, nsubstates, ntargets, ig);
-    state[t] = T(0., 0.);
-    for (auto j = 0; j < nsubstates; j++) {
-      const long u = ig - multitarget_index(targets, nsubstates - j - 1, ntargets);
-      state[t] = cadd(state[t], cmult(gate[nsubstates * i + j], buffer[u]));
+                                              int ncontrols,
+                                              long nstates) {
+  // Compute the number of threads
+  const int nthreads = blockDim.x * gridDim.x;
+
+  // Compute the thread index
+  const long threadId = blockIdx.x * blockDim.x + threadIdx.x;
+
+  for(long g = threadId; g < nstates; g += nthreads) {
+
+    // Compute the base index with target qubits in 0 and control qubits in 1
+    const long ig = multicontrol_index(qubits, g, ncontrols);
+
+    // Initialize the buffer
+    for (auto i = 0; i < nsubstates; i++) {
+      const long t = ig - multitarget_index(targets, nsubstates - i - 1, ntargets);
+      buffer[threadId * nsubstates+i] = state[t];
+    }
+
+    // Apply the gate
+    for (auto i = 0; i < nsubstates; i++) {
+      const long t = ig - multitarget_index(targets, nsubstates - i - 1, ntargets);
+      //_apply_multi_qubit<T>(state[t], buffer, gate, targets, nsubstates, ntargets, ig);
+      state[t] = T(0., 0.);
+      for (auto j = 0; j < nsubstates; j++) {
+        const long u = ig - multitarget_index(targets, nsubstates - j - 1, ntargets);
+        state[t] = cadd(state[t], cmult(gate[nsubstates * i + j], buffer[threadId*nsubstates+j]));
+      }
     }
   }
 }
