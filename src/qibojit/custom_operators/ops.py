@@ -1,6 +1,5 @@
 import numpy as np
 from numba import prange, njit
-from itertools import product
 
 
 @njit(["complex64[:](complex64[:])",
