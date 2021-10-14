@@ -119,13 +119,6 @@ def measure_frequencies(frequencies, probs, nshots, nqubits, seed, nthreads):
     frequencies += thread_frequencies.sum(axis=0)
     return frequencies
 
-def generate_signature_transpose_state(ndevices=[2,4,8],order=list(range(3,11))):
-    list1 = ['a' for a in ndevices]
-    list2 = ['a' for a in order]
-
-
-
-
 @njit(["complex64[:](UniTuple(complex64[:], 2), complex64[:], int64, UniTuple(int64, 3))",
        "complex64[:](UniTuple(complex64[:], 2), complex64[:], int64, UniTuple(int64, 4))",
        "complex64[:](UniTuple(complex64[:], 2), complex64[:], int64, UniTuple(int64, 5))",

@@ -1,4 +1,4 @@
-from numba import prange, njit, typeof
+from numba import prange, njit
 
 
 @njit(["int64(int64, UniTuple(int64, 2))",
