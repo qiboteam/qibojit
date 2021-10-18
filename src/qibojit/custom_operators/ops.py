@@ -25,7 +25,7 @@ def initial_density_matrix(state):
     return state
 
 
-@njit("int64(int64, int64, int32[:])",
+@njit("int64(int64, int64, int64[:])",
        cache=True)
 def collapse_index(g, h, qubits):
     i = 0
@@ -36,8 +36,8 @@ def collapse_index(g, h, qubits):
     return i
 
 
-@njit(["complex64[:](complex64[:], int32[:], int64, int64)",
-       "complex128[:](complex128[:], int32[:], int64, int64)"],
+@njit(["complex64[:](complex64[:], int64[:], int64, int64)",
+       "complex128[:](complex128[:], int64[:], int64, int64)"],
        parallel=True,
        cache=True)
 def collapse_state(state, qubits, result, nqubits):
@@ -53,8 +53,8 @@ def collapse_state(state, qubits, result, nqubits):
     return state
 
 
-@njit(["complex64[:](complex64[:], int32[:], int64, int64)",
-       "complex128[:](complex128[:], int32[:], int64, int64)"],
+@njit(["complex64[:](complex64[:], int64[:], int64, int64)",
+       "complex128[:](complex128[:], int64[:], int64, int64)"],
        parallel=True,
        cache=True)
 def collapse_state_normalized(state, qubits, result, nqubits):
