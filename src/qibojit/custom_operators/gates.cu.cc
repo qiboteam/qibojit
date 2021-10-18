@@ -260,8 +260,12 @@ __global__ void apply_multi_qubit_gate_kernel(T* state,
                                               long nsubstates,
                                               int ntargets,
                                               int ncontrols) {
+
+  // Dynamically allocate the buffer as shared memory
+  // https://stackoverflow.com/questions/27570552/templated-cuda-kernel-with-dynamic-shared-memory
   extern __shared__ __align__(sizeof(T)) unsigned char _buffer[];
   T* buffer = reinterpret_cast<T *>(_buffer);
+
   const long g = blockIdx.x * blockDim.x + threadIdx.x;
   const long ig = multicontrol_index(qubits, g, ncontrols);
   for (auto i = 0; i < nsubstates; i++) {
