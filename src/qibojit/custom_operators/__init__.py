@@ -51,38 +51,37 @@ def to_numpy(x):
     return backend.to_numpy(x)
 
 
-def apply_gate(state, gate, nqubits, target, qubits=None):
-    return backend.one_qubit_base(state, nqubits, target, "apply_gate", qubits, gate)
+def apply_gate(state, gate, nqubits, targets, qubits=None):
+    return backend.one_qubit_base(state, nqubits, *targets, "apply_gate", qubits, gate)
 
 
-def apply_x(state, nqubits, target, qubits=None):
-    return backend.one_qubit_base(state, nqubits, target, "apply_x", qubits)
+def apply_x(state, nqubits, targets, qubits=None):
+    return backend.one_qubit_base(state, nqubits, *targets, "apply_x", qubits)
 
 
-def apply_y(state, nqubits, target, qubits=None):
-    return backend.one_qubit_base(state, nqubits, target, "apply_y", qubits)
+def apply_y(state, nqubits, targets, qubits=None):
+    return backend.one_qubit_base(state, nqubits, *targets, "apply_y", qubits)
 
 
-def apply_z(state, nqubits, target, qubits=None):
-    return backend.one_qubit_base(state, nqubits, target, "apply_z", qubits)
+def apply_z(state, nqubits, targets, qubits=None):
+    return backend.one_qubit_base(state, nqubits, *targets, "apply_z", qubits)
 
 
-def apply_z_pow(state, gate, nqubits, target, qubits=None):
-    return backend.one_qubit_base(state, nqubits, target, "apply_z_pow", qubits, gate)
+def apply_z_pow(state, gate, nqubits, targets, qubits=None):
+    return backend.one_qubit_base(state, nqubits, *targets, "apply_z_pow", qubits, gate)
 
 
-def apply_two_qubit_gate(state, gate, nqubits, target1, target2, qubits=None):
-    return backend.two_qubit_base(state, nqubits, target1, target2,
+def apply_two_qubit_gate(state, gate, nqubits, targets, qubits=None):
+    return backend.two_qubit_base(state, nqubits, *targets,
                                   "apply_two_qubit_gate", qubits, gate)
 
 
-def apply_swap(state, nqubits, target1, target2, qubits=None):
-    return backend.two_qubit_base(state, nqubits, target1, target2, "apply_swap", qubits)
+def apply_swap(state, nqubits, targets, qubits=None):
+    return backend.two_qubit_base(state, nqubits, *targets, "apply_swap", qubits)
 
 
-def apply_fsim(state, gate, nqubits, target1, target2, qubits=None):
-    return backend.two_qubit_base(state, nqubits, target1, target2,
-                                  "apply_fsim", qubits, gate)
+def apply_fsim(state, gate, nqubits, targets, qubits=None):
+    return backend.two_qubit_base(state, nqubits, *targets, "apply_fsim", qubits, gate)
 
 
 def apply_multiqubit_gate(state, gate, nqubits, targets, qubits=None):
