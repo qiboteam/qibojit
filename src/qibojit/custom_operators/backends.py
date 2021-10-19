@@ -196,8 +196,9 @@ class CupyBackend(AbstractBackend): # pragma: no cover
             self.gates = cp.RawModule(code=code, options=("--std=c++11",),
                                       name_expressions=kernels)
 
-    def calculate_blocks(self, nstates):
-        block_size = self.DEFAULT_BLOCK_SIZE
+    def calculate_blocks(self, nstates, block_size=None):
+        if block_size is None:
+            block_size = self.DEFAULT_BLOCK_SIZE
         nblocks = (nstates + block_size - 1) // block_size
         if nstates < block_size:
             nblocks = 1
@@ -296,13 +297,14 @@ class CupyBackend(AbstractBackend): # pragma: no cover
         nsubstates = 1 << ntargets
 
         ktype = self.get_kernel_type(state)
-        if len(targets) > 3:
+        if len(targets) > 5:
             nblocks, block_size = 64, 512
             kernel = self.gates.get_function(f"apply_multi_qubit_gate_kernel{ktype}")
             buffer = self.cp.empty(nblocks * block_size * nsubstates, dtype=state.dtype)
             args = (state, buffer, gate, qubits, targets, nsubstates, ntargets, nactive, nstates)
         else:
-            nblocks, block_size = self.calculate_blocks(nstates)
+            nblocks, block_size = self.calculate_blocks(nstates,
+                                                        block_size=2**(13-len(targets)))
             kernel = self.gates.get_function(self.multiqubit_kernels.get(len(targets))+ktype)
             args = (state, gate, qubits, targets, ntargets, nactive)
         kernel((nblocks,), (block_size,), args)
