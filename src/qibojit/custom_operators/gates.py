@@ -1,7 +1,7 @@
 from numba import prange, njit
 
 
-@njit("int64(int64, int64[:])",
+@njit("int64(int64, int32[:])",
       cache=True)
 def multicontrol_index(g, qubits):
     i = 0
@@ -26,8 +26,8 @@ def apply_gate_kernel(state, gate, nstates, m):
     return state
 
 
-@njit(["complex64[:](complex64[:], complex64[:,:], int64[:], int64, int64)",
-       "complex128[:](complex128[:], complex128[:,:], int64[:], int64, int64)"],
+@njit(["complex64[:](complex64[:], complex64[:,:], int32[:], int64, int64)",
+       "complex128[:](complex128[:], complex128[:,:], int32[:], int64, int64)"],
        parallel=True,
        cache=True)
 def multicontrol_apply_gate_kernel(state, gate, qubits, nstates, m):
@@ -53,8 +53,8 @@ def apply_x_kernel(state, gate, nstates, m):
     return state
 
 
-@njit(["complex64[:](complex64[:], optional(complex64[:,:]), int64[:], int64, int64)",
-       "complex128[:](complex128[:], optional(complex128[:,:]), int64[:], int64, int64)"],
+@njit(["complex64[:](complex64[:], optional(complex64[:,:]), int32[:], int64, int64)",
+       "complex128[:](complex128[:], optional(complex128[:,:]), int32[:], int64, int64)"],
        parallel=True,
        cache=True)
 def multicontrol_apply_x_kernel(state, gate, qubits, nstates, m):
@@ -79,8 +79,8 @@ def apply_y_kernel(state, gate, nstates, m):
     return state
 
 
-@njit(["complex64[:](complex64[:], optional(complex64[:,:]), int64[:], int64, int64)",
-       "complex128[:](complex128[:], optional(complex128[:,:]), int64[:], int64, int64)"],
+@njit(["complex64[:](complex64[:], optional(complex64[:,:]), int32[:], int64, int64)",
+       "complex128[:](complex128[:], optional(complex128[:,:]), int32[:], int64, int64)"],
        parallel=True,
        cache=True)
 def multicontrol_apply_y_kernel(state, gate, qubits, nstates, m):
@@ -104,8 +104,8 @@ def apply_z_kernel(state, gate, nstates, m):
     return state
 
 
-@njit(["complex64[:](complex64[:], optional(complex64[:,:]), int64[:], int64, int64)",
-       "complex128[:](complex128[:], optional(complex128[:,:]), int64[:], int64, int64)"],
+@njit(["complex64[:](complex64[:], optional(complex64[:,:]), int32[:], int64, int64)",
+       "complex128[:](complex128[:], optional(complex128[:,:]), int32[:], int64, int64)"],
        parallel=True,
        cache=True)
 def multicontrol_apply_z_kernel(state, gate, qubits, nstates, m):
@@ -128,8 +128,8 @@ def apply_z_pow_kernel(state, gate, nstates, m):
     return state
 
 
-@njit(["complex64[:](complex64[:], complex64, int64[:], int64, int64)",
-       "complex128[:](complex128[:], complex128, int64[:], int64, int64)"],
+@njit(["complex64[:](complex64[:], complex64, int32[:], int64, int64)",
+       "complex128[:](complex128[:], complex128, int32[:], int64, int64)"],
        parallel=True,
        cache=True)
 def multicontrol_apply_z_pow_kernel(state, gate, qubits, nstates, m):
@@ -166,8 +166,8 @@ def apply_two_qubit_gate_kernel(state, gate, nstates, m1, m2, swap_targets=False
     return state
 
 
-@njit(["complex64[:](complex64[:], complex64[:,:], int64[:], int64, int64, int64, boolean)",
-       "complex128[:](complex128[:], complex128[:,:], int64[:], int64, int64, int64, boolean)"],
+@njit(["complex64[:](complex64[:], complex64[:,:], int32[:], int64, int64, int64, boolean)",
+       "complex128[:](complex128[:], complex128[:,:], int32[:], int64, int64, int64, boolean)"],
        parallel=True,
        cache=True)
 def multicontrol_apply_two_qubit_gate_kernel(state, gate, qubits, nstates, m1, m2, swap_targets=False):
@@ -205,8 +205,8 @@ def apply_swap_kernel(state, gate, nstates, m1, m2, swap_targets=False):
     return state
 
 
-@njit(["complex64[:](complex64[:], optional(complex64[:,:]), int64[:], int64, int64, int64, boolean)",
-       "complex128[:](complex128[:], optional(complex128[:,:]), int64[:], int64, int64, int64, boolean)"],
+@njit(["complex64[:](complex64[:], optional(complex64[:,:]), int32[:], int64, int64, int64, boolean)",
+       "complex128[:](complex128[:], optional(complex128[:,:]), int32[:], int64, int64, int64, boolean)"],
        parallel=True,
        cache=True)
 def multicontrol_apply_swap_kernel(state, gate, qubits, nstates, m1, m2, swap_targets=False):
@@ -239,8 +239,8 @@ def apply_fsim_kernel(state, gate, nstates, m1, m2, swap_targets=False):
     return state
 
 
-@njit(["complex64[:](complex64[:], complex64[:], int64[:], int64, int64, int64, boolean)",
-       "complex128[:](complex128[:], complex128[:], int64[:], int64, int64, int64, boolean)"],
+@njit(["complex64[:](complex64[:], complex64[:], int32[:], int64, int64, int64, boolean)",
+       "complex128[:](complex128[:], complex128[:], int32[:], int64, int64, int64, boolean)"],
        parallel=True,
        cache=True)
 def multicontrol_apply_fsim_kernel(state, gate, qubits, nstates, m1, m2, swap_targets=False):

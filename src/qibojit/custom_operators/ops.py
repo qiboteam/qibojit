@@ -25,7 +25,7 @@ def initial_density_matrix(state):
     return state
 
 
-@njit("int64(int64, int64, int64[:])",
+@njit("int64(int64, int64, int32[:])",
        cache=True)
 def collapse_index(g, h, qubits):
     i = 0
@@ -36,8 +36,8 @@ def collapse_index(g, h, qubits):
     return i
 
 
-@njit(["complex64[:](complex64[:], int64[:], int64, int64)",
-       "complex128[:](complex128[:], int64[:], int64, int64)"],
+@njit(["complex64[:](complex64[:], int32[:], int64, int64)",
+       "complex128[:](complex128[:], int32[:], int64, int64)"],
        parallel=True,
        cache=True)
 def collapse_state(state, qubits, result, nqubits):
@@ -53,8 +53,8 @@ def collapse_state(state, qubits, result, nqubits):
     return state
 
 
-@njit(["complex64[:](complex64[:], int64[:], int64, int64)",
-       "complex128[:](complex128[:], int64[:], int64, int64)"],
+@njit(["complex64[:](complex64[:], int32[:], int64, int64)",
+       "complex128[:](complex128[:], int32[:], int64, int64)"],
        parallel=True,
        cache=True)
 def collapse_state_normalized(state, qubits, result, nqubits):
@@ -110,12 +110,12 @@ def measure_frequencies(frequencies, probs, nshots, nqubits, seed, nthreads):
     return frequencies
 
 
-@njit(["complex64[:](UniTuple(complex64[:], 2), complex64[:], int64, int64[:])",
-       "complex64[:](UniTuple(complex64[:], 4), complex64[:], int64, int64[:])",
-       "complex64[:](UniTuple(complex64[:], 8), complex64[:], int64, int64[:])",
-       "complex128[:](UniTuple(complex128[:], 2), complex128[:], int64, int64[:])",
-       "complex128[:](UniTuple(complex128[:], 4), complex128[:], int64, int64[:])",
-       "complex128[:](UniTuple(complex128[:], 8), complex128[:], int64, int64[:])"],
+@njit(["complex64[:](UniTuple(complex64[:], 2), complex64[:], int64, int32[:])",
+       "complex64[:](UniTuple(complex64[:], 4), complex64[:], int64, int32[:])",
+       "complex64[:](UniTuple(complex64[:], 8), complex64[:], int64, int32[:])",
+       "complex128[:](UniTuple(complex128[:], 2), complex128[:], int64, int32[:])",
+       "complex128[:](UniTuple(complex128[:], 4), complex128[:], int64, int32[:])",
+       "complex128[:](UniTuple(complex128[:], 8), complex128[:], int64, int32[:])"],
        cache=True,
        parallel=True)
 def transpose_state(pieces, state, nqubits, order):

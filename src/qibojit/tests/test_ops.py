@@ -37,7 +37,7 @@ def test_collapse_state(backend, nqubits, targets, results, normalize, dtype):
         norm = (np.abs(target_state) ** 2).sum()
         target_state = target_state / np.sqrt(norm)
 
-    qubits = op.cast(sorted(nqubits - np.array(targets, dtype=np.int32) - 1),dtype=np.int64)
+    qubits = op.cast(sorted(nqubits - np.array(targets, dtype=np.int32) - 1),dtype=np.int32)
     b2d = 2 ** np.arange(len(results) - 1, -1, -1)
     result = int(np.array(results).dot(b2d))
     state = op.collapse_state(state, qubits, result, nqubits, normalize)
@@ -57,7 +57,7 @@ CONFIG = ((n, generate_transpose_qubits(n))
 @pytest.mark.parametrize("nqubits,qubits", CONFIG)
 @pytest.mark.parametrize("ndevices", [2, 4, 8])
 def test_transpose_state(nqubits, qubits, ndevices, dtype):
-    qubit_order = op.cast(qubits,dtype=np.int64)
+    qubit_order = op.cast(qubits,dtype=np.int32)
     state = random_state(nqubits, dtype)
     state_tensor = np.reshape(state, nqubits * (2,))
     target_state = np.transpose(state_tensor, qubit_order).flatten()
