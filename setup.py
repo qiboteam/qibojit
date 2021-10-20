@@ -1,5 +1,6 @@
 # Installation script for python
 from setuptools import setup, find_packages
+from setuptools.command.install import install
 import os
 import re
 
@@ -25,6 +26,14 @@ with open(os.path.join(this_directory, "README.md"), encoding="utf-8") as f:
     long_description = f.read()
 
 
+class CustomInstall(install):
+    def run(self):
+        install.run(self)
+        os.environ["CUDA_VISIBLE_DEVICES"] = ""
+        os.environ["HIP_VISIBLE_DEVICES"] = ""
+        from qibojit import custom_operators
+
+
 setup(
     name=PACKAGE,
     version=get_version(),
@@ -36,6 +45,9 @@ setup(
     package_dir={"": "src"},
     package_data={"": ["*.cc"]},
     zip_safe=False,
+    cmdclass = {
+        "install": CustomInstall
+    },
     classifiers=[
         "Programming Language :: Python :: 3",
         "Topic :: Scientific/Engineering :: Physics",
