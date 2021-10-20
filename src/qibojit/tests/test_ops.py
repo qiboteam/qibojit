@@ -57,7 +57,7 @@ CONFIG = ((n, generate_transpose_qubits(n))
 @pytest.mark.parametrize("nqubits,qubits", CONFIG)
 @pytest.mark.parametrize("ndevices", [2, 4, 8])
 def test_transpose_state(nqubits, qubits, ndevices, dtype):
-    qubit_order = op.cast(qubits,dtype=np.int32)
+    qubit_order = list(qubits)
     state = random_state(nqubits, dtype)
     state_tensor = np.reshape(state, nqubits * (2,))
     target_state = np.transpose(state_tensor, qubit_order).flatten()

@@ -10,7 +10,7 @@ class NumbaBackend(AbstractBackend):
 
     def qubits_tensor(self, nqubits, targets, controls=[]):
         qubits = super().qubits_tensor(nqubits, targets, controls)
-        return tuple(qubits)
+        return qubits
 
 
 class CupyBackend(AbstractBackend):
