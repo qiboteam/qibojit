@@ -291,7 +291,6 @@ class CupyBackend(AbstractBackend): # pragma: no cover
         kernel = self.gates.get_function(f"apply_multi_qubit_gate_kernel{ktype}")
 
         nblocks, block_size = self.calculate_blocks(nstates)
-        #buffer = self.cp.empty(nblocks * nsubstates, dtype=state.dtype)
         buffer = self.cp.copy(state)
         args = (state, buffer, gate, qubits, targets, nsubstates, ntargets, nactive)
         kernel((nblocks,), (block_size,), args)
