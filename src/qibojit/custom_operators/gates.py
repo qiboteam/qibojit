@@ -258,7 +258,7 @@ def multicontrol_apply_fsim_kernel(state, gate, qubits, nstates, m1, m2, swap_ta
     return state
 
 
-@njit(cache=True)
+@njit("int64(int64, int64[:])", cache=True)
 def multitarget_index(i, targets):
     t = 0
     for u, v in enumerate(targets):
@@ -266,7 +266,10 @@ def multitarget_index(i, targets):
     return t
 
 
-@njit(parallel=True, cache=True)
+@njit(["complex64[:](complex64[:], complex64[:,:], int32[:], int64, int64[:])",
+       "complex128[:](complex128[:], complex128[:,:], int32[:], int64, int64[:])"],
+       parallel=True,
+       cache=True)
 def apply_three_qubit_gate_kernel(state, gate, qubits, nstates, targets):
     for g in prange(nstates):  # pylint: disable=not-an-iterable
         ig = multicontrol_index(g, qubits)
@@ -284,7 +287,10 @@ def apply_three_qubit_gate_kernel(state, gate, qubits, nstates, targets):
     return state
 
 
-@njit(parallel=True, cache=True)
+@njit(["complex64[:](complex64[:], complex64[:,:], int32[:], int64, int64[:])",
+       "complex128[:](complex128[:], complex128[:,:], int32[:], int64, int64[:])"],
+       parallel=True,
+       cache=True)
 def apply_four_qubit_gate_kernel(state, gate, qubits, nstates, targets):
     for g in prange(nstates):  # pylint: disable=not-an-iterable
         ig = multicontrol_index(g, qubits)
@@ -310,7 +316,10 @@ def apply_four_qubit_gate_kernel(state, gate, qubits, nstates, targets):
     return state
 
 
-@njit(parallel=True, cache=True)
+@njit(["complex64[:](complex64[:], complex64[:,:], int32[:], int64, int64[:])",
+       "complex128[:](complex128[:], complex128[:,:], int32[:], int64, int64[:])"],
+       parallel=True,
+       cache=True)
 def apply_five_qubit_gate_kernel(state, gate, qubits, nstates, targets):
     for g in prange(nstates):  # pylint: disable=not-an-iterable
         ig = multicontrol_index(g, qubits)
@@ -352,7 +361,10 @@ def apply_five_qubit_gate_kernel(state, gate, qubits, nstates, targets):
     return state
 
 
-@njit(parallel=True, cache=True)
+@njit(["complex64[:](complex64[:], complex64[:,:], int32[:], int64, int64[:])",
+       "complex128[:](complex128[:], complex128[:,:], int32[:], int64, int64[:])"],
+       parallel=True,
+       cache=True)
 def apply_multi_qubit_gate_kernel(state, gate, qubits, nstates, targets):
     nsubstates = 1 << len(targets)
     for g in prange(nstates):  # pylint: disable=not-an-iterable
