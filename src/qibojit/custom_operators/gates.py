@@ -361,8 +361,8 @@ def apply_five_qubit_gate_kernel(state, gate, qubits, nstates, targets):
     return state
 
 
-@njit(["complex64[:](complex64[::1], complex64[:,:], int32[:], int64, int64[:])",
-       "complex128[:](complex128[::1], complex128[:,:], int32[:], int64, int64[:])"],
+@njit(["complex64[:](complex64[:], complex64[:,::1], int32[:], int64, int64[:])",
+       "complex128[:](complex128[:], complex128[:,::1], int32[:], int64, int64[:])"],
        parallel=True,
        cache=True)
 def apply_multi_qubit_gate_kernel(state, gate, qubits, nstates, targets):
