@@ -126,7 +126,7 @@ class NumbaBackend(AbstractBackend):
         return self.ops.collapse_state(state, qubits, result, nqubits)
 
     def transpose_state(self, pieces, state, nqubits, order):
-        return self.ops.transpose_state(tuple(pieces), state, nqubits, tuple(order))
+        return self.ops.transpose_state(tuple(pieces), state, nqubits, order)
 
     def swap_pieces(self, piece0, piece1, new_global, nlocal):
         return self.ops.swap_pieces(piece0, piece1, new_global, nlocal)
