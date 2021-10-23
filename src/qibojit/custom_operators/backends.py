@@ -153,7 +153,6 @@ class CupyBackend(AbstractBackend): # pragma: no cover
         import os
         import numpy as np
         import cupy as cp  # pylint: disable=import-error
-        import cupy_backends  # pylint: disable=import-error
         try:
             if not cp.cuda.runtime.getDeviceCount(): # pragma: no cover
                 raise RuntimeError("Cannot use cupy backend if GPU is not available.")
@@ -164,14 +163,9 @@ class CupyBackend(AbstractBackend): # pragma: no cover
         self.np = np
         self.cp = cp
         base_dir = os.path.dirname(os.path.realpath(__file__))
-        is_hip = cupy_backends.cuda.api.runtime.is_hip
 
-        if is_hip:  # pragma: no cover
-            self.kernel_double_suffix = f"_complex_double"
-            self.kernel_float_suffix = f"_complex_float"
-        else:  # pragma: no cover
-            self.kernel_double_suffix = f"<complex<double>>"
-            self.kernel_float_suffix = f"<complex<float>>"
+        self.kernel_double_suffix = f"<complex<double> >"
+        self.kernel_float_suffix = f"<complex<float> >"
 
         # load gate kernels
         kernels = []
@@ -190,7 +184,7 @@ class CupyBackend(AbstractBackend): # pragma: no cover
         kernels.append(f"initial_state_kernel{self.kernel_double_suffix}")
         kernels.append(f"initial_state_kernel{self.kernel_float_suffix}")
         kernels = tuple(kernels)
-        gates_dir = os.path.join(base_dir, "gates.hip.cc" if is_hip else "gates.cu.cc")
+        gates_dir = os.path.join(base_dir, "gates.cu.cc")
         with open(gates_dir, "r") as file:
             code = r"{}".format(file.read())
             self.gates = cp.RawModule(code=code, options=("--std=c++11",),
