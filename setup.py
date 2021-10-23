@@ -54,6 +54,7 @@ setup(
     ],
     install_requires=[
         "numba>=0.51.0",
+        "scipy",
         "psutil"
     ],
     extras_require={
