@@ -143,6 +143,11 @@ class CupyBackend(AbstractBackend): # pragma: no cover
     DEFAULT_BLOCK_SIZE = 1024
     KERNELS = ("apply_gate", "apply_x", "apply_y", "apply_z", "apply_z_pow",
                "apply_two_qubit_gate", "apply_fsim", "apply_swap")
+    MULTIQUBIT_KERNELS = {
+        3: "apply_three_qubit_gate_kernel",
+        4: "apply_four_qubit_gate_kernel",
+        5: "apply_five_qubit_gate_kernel"
+    }
 
     def __init__(self):
         import os
@@ -175,6 +180,9 @@ class CupyBackend(AbstractBackend): # pragma: no cover
             kernels.append(f"{kernel}_kernel{self.kernel_float_suffix}")
             kernels.append(f"multicontrol_{kernel}_kernel{self.kernel_double_suffix}")
             kernels.append(f"multicontrol_{kernel}_kernel{self.kernel_float_suffix}")
+        for ntargets in self.MULTIQUBIT_KERNELS:
+            kernels.append(self.MULTIQUBIT_KERNELS.get(ntargets)+self.kernel_double_suffix)
+            kernels.append(self.MULTIQUBIT_KERNELS.get(ntargets)+self.kernel_float_suffix)
         kernels.append(f"apply_multi_qubit_gate_kernel{self.kernel_double_suffix}")
         kernels.append(f"apply_multi_qubit_gate_kernel{self.kernel_float_suffix}")
         kernels.append(f"collapse_state_kernel{self.kernel_double_suffix}")
@@ -188,8 +196,9 @@ class CupyBackend(AbstractBackend): # pragma: no cover
             self.gates = cp.RawModule(code=code, options=("--std=c++11",),
                                       name_expressions=kernels)
 
-    def calculate_blocks(self, nstates):
-        block_size = self.DEFAULT_BLOCK_SIZE
+    def calculate_blocks(self, nstates, block_size=None):
+        if block_size is None:
+            block_size = self.DEFAULT_BLOCK_SIZE
         nblocks = (nstates + block_size - 1) // block_size
         if nstates < block_size:
             nblocks = 1
@@ -288,11 +297,16 @@ class CupyBackend(AbstractBackend): # pragma: no cover
         nsubstates = 1 << ntargets
 
         ktype = self.get_kernel_type(state)
-        kernel = self.gates.get_function(f"apply_multi_qubit_gate_kernel{ktype}")
-
-        nblocks, block_size = self.calculate_blocks(nstates)
-        buffer = self.cp.copy(state)
-        args = (state, buffer, gate, qubits, targets, nsubstates, ntargets, nactive)
+        if len(targets) < 6:
+            nblocks, block_size = self.calculate_blocks(nstates,
+                                                        block_size=2**(13-len(targets)))
+            kernel = self.gates.get_function(self.MULTIQUBIT_KERNELS.get(len(targets))+ktype)
+            args = (state, gate, qubits, targets, ntargets, nactive)
+        else:
+            nblocks, block_size = self.calculate_blocks(nstates)
+            kernel = self.gates.get_function(f"apply_multi_qubit_gate_kernel{ktype}")
+            buffer = self.cp.copy(state)
+            args = (state, buffer, gate, qubits, targets, nsubstates, ntargets, nactive)
         kernel((nblocks,), (block_size,), args)
         self.cp.cuda.stream.get_current_stream().synchronize()
         return state
