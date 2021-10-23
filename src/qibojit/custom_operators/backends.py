@@ -164,8 +164,8 @@ class CupyBackend(AbstractBackend): # pragma: no cover
         self.cp = cp
         base_dir = os.path.dirname(os.path.realpath(__file__))
 
-        self.kernel_double_suffix = f"<complex<double> >"
-        self.kernel_float_suffix = f"<complex<float> >"
+        self.kernel_double_suffix = "<thrust::complex<double> >"
+        self.kernel_float_suffix = "<thrust::complex<float> >"
 
         # load gate kernels
         kernels = []
