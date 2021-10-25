@@ -30,6 +30,20 @@ class JITCustomBackend(NumpyBackend):
         self.engine = None # active engine
         self._numba_engine = NumbaBackend()
         self._cupy_engine = None
+        self._gate_ops = {
+            "x": self.apply_x,
+            "y": self.apply_y,
+            "z": self.apply_z,
+            "m": self.collapse_state,
+            "u1": self.apply_z_pow,
+            "cx": self.apply_x,
+            "cz": self.apply_z,
+            "cu1": self.apply_z_pow,
+            "swap": self.apply_swap,
+            "fsim": self.apply_fsim,
+            "generalizedfsim": self.apply_fsim,
+            "ccx": self.apply_x
+            }
 
         try: # pragma: no cover
             from cupy import cuda # pylint: disable=E0401
@@ -204,45 +218,56 @@ class JITCustomBackend(NumpyBackend):
             cache.target_qubits_dm = [q + gate.nqubits for q in gate.target_qubits]
         return cache
 
+    def get_gate_op(self, gate):
+        if gate.name in self._gate_ops:
+            return self._gate_ops.get(gate.name)
+        elif gate.__class__.__name__ == "_ThermalRelaxationChannelB":
+            return self.apply_two_qubit_gate
+        n = len(gate.target_qubits)
+        if n == 1:
+            return self.apply_gate
+        elif n == 2:
+            return self.apply_two_qubit_gate
+        else:
+            return self.apply_multiqubit_gate
+
     def _state_vector_call(self, gate, state):
-        return gate.gate_op(state, gate.nqubits, gate.target_qubits,
-                            gate.cache.qubits_tensor)
+        gate_op = self.get_gate_op(gate)
+        return gate_op(state, gate.nqubits, gate.target_qubits, gate.cache.qubits_tensor)
 
     def state_vector_matrix_call(self, gate, state):
-        return gate.gate_op(state, gate.custom_op_matrix, gate.nqubits, gate.target_qubits,
-                            gate.cache.qubits_tensor)
+        gate_op = self.get_gate_op(gate)
+        return gate_op(state, gate.custom_op_matrix, gate.nqubits, gate.target_qubits, gate.cache.qubits_tensor)
 
     def _density_matrix_call(self, gate, state):
         qubits = gate.cache.qubits_tensor + gate.nqubits
         shape = state.shape
-        state = gate.gate_op(state.flatten(), 2 * gate.nqubits,
-                             gate.target_qubits, qubits)
-        state = gate.gate_op(state, 2 * gate.nqubits, gate.cache.target_qubits_dm,
-                             gate.cache.qubits_tensor)
+        gate_op = self.get_gate_op(gate)
+        state = gate_op(state.flatten(), 2 * gate.nqubits, gate.target_qubits, qubits)
+        state = gate_op(state, 2 * gate.nqubits, gate.cache.target_qubits_dm, gate.cache.qubits_tensor)
         return self.reshape(state, shape)
 
     def density_matrix_matrix_call(self, gate, state):
         qubits = gate.cache.qubits_tensor + gate.nqubits
         shape = state.shape
-        state = gate.gate_op(state.flatten(), gate.custom_op_matrix, 2 * gate.nqubits,
-                             gate.target_qubits, qubits)
+        gate_op = self.get_gate_op(gate)
+        state = gate_op(state.flatten(), gate.custom_op_matrix, 2 * gate.nqubits, gate.target_qubits, qubits)
         adjmatrix = self.conj(gate.custom_op_matrix)
-        state = gate.gate_op(state, adjmatrix, 2 * gate.nqubits, gate.cache.target_qubits_dm,
-                             gate.cache.qubits_tensor)
+        state = gate_op(state, adjmatrix, 2 * gate.nqubits, gate.cache.target_qubits_dm, gate.cache.qubits_tensor)
         return self.reshape(state, shape)
 
     def _density_matrix_half_call(self, gate, state):
         qubits = gate.cache.qubits_tensor + gate.nqubits
         shape = state.shape
-        state = gate.gate_op(state.flatten(), 2 * gate.nqubits,
-                             gate.target_qubits, qubits)
+        gate_op = self.get_gate_op(gate)
+        state = gate_op(state.flatten(), 2 * gate.nqubits, gate.target_qubits, qubits)
         return self.reshape(state, shape)
 
     def density_matrix_half_matrix_call(self, gate, state):
         qubits = gate.cache.qubits_tensor + gate.nqubits
         shape = state.shape
-        state = gate.gate_op(state.flatten(), gate.custom_op_matrix, 2 * gate.nqubits,
-                             gate.target_qubits, qubits)
+        gate_op = self.get_gate_op(gate)
+        state = gate_op(state.flatten(), gate.custom_op_matrix, 2 * gate.nqubits, gate.target_qubits, qubits)
         return self.reshape(state, shape)
 
     def _result_tensor(self, result):
@@ -251,15 +276,14 @@ class JITCustomBackend(NumpyBackend):
 
     def state_vector_collapse(self, gate, state, result):
         result = self._result_tensor(result)
-        return gate.gate_op(state, gate.cache.qubits_tensor, result, gate.nqubits, True)
+        return self.collapse_state(state, gate.cache.qubits_tensor, result, gate.nqubits, True)
 
     def density_matrix_collapse(self, gate, state, result):
         result = self._result_tensor(result)
         qubits = gate.cache.qubits_tensor + gate.nqubits
         shape = state.shape
-        state = gate.gate_op(state.flatten(), qubits, result, 2 * gate.nqubits, False)
-        state = gate.gate_op(state, gate.cache.qubits_tensor, result,
-                             2 * gate.nqubits, False)
+        state = self.collapse_state(state.flatten(), qubits, result, 2 * gate.nqubits, False)
+        state = self.collapse_state(state, gate.cache.qubits_tensor, result, 2 * gate.nqubits, False)
         state = self.reshape(state, shape)
         return state / self.trace(state)
 
