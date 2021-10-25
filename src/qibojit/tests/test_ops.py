@@ -1,19 +1,20 @@
 import pytest
 import itertools
 import numpy as np
-from qibojit import custom_operators as op
+import qibo
+from qibo import K
 from qibojit.tests.test_gates import qubits_tensor, random_state
 
 
 @pytest.mark.parametrize("is_matrix", [False, True])
 def test_initial_state(backend, dtype, is_matrix):
-    final_state =  op.initial_state(4, dtype, is_matrix)
+    final_state =  K.engine.initial_state(4, dtype, is_matrix)
     if is_matrix:
         target_state = np.array([1] + [0]*255, dtype=dtype)
         target_state = np.reshape(target_state, (16, 16))
     else:
         target_state = np.array([1] + [0]*15, dtype=dtype)
-    final_state = op.to_numpy(final_state)
+    final_state = K.to_numpy(final_state)
     np.testing.assert_allclose(final_state, target_state)
 
 
@@ -37,11 +38,11 @@ def test_collapse_state(backend, nqubits, targets, results, normalize, dtype):
         norm = (np.abs(target_state) ** 2).sum()
         target_state = target_state / np.sqrt(norm)
 
-    qubits = op.cast(sorted(nqubits - np.array(targets, dtype=np.int32) - 1),dtype=np.int32)
+    qubits = K.cast(sorted(nqubits - np.array(targets, dtype=np.int32) - 1),dtype=np.int32)
     b2d = 2 ** np.arange(len(results) - 1, -1, -1)
     result = int(np.array(results).dot(b2d))
-    state = op.collapse_state(state, qubits, result, nqubits, normalize)
-    state = op.to_numpy(state)
+    state = K.collapse_state(state, qubits, result, nqubits, normalize)
+    state = K.to_numpy(state)
     np.testing.assert_allclose(state, target_state, atol=atol)
 
 
@@ -64,7 +65,7 @@ def test_transpose_state(nqubits, qubits, ndevices, dtype):
     new_state = np.zeros_like(state)
     state = np.reshape(state, (ndevices, int(state.shape[0]) // ndevices))
     pieces = [state[i] for i in range(ndevices)]
-    new_state = op.transpose_state(pieces, new_state, nqubits, qubit_order)
+    new_state = K.transpose_state(pieces, new_state, nqubits, qubit_order)
     np.testing.assert_allclose(new_state, target_state)
 
 
@@ -77,10 +78,10 @@ def test_swap_pieces_zero_global(nqubits, local, dtype):
     state = np.reshape(state, shape)
 
     qubits = qubits_tensor(nqubits, [0, local])
-    target_state = op.apply_swap(target_state, nqubits, (0, local), qubits)
-    target_state = np.reshape(op.to_numpy(target_state), shape)
+    target_state = K.apply_swap(target_state, nqubits, (0, local), qubits)
+    target_state = np.reshape(K.to_numpy(target_state), shape)
     piece0, piece1 = state[0], state[1]
-    op.swap_pieces(piece0, piece1, local - 1, nqubits - 1)
+    K.swap_pieces(piece0, piece1, local - 1, nqubits - 1)
     np.testing.assert_allclose(piece0, target_state[0])
     np.testing.assert_allclose(piece1, target_state[1])
 
@@ -101,8 +102,8 @@ def test_swap_pieces(nqubits, qlocal, qglobal, dtype):
 
     targets = [qglobal, qlocal]
     qubits = qubits_tensor(nqubits, targets)
-    target_state = op.apply_swap(target_state, nqubits, targets, qubits)
-    target_state = op.to_numpy(target_state)
+    target_state = K.apply_swap(target_state, nqubits, targets, qubits)
+    target_state = K.to_numpy(target_state)
     target_state = np.reshape(target_state, nqubits * (2,))
     target_state = np.transpose(target_state, transpose_order)
     target_state = np.reshape(target_state, shape)
@@ -112,7 +113,7 @@ def test_swap_pieces(nqubits, qlocal, qglobal, dtype):
     state = np.reshape(state, shape)
     piece0, piece1 = state[0], state[1]
     new_global = qlocal - int(qglobal < qlocal)
-    op.swap_pieces(piece0, piece1, new_global, nqubits - 1)
+    K.swap_pieces(piece0, piece1, new_global, nqubits - 1)
     np.testing.assert_allclose(piece0, target_state[0])
     np.testing.assert_allclose(piece1, target_state[1])
 
@@ -123,9 +124,9 @@ def test_swap_pieces(nqubits, qlocal, qglobal, dtype):
 def test_measure_frequencies(backend, realtype, inttype, nthreads):
     probs = np.ones(16, dtype=realtype) / 16
     frequencies = np.zeros(16, dtype=inttype)
-    frequencies = op.measure_frequencies(frequencies, probs, nshots=1000,
-                                         nqubits=4, seed=1234,
-                                         nthreads=nthreads)
+    frequencies = K.engine.measure_frequencies(frequencies, probs, nshots=1000,
+                                               nqubits=4, seed=1234,
+                                               nthreads=nthreads)
     assert np.sum(frequencies) == 1000
     if nthreads is not None:
         target_frequencies = np.array([72, 65, 63, 54, 57, 55, 67, 50, 53, 67, 69,
@@ -144,8 +145,8 @@ def test_measure_frequencies_sparse_probabilities(backend, nonzero):
         probs[i] = 1
     probs = probs / np.sum(probs)
     frequencies = np.zeros(8, dtype=np.int64)
-    frequencies = op.measure_frequencies(frequencies, probs, nshots=1000,
-                                         nqubits=3, nthreads=4)
+    frequencies = K.engine.measure_frequencies(frequencies, probs, nshots=1000,
+                                               nqubits=3, nthreads=4)
     assert np.sum(frequencies) == 1000
     for i, freq in enumerate(frequencies):
         if i in nonzero:

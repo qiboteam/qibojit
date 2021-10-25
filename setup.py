@@ -55,7 +55,8 @@ setup(
     install_requires=[
         "numba>=0.51.0",
         "scipy",
-        "psutil"
+        "psutil",
+        "qibo>=0.1.7"
     ],
     extras_require={
         "tests": ["qibo", "pytest"],

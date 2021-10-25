@@ -1,18 +1,23 @@
 import pytest
-from qibojit import custom_operators as op
+import qibo
+from qibo import K
+qibo.set_backend("qibojit")
+
+_BACKENDS = ["numba"]
+if K._cupy_engine is not None:
+    _BACKENDS.append("cupy")
 
 
 @pytest.fixture
 def backend(backend_name):
-    original_backend = op.get_backend()
-    op.set_backend(backend_name)
+    original_backend = K.engine.name
+    K.set_engine(backend_name)
     yield
-    op.set_backend(original_backend)
+    K.set_engine(original_backend)
 
 
 def pytest_generate_tests(metafunc):
     if "backend_name" in metafunc.fixturenames:
-        backends = list(op.backend.available_backends.keys())
-        metafunc.parametrize("backend_name", backends)
+        metafunc.parametrize("backend_name", _BACKENDS)
     if "dtype" in metafunc.fixturenames:
         metafunc.parametrize("dtype", ["complex128", "complex64"])
