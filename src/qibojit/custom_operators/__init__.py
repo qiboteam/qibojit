@@ -1,4 +1,4 @@
-from qibo.backends.abstract import AbstractBackend
+from qibo.backends.abstract import AbstractBackend, AbstractCustomOperators
 from qibo.backends.numpy import NumpyBackend
 from qibo.abstractions.states import AbstractState
 from qibo.config import raise_error
@@ -18,32 +18,19 @@ class CupyCpuDevice:
             self.K.set_engine("cupy")
 
 
-class JITCustomBackend(NumpyBackend):
+class JITCustomBackend(NumpyBackend, AbstractCustomOperators):
 
     description = "Uses custom operators based on numba.jit for CPU and " \
                   "custom CUDA kernels loaded with cupy GPU."
 
     def __init__(self):
         super().__init__()
+        AbstractCustomOperators.__init__(self)
         self.is_custom = True
         self.name = "qibojit"
         self.engine = None # active engine
         self._numba_engine = NumbaBackend()
         self._cupy_engine = None
-        self._gate_ops = {
-            "x": self.apply_x,
-            "y": self.apply_y,
-            "z": self.apply_z,
-            "m": self.collapse_state,
-            "u1": self.apply_z_pow,
-            "cx": self.apply_x,
-            "cz": self.apply_z,
-            "cu1": self.apply_z_pow,
-            "swap": self.apply_swap,
-            "fsim": self.apply_fsim,
-            "generalizedfsim": self.apply_fsim,
-            "ccx": self.apply_x
-            }
 
         try: # pragma: no cover
             from cupy import cuda # pylint: disable=E0401
@@ -217,19 +204,6 @@ class JITCustomBackend(NumpyBackend):
         if gate.density_matrix:
             cache.target_qubits_dm = [q + gate.nqubits for q in gate.target_qubits]
         return cache
-
-    def get_gate_op(self, gate):
-        if gate.name in self._gate_ops:
-            return self._gate_ops.get(gate.name)
-        elif gate.__class__.__name__ == "_ThermalRelaxationChannelB":
-            return self.apply_two_qubit_gate
-        n = len(gate.target_qubits)
-        if n == 1:
-            return self.apply_gate
-        elif n == 2:
-            return self.apply_two_qubit_gate
-        else:
-            return self.apply_multiqubit_gate
 
     def _state_vector_call(self, gate, state):
         gate_op = self.get_gate_op(gate)
