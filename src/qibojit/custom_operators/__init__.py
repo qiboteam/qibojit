@@ -24,7 +24,7 @@ class JITCustomBackend(NumpyBackend, AbstractCustomOperators):
                   "custom CUDA kernels loaded with cupy GPU."
 
     def __init__(self):
-        super().__init__()
+        NumpyBackend.__init__(self)
         AbstractCustomOperators.__init__(self)
         self.is_custom = True
         self.name = "qibojit"
@@ -308,8 +308,7 @@ class JITCustomBackend(NumpyBackend, AbstractCustomOperators):
         return self.engine.two_qubit_base(state, nqubits, *targets, "apply_swap", qubits)
 
     def apply_fsim(self, state, gate, nqubits, targets, qubits=None):
-        return self.engine.two_qubit_base(state, nqubits, *targets,
-                                          "apply_fsim", qubits, gate)
+        return self.engine.two_qubit_base(state, nqubits, *targets, "apply_fsim", qubits, gate)
 
     def apply_multiqubit_gate(self, state, gate, nqubits, targets, qubits=None):
         # FIXME: fall back to numba temporarily until we implement this for GPU
