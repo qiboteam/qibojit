@@ -31,7 +31,7 @@ class CustomInstall(install):
         install.run(self)
         os.environ["CUDA_VISIBLE_DEVICES"] = ""
         os.environ["HIP_VISIBLE_DEVICES"] = ""
-        from qibojit import custom_operators
+        #from qibojit import custom_operators
 
 
 setup(
