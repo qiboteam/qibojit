@@ -6,23 +6,23 @@
 #include <cupy/complex.cuh>
 
 // Multiplies two complex numbers
-__device__ complex<double> cmult(complex<double> a, complex<double> b) {
-  return complex<double>(a.real() * b.real() - a.imag() * b.imag(),
-                         a.real() * b.imag() + a.imag() * b.real());
+__device__ thrust::complex<double> cmult(thrust::complex<double> a, thrust::complex<double> b) {
+  return thrust::complex<double>(a.real() * b.real() - a.imag() * b.imag(),
+                                 a.real() * b.imag() + a.imag() * b.real());
 }
 
-__device__ complex<float> cmult(complex<float> a, complex<float> b) {
-  return complex<float>(a.real() * b.real() - a.imag() * b.imag(),
-                        a.real() * b.imag() + a.imag() * b.real());
+__device__ thrust::complex<float> cmult(thrust::complex<float> a, thrust::complex<float> b) {
+  return thrust::complex<float>(a.real() * b.real() - a.imag() * b.imag(),
+                                a.real() * b.imag() + a.imag() * b.real());
 }
 
 // Adds two complex numbers
-__device__ complex<double> cadd(complex<double> a, complex<double> b) {
-  return complex<double>(a.real() + b.real(), a.imag() + b.imag());
+__device__ thrust::complex<double> cadd(thrust::complex<double> a, thrust::complex<double> b) {
+  return thrust::complex<double>(a.real() + b.real(), a.imag() + b.imag());
 }
 
-__device__ complex<float> cadd(complex<float> a, complex<float> b) {
-  return complex<float>(a.real() + b.real(), a.imag() + b.imag());
+__device__ thrust::complex<float> cadd(thrust::complex<float> a, thrust::complex<float> b) {
+  return thrust::complex<float>(a.real() + b.real(), a.imag() + b.imag());
 }
 
 
