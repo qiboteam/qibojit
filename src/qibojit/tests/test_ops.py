@@ -124,14 +124,20 @@ def test_swap_pieces(nqubits, qlocal, qglobal, dtype):
 def test_measure_frequencies(backend, realtype, inttype, nthreads):
     probs = np.ones(16, dtype=realtype) / 16
     frequencies = np.zeros(16, dtype=inttype)
-    frequencies = K.engine.measure_frequencies(frequencies, probs, nshots=1000,
-                                               nqubits=4, seed=1234,
-                                               nthreads=nthreads)
-    assert np.sum(frequencies) == 1000
-    if nthreads is not None:
-        target_frequencies = np.array([72, 65, 63, 54, 57, 55, 67, 50, 53, 67, 69,
-                                       68, 64, 68, 66, 62], dtype=inttype)
-        np.testing.assert_allclose(frequencies, target_frequencies)
+    if K.engine.name == "cupy":
+        with pytest.raises(NotImplementedError):
+            frequencies = K.engine.measure_frequencies(frequencies, probs, nshots=1000,
+                                                       nqubits=4, seed=1234,
+                                                       nthreads=nthreads)
+    else:
+        frequencies = K.engine.measure_frequencies(frequencies, probs, nshots=1000,
+                                                   nqubits=4, seed=1234,
+                                                   nthreads=nthreads)
+        assert np.sum(frequencies) == 1000
+        if nthreads is not None:
+            target_frequencies = np.array([72, 65, 63, 54, 57, 55, 67, 50, 53, 67, 69,
+                                           68, 64, 68, 66, 62], dtype=inttype)
+            np.testing.assert_allclose(frequencies, target_frequencies)
 
 
 NONZERO = list(itertools.combinations(range(8), r=1))
@@ -145,11 +151,16 @@ def test_measure_frequencies_sparse_probabilities(backend, nonzero):
         probs[i] = 1
     probs = probs / np.sum(probs)
     frequencies = np.zeros(8, dtype=np.int64)
-    frequencies = K.engine.measure_frequencies(frequencies, probs, nshots=1000,
-                                               nqubits=3, nthreads=4)
-    assert np.sum(frequencies) == 1000
-    for i, freq in enumerate(frequencies):
-        if i in nonzero:
-            assert freq != 0
-        else:
-            assert freq == 0
+    if K.engine.name == "cupy":
+        with pytest.raises(NotImplementedError):
+            frequencies = K.engine.measure_frequencies(frequencies, probs, nshots=1000,
+                                                       nqubits=3, nthreads=4)
+    else:
+        frequencies = K.engine.measure_frequencies(frequencies, probs, nshots=1000,
+                                                   nqubits=3, nthreads=4)
+        assert np.sum(frequencies) == 1000
+        for i, freq in enumerate(frequencies):
+            if i in nonzero:
+                assert freq != 0
+            else:
+                assert freq == 0

@@ -312,6 +312,6 @@ class CupyBackend(AbstractBackend): # pragma: no cover
         raise NotImplementedError("`swap_pieces` method is not "
                                   "implemented for GPU.")
 
-    def measure_frequencies(self, frequencies, probs, nshots, nqubits, seed=1234):
+    def measure_frequencies(self, frequencies, probs, nshots, nqubits, seed=1234, nthreads=None):
         raise NotImplementedError("`measure_frequencies` method is not "
                                   "implemented for GPU.")

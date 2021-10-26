@@ -70,9 +70,9 @@ class JITCustomBackend(NumpyBackend, AbstractCustomOperators):
         elif name == "cupy":
             import cupy as xp # pylint: disable=E0401
             self.tensor_types = (self.np.ndarray, xp.ndarray)
-            if self.cupy_engine is None:
+            if self._cupy_engine is None:
                 from qibojit.custom_operators.backends import CupyBackend
-                self.cupy_engine = CupyBackend()
+                self._cupy_engine = CupyBackend()
             self.engine = self._cupy_engine
         else:
             raise_error(ValueError, "Unknown engine {}.".format(name))
@@ -312,6 +312,11 @@ class JITCustomBackend(NumpyBackend, AbstractCustomOperators):
 
     def apply_multi_qubit_gate(self, state, gate, nqubits, targets, qubits=None):
         # FIXME: fall back to numba temporarily until we implement this for GPU
+        state = self.to_numpy(state)
+        gate = self.to_numpy(gate)
+        targets = self.to_numpy(targets)
+        if qubits is not None:
+            qubits = self.to_numpy(qubits)
         return self._numba_engine.multi_qubit_base(state, nqubits, targets, qubits, gate)
 
     def collapse_state(self, state, qubits, result, nqubits, normalize=True):

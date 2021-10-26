@@ -160,6 +160,7 @@ def test_apply_multi_qubit_gate(nqubits, targets, controls, dtype):
     target_state = gate(np.copy(state))
     qibo.set_backend("qibojit")
 
+    targets = np.array(targets, dtype="int32")
     qubits = qubits_tensor(nqubits, targets, controls) if controls else None
     state = K.apply_multi_qubit_gate(state, matrix, nqubits, targets, qubits)
     state = K.to_numpy(state)
