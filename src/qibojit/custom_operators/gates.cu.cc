@@ -1,6 +1,11 @@
+// This file contains the C++/CUDA implementation of many methods
+// defined in gates.py and ops.py.
+// The methods in gates.py and ops.py are called by NumbaBackend
+// while the functions and kernels here are called by CupyBackend.
+
 #include <cupy/complex.cuh>
 
-
+// Multiplies two complex numbers
 __device__ thrust::complex<double> cmult(thrust::complex<double> a, thrust::complex<double> b) {
   return thrust::complex<double>(a.real() * b.real() - a.imag() * b.imag(),
                                  a.real() * b.imag() + a.imag() * b.real());
@@ -11,6 +16,7 @@ __device__ thrust::complex<float> cmult(thrust::complex<float> a, thrust::comple
                                 a.real() * b.imag() + a.imag() * b.real());
 }
 
+// Adds two complex numbers
 __device__ thrust::complex<double> cadd(thrust::complex<double> a, thrust::complex<double> b) {
   return thrust::complex<double>(a.real() + b.real(), a.imag() + b.imag());
 }
@@ -19,6 +25,8 @@ __device__ thrust::complex<float> cadd(thrust::complex<float> a, thrust::complex
   return thrust::complex<float>(a.real() + b.real(), a.imag() + b.imag());
 }
 
+
+// C++ implementation of gates.py:multicontrol_index()
 __device__ long multicontrol_index(const int* qubits, long g, int ncontrols) {
   long i = g;
   for (int iq = 0; iq < ncontrols; iq++) {
@@ -30,6 +38,7 @@ __device__ long multicontrol_index(const int* qubits, long g, int ncontrols) {
 }
 
 
+// Helper method for apply_gate_kernel()
 template<typename T>
 __device__ void _apply_gate(T& state1, T& state2, const T* gate) {
   const T buffer = state1;
@@ -37,6 +46,8 @@ __device__ void _apply_gate(T& state1, T& state2, const T* gate) {
   state2 = cadd(cmult(gate[2], buffer), cmult(gate[3], state2));
 }
 
+
+// Helper method for apply_x_kernel()
 template<typename T>
 __device__ void _apply_x(T& state1, T& state2) {
   const T buffer = state1;
@@ -44,6 +55,8 @@ __device__ void _apply_x(T& state1, T& state2) {
   state2 = buffer;
 }
 
+
+// Helper method for apply_y_kernel()
 template<typename T>
 __device__ void _apply_y(T& state1, T& state2) {
   state1 = cmult(state1, T(0, 1));
@@ -53,16 +66,22 @@ __device__ void _apply_y(T& state1, T& state2) {
   state2 = buffer;
 }
 
+
+// Helper method for apply_z_kernel()
 template<typename T>
 __device__ void _apply_z(T& state) {
   state = cmult(state, T(-1));
 }
 
+
+// Helper method for apply_z_pow_kernel()
 template<typename T>
 __device__ void _apply_z_pow(T& state, T gate) {
   state = cmult(state, gate);
 }
 
+
+// Helper method for apply_two_qubit_gate_kernel()
 template<typename T>
 __device__ void _apply_two_qubit_gate(T& state0, T& state1, T& state2, T& state3,
                                       const T* gate) {
@@ -79,6 +98,8 @@ __device__ void _apply_two_qubit_gate(T& state0, T& state1, T& state2, T& state3
                 cadd(cmult(gate[14], buffer2), cmult(gate[15], state3)));
 }
 
+
+// Helper method for apply_fsim_kernel()
 template<typename T>
 __device__ void _apply_fsim(T& state1, T& state2, T& state3, const T* gate) {
   const T buffer = state1;
@@ -87,6 +108,8 @@ __device__ void _apply_fsim(T& state1, T& state2, T& state3, const T* gate) {
   state3 = cmult(gate[4], state3);
 }
 
+
+// C++ implementation of gates.py:apply_gate_kernel()
 template<typename T>
 __global__ void apply_gate_kernel(T* state, long tk, int m, const T* gate) {
   const long g = blockIdx.x * blockDim.x + threadIdx.x;
@@ -94,6 +117,8 @@ __global__ void apply_gate_kernel(T* state, long tk, int m, const T* gate) {
   _apply_gate<T>(state[i], state[i + tk], gate);
 }
 
+
+// C++ implementation of gates.py:apply_x_kernel()
 template<typename T>
 __global__ void apply_x_kernel(T* state, long tk, int m) {
   const long g = blockIdx.x * blockDim.x + threadIdx.x;
@@ -101,6 +126,8 @@ __global__ void apply_x_kernel(T* state, long tk, int m) {
   _apply_x<T>(state[i], state[i + tk]);
 }
 
+
+// C++ implementation of gates.py:apply_y_kernel()
 template<typename T>
 __global__ void apply_y_kernel(T* state, long tk, int m) {
   const long g = blockIdx.x * blockDim.x + threadIdx.x;
@@ -108,6 +135,8 @@ __global__ void apply_y_kernel(T* state, long tk, int m) {
   _apply_y<T>(state[i], state[i + tk]);
 }
 
+
+// C++ implementation of gates.py:apply_z_kernel()
 template<typename T>
 __global__ void apply_z_kernel(T* state, long tk, int m) {
   const long g = blockIdx.x * blockDim.x + threadIdx.x;
@@ -115,6 +144,8 @@ __global__ void apply_z_kernel(T* state, long tk, int m) {
   _apply_z<T>(state[i + tk]);
 }
 
+
+// C++ implementation of gates.py:apply_z_pow_kernel()
 template<typename T>
 __global__ void apply_z_pow_kernel(T* state, long tk, int m,
                                    const T* gate) {
@@ -123,6 +154,10 @@ __global__ void apply_z_pow_kernel(T* state, long tk, int m,
   _apply_z_pow<T>(state[i + tk], gate[0]);
 }
 
+
+// C++ implementation of gates.py:apply_two_qubit_gate_kernel()
+// The portion of code before the parallel for of the Python
+// method is in backends.py:CupyBackend.two_qubit_base()
 template<typename T>
 __global__ void apply_two_qubit_gate_kernel(T* state, long tk1, long tk2,
                                             int m1, int m2, long uk1, long uk2,
@@ -133,6 +168,10 @@ __global__ void apply_two_qubit_gate_kernel(T* state, long tk1, long tk2,
   _apply_two_qubit_gate<T>(state[i], state[i + uk1], state[i + uk2], state[i + uk1 + uk2], gate);
 }
 
+
+// C++ implementation of gates.py:apply_fsim_kernel()
+// The portion of code before the parallel for of the Python
+// method is in backends.py:CupyBackend.two_qubit_base()
 template<typename T>
 __global__ void apply_fsim_kernel(T* state, long tk1, long tk2,
                                   int m1, int m2, long uk1, long uk2,
@@ -143,6 +182,8 @@ __global__ void apply_fsim_kernel(T* state, long tk1, long tk2,
   _apply_fsim<T>(state[i + uk1], state[i + uk2], state[i + uk1 + uk2], gate);
 }
 
+
+// C++ implementation of gates.py:apply_swap_kernel()
 template<typename T>
 __global__ void apply_swap_kernel(T* state, long tk1, long tk2,
                                   int m1, int m2, long uk1, long uk2) {
@@ -152,6 +193,8 @@ __global__ void apply_swap_kernel(T* state, long tk1, long tk2,
   _apply_x<T>(state[i + tk2], state[i + tk1]);
 }
 
+
+// C++ implementation of gates.py:multicontrol_apply_gate_kernel()
 template<typename T>
 __global__ void multicontrol_apply_gate_kernel(T* state, long tk, int m, const T* gate,
                                                const int* qubits, int ncontrols) {
@@ -160,6 +203,8 @@ __global__ void multicontrol_apply_gate_kernel(T* state, long tk, int m, const T
   _apply_gate<T>(state[i - tk], state[i], gate);
 }
 
+
+// C++ implementation of gates.py:multicontrol_apply_x_kernel()
 template<typename T>
 __global__ void multicontrol_apply_x_kernel(T* state, long tk, int m,
                                             const int* qubits, int ncontrols) {
@@ -168,6 +213,8 @@ __global__ void multicontrol_apply_x_kernel(T* state, long tk, int m,
   _apply_x<T>(state[i - tk], state[i]);
 }
 
+
+// C++ implementation of gates.py:multicontrol_apply_y_kernel()
 template<typename T>
 __global__ void multicontrol_apply_y_kernel(T* state, long tk, int m,
                                             const int* qubits, int ncontrols) {
@@ -176,6 +223,8 @@ __global__ void multicontrol_apply_y_kernel(T* state, long tk, int m,
   _apply_y<T>(state[i - tk], state[i]);
 }
 
+
+// C++ implementation of gates.py:multicontrol_apply_z_kernel()
 template<typename T>
 __global__ void multicontrol_apply_z_kernel(T* state, long tk, int m,
                                             const int* qubits, int ncontrols) {
@@ -184,6 +233,8 @@ __global__ void multicontrol_apply_z_kernel(T* state, long tk, int m,
   _apply_z<T>(state[i]);
 }
 
+
+// C++ implementation of gates.py:multicontrol_apply_z_pow_kernel()
 template<typename T>
 __global__ void multicontrol_apply_z_pow_kernel(T* state, long tk, int m,
                                                 const T* gate,
@@ -193,6 +244,10 @@ __global__ void multicontrol_apply_z_pow_kernel(T* state, long tk, int m,
   _apply_z_pow<T>(state[i], gate[0]);
 }
 
+
+// C++ implementation of gates.py:multicontrol_apply_two_qubit_gate_kernel()
+// The portion of code before the parallel for of the Python method
+// is in backends.py:CupyBackend.two_qubit_base()
 template<typename T>
 __global__ void multicontrol_apply_two_qubit_gate_kernel(T* state,
                                                          long tk1, long tk2,
@@ -206,6 +261,10 @@ __global__ void multicontrol_apply_two_qubit_gate_kernel(T* state,
   _apply_two_qubit_gate<T>(state[i - uk1 - uk2], state[i - uk2], state[i - uk1], state[i], gate);
 }
 
+
+// C++ implementation of gates.py:multicontrol_apply_fsim_kernel()
+// The portion of code before the parallel for of the Python method
+// is in backends.py:CupyBackend.two_qubit_base()
 template<typename T>
 __global__ void multicontrol_apply_fsim_kernel(T* state,
                                                long tk1, long tk2,
@@ -219,6 +278,8 @@ __global__ void multicontrol_apply_fsim_kernel(T* state,
   _apply_fsim<T>(state[i - uk2], state[i - uk1], state[i], gate);
 }
 
+
+// C++ implementation of gates.py:multicontrol_apply_swap_kernel()
 template<typename T>
 __global__ void multicontrol_apply_swap_kernel(T* state,
                                                long tk1, long tk2,
@@ -232,6 +293,7 @@ __global__ void multicontrol_apply_swap_kernel(T* state,
 }
 
 
+// C++ implementation of gates.py:multitarget_index()
 __device__ long multitarget_index(const long* targets, long i, int ntargets) {
   long t = 0;
   for (int u = 0; u < ntargets; u++) {
@@ -241,6 +303,7 @@ __device__ long multitarget_index(const long* targets, long i, int ntargets) {
 }
 
 
+// C++ implementation of gates.py:apply_three_qubit_kernel()
 template<typename T>
 __global__ void apply_three_qubit_gate_kernel(T* state,
                                               const T* gate,
@@ -248,13 +311,8 @@ __global__ void apply_three_qubit_gate_kernel(T* state,
                                               const long* targets,
                                               int ntargets,
                                               int ncontrols) {
-  // Compute the thread ID
   const long g = blockIdx.x * blockDim.x + threadIdx.x;
-
-  // Compute the base index with control qubits in |1>
   const long ig = multicontrol_index(qubits, g, ncontrols);
-
-  // Initialize the buffer for the in-place edit of the state vector
   const T buffer0 = state[ig - targets[0] - targets[1] - targets[2]];
   const T buffer1 = state[ig - targets[1] - targets[2]];
   const T buffer2 = state[ig - targets[0] - targets[2]];
@@ -263,15 +321,8 @@ __global__ void apply_three_qubit_gate_kernel(T* state,
   const T buffer5 = state[ig - targets[1]];
   const T buffer6 = state[ig - targets[0]];
   const T buffer7 = state[ig];
-
-  // Apply the gate to the state vector
-  // Gate here is a 8x8 matrix
-  // Iterate on the 8 output elements indexed by t
   for(auto i = 0; i < 8; i++) {
-    // Get the index where the state vector must be updated
     const long t = ig - multitarget_index(targets, 7 - i, ntargets);
-
-    // Update the state vector at index t
     state[t] = gate[i*8]   * buffer0 + gate[i*8+1] * buffer1 + gate[i*8+2] * buffer2
              + gate[i*8+3] * buffer3 + gate[i*8+4] * buffer4 + gate[i*8+5] * buffer5
              + gate[i*8+6] * buffer6 + gate[i*8+7] * buffer7;
@@ -279,6 +330,7 @@ __global__ void apply_three_qubit_gate_kernel(T* state,
 }
 
 
+// C++ implementation of gates.py:apply_four_qubit_kernels()
 template<typename T>
 __global__ void apply_four_qubit_gate_kernel(T* state,
                                              const T* gate,
@@ -286,13 +338,8 @@ __global__ void apply_four_qubit_gate_kernel(T* state,
                                              const long* targets,
                                              int ntargets,
                                              int ncontrols) {
-  // Compute the thread ID
   const long g = blockIdx.x * blockDim.x + threadIdx.x;
-
-  // Compute the base index with control qubits in |1>
   const long ig = multicontrol_index(qubits, g, ncontrols);
-
-  // Initialize the buffer for the in-place edit of the state vector
   const T buffer0 = state[ig - targets[0] - targets[1] - targets[2] - targets[3]];
   const T buffer1 = state[ig - targets[1] - targets[2] - targets[3]];
   const T buffer2 = state[ig - targets[0] - targets[2] - targets[3]];
@@ -309,15 +356,8 @@ __global__ void apply_four_qubit_gate_kernel(T* state,
   const T buffer13 = state[ig - targets[1]];
   const T buffer14 = state[ig - targets[0]];
   const T buffer15 = state[ig];
-
-  // Apply the gate to the state vector
-  // Gate here is a 16x16 matrix
-  // Iterate on the 16 output elements indexed by t
   for(auto i = 0; i < 16; i++) {
-    // Get the index where the state vector must be updated
     const long t = ig - multitarget_index(targets, 15 - i, ntargets);
-
-    // Update the state vector at index t
     state[t] = gate[i*16]    * buffer0  + gate[i*16+1]  * buffer1  + gate[i*16+2]  * buffer2
              + gate[i*16+3]  * buffer3  + gate[i*16+4]  * buffer4  + gate[i*16+5]  * buffer5
              + gate[i*16+6]  * buffer6  + gate[i*16+7]  * buffer7  + gate[i*16+8]  * buffer8
@@ -328,6 +368,7 @@ __global__ void apply_four_qubit_gate_kernel(T* state,
 }
 
 
+// C++ implementation of gates.py:apply_five_gate_kernel()
 template<typename T>
 __global__ void apply_five_qubit_gate_kernel(T* state,
                                              const T* gate,
@@ -335,13 +376,8 @@ __global__ void apply_five_qubit_gate_kernel(T* state,
                                              const long* targets,
                                              int ntargets,
                                              int ncontrols) {
-  // Compute the thread ID
   const long g = blockIdx.x * blockDim.x + threadIdx.x;
-
-  // Compute the base index with control qubits in |1>
   const long ig = multicontrol_index(qubits, g, ncontrols);
-
-  // Initialize the buffer for the in-place edit of the state vector
   const T buffer0 = state[ig - targets[0] - targets[1] - targets[2] - targets[3] - targets[4]];
   const T buffer1 = state[ig - targets[1] - targets[2] - targets[3] - targets[4]];
   const T buffer2 = state[ig - targets[0] - targets[2] - targets[3] - targets[4]];
@@ -374,15 +410,8 @@ __global__ void apply_five_qubit_gate_kernel(T* state,
   const T buffer29 = state[ig - targets[1]];
   const T buffer30 = state[ig - targets[0]];
   const T buffer31 = state[ig];
-
-  // Apply the gate to state vector
-  // Gate here is a 32x32 matrix
-  // Iterate on the 32 output elements indexed by t
   for(auto i = 0; i < 32; i++) {
-    // Get the index where the state vector must be updated
     const long t = ig - multitarget_index(targets, 31 - i, ntargets);
-
-    // Update the state vector at index t
     state[t] = gate[i*32]    * buffer0  + gate[i*32+1]  * buffer1  + gate[i*32+2]  * buffer2
              + gate[i*32+3]  * buffer3  + gate[i*32+4]  * buffer4  + gate[i*32+5]  * buffer5
              + gate[i*32+6]  * buffer6  + gate[i*32+7]  * buffer7  + gate[i*32+8]  * buffer8
@@ -398,6 +427,9 @@ __global__ void apply_five_qubit_gate_kernel(T* state,
 }
 
 
+// C++ implementation of gates.py:apply_multi_qubit_gate_kernel()
+// In contrast to the Python version, it does not perform in-place
+// updates of the state vector, but uses a copy of it
 template<typename T>
 __global__ void apply_multi_qubit_gate_kernel(T* state, T* buffer,
                                               const T* gate,
@@ -419,6 +451,7 @@ __global__ void apply_multi_qubit_gate_kernel(T* state, T* buffer,
 }
 
 
+// C++ implementation of ops.py:collapse_index()
 __device__ long collapse_index(const int* qubits, long g, long h, int ntargets) {
   long i = g;
   for (auto iq = 0; iq < ntargets; iq++) {
@@ -431,6 +464,9 @@ __device__ long collapse_index(const int* qubits, long g, long h, int ntargets) 
 }
 
 
+// C++ implementation of ops.py:collapse_state() and ops.py:collapse_state_normalized()
+// Only the parallel for is implemented here. The other portions of code are
+// implemented in backends.py:CupyBackend.collapse_state()
 template <typename T>
 __global__ void collapse_state_kernel(T* state, const int* qubits,
                                       const long result, int ntargets) {
@@ -445,6 +481,10 @@ __global__ void collapse_state_kernel(T* state, const int* qubits,
 }
 
 
+// C++ implementation of ops.py:initial_state_vector()
+// In contrast to the Python method, the state is inizialized
+// to zero in backends.py:CupyBackend.initial_state, then a
+// single thread execute this kernel and set the first element to 1
 template <typename T>
 __global__ void initial_state_kernel(T* state) {
   state[0] = T(1, 0);
