@@ -150,7 +150,7 @@ def test_apply_fsim(backend, nqubits, targets, controls, dtype):
                           (8, [2, 6, 3], [4, 7]), (5, [0, 2, 3, 4], [1]),
                           (8, [0, 4, 2, 5, 7], [1, 3]),
                           (10, [0, 4, 2, 5, 9], [1, 3, 7, 8])])
-def test_apply_multiqubit_gate(nqubits, targets, controls, dtype):
+def test_apply_multi_qubit_gate(nqubits, targets, controls, dtype):
     state = random_state(nqubits, dtype=dtype)
     rank = 2 ** len(targets)
     matrix = random_complex((rank, rank), dtype=dtype)
@@ -161,6 +161,6 @@ def test_apply_multiqubit_gate(nqubits, targets, controls, dtype):
     qibo.set_backend("qibojit")
 
     qubits = qubits_tensor(nqubits, targets, controls) if controls else None
-    state = K.apply_multiqubit_gate(state, matrix, nqubits, targets, qubits)
+    state = K.apply_multi_qubit_gate(state, matrix, nqubits, targets, qubits)
     state = K.to_numpy(state)
     np.testing.assert_allclose(state, target_state, atol=ATOL.get(dtype))
