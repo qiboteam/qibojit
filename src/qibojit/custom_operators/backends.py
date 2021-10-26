@@ -197,12 +197,23 @@ class CupyBackend(AbstractBackend): # pragma: no cover
                                       name_expressions=kernels)
 
     def calculate_blocks(self, nstates, block_size=None):
+        """Compute the number of blocks and of threads per block.
+
+        The total number of threads is always equal to ``nstates``, give that
+        the kernels are designed to execute only one out of ``nstates`` updates.
+        Therefore, the number of threads per block (``block_size``) changes also
+        the total number of blocks. By default, it is set to ``self.DEFAULT_BLOCK_SIZE``.
+        """
+        # Set default value for block_size
         if block_size is None:
             block_size = self.DEFAULT_BLOCK_SIZE
+
+        # Compute the number of blocks so that at least ``nstates`` threads are launched
         nblocks = (nstates + block_size - 1) // block_size
         if nstates < block_size:
             nblocks = 1
             block_size = nstates
+
         return nblocks, block_size
 
     def cast(self, x, dtype=None):
@@ -292,12 +303,21 @@ class CupyBackend(AbstractBackend): # pragma: no cover
         else:
             nactive = len(qubits)
             qubits = self.cast(qubits, dtype=self.cp.int32)
-        targets = self.cast(tuple(1 << (nqubits - t - 1) for t in targets[::-1]), dtype=self.cp.int64)
+        targets = self.cast(tuple(1 << (nqubits - t - 1) for t in targets[::-1]),
+                            dtype=self.cp.int64)
         nstates = 1 << (nqubits - nactive)
         nsubstates = 1 << ntargets
 
+        # If len(targets) is 3,4 or 5 we can use hard-coded kernels,
+        # otherwise we need to call general multi-qubit gate kernels.
+        # The latter require a full copy ``buffer``` of the state vector
         ktype = self.get_kernel_type(state)
         if len(targets) < 6:
+            # Compute the number of blocks and threads
+            # To avoid memory issues, reduce the block size with len(targets)
+            # len(targets): 3 -> 1024 threads per block
+            # len(targets): 4 -> 512  threads per block
+            # len(targets): 5 -> 256  threads per block
             nblocks, block_size = self.calculate_blocks(nstates,
                                                         block_size=2**(13-len(targets)))
             kernel = self.gates.get_function(self.MULTIQUBIT_KERNELS.get(len(targets))+ktype)
@@ -305,7 +325,7 @@ class CupyBackend(AbstractBackend): # pragma: no cover
         else:
             nblocks, block_size = self.calculate_blocks(nstates)
             kernel = self.gates.get_function(f"apply_multi_qubit_gate_kernel{ktype}")
-            buffer = self.cp.copy(state)
+            buffer = self.cp.copy(state) # full copy of the state vector, to be used as buffer
             args = (state, buffer, gate, qubits, targets, nsubstates, ntargets, nactive)
         kernel((nblocks,), (block_size,), args)
         self.cp.cuda.stream.get_current_stream().synchronize()
