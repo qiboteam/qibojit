@@ -5,24 +5,19 @@
 
 #include <cupy/complex.cuh>
 
+
 // Multiplies two complex numbers
-__device__ thrust::complex<double> cmult(thrust::complex<double> a, thrust::complex<double> b) {
-  return thrust::complex<double>(a.real() * b.real() - a.imag() * b.imag(),
-                                 a.real() * b.imag() + a.imag() * b.real());
+template<typename T>
+__device__ thrust::complex<T> cmult(thrust::complex<T> a, thrust::complex<T> b) {
+  return thrust::complex<T>(a.real() * b.real() - a.imag() * b.imag(),
+                            a.real() * b.imag() + a.imag() * b.real());
 }
 
-__device__ thrust::complex<float> cmult(thrust::complex<float> a, thrust::complex<float> b) {
-  return thrust::complex<float>(a.real() * b.real() - a.imag() * b.imag(),
-                                a.real() * b.imag() + a.imag() * b.real());
-}
 
 // Adds two complex numbers
-__device__ thrust::complex<double> cadd(thrust::complex<double> a, thrust::complex<double> b) {
-  return thrust::complex<double>(a.real() + b.real(), a.imag() + b.imag());
-}
-
-__device__ thrust::complex<float> cadd(thrust::complex<float> a, thrust::complex<float> b) {
-  return thrust::complex<float>(a.real() + b.real(), a.imag() + b.imag());
+template<typename T>
+__device__ thrust::complex<T> cadd(thrust::complex<T> a, thrust::complex<T> b) {
+  return thrust::complex<T>(a.real() + b.real(), a.imag() + b.imag());
 }
 
 
