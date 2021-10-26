@@ -6,21 +6,6 @@
 #include <cupy/complex.cuh>
 
 
-// Multiplies two complex numbers
-template<typename T>
-__device__ thrust::complex<T> cmult(thrust::complex<T> a, thrust::complex<T> b) {
-  return thrust::complex<T>(a.real() * b.real() - a.imag() * b.imag(),
-                            a.real() * b.imag() + a.imag() * b.real());
-}
-
-
-// Adds two complex numbers
-template<typename T>
-__device__ thrust::complex<T> cadd(thrust::complex<T> a, thrust::complex<T> b) {
-  return thrust::complex<T>(a.real() + b.real(), a.imag() + b.imag());
-}
-
-
 // C++ implementation of gates.py:multicontrol_index()
 __device__ long multicontrol_index(const int* qubits, long g, int ncontrols) {
   long i = g;
@@ -37,8 +22,8 @@ __device__ long multicontrol_index(const int* qubits, long g, int ncontrols) {
 template<typename T>
 __device__ void _apply_gate(T& state1, T& state2, const T* gate) {
   const T buffer = state1;
-  state1 = cadd(cmult(gate[0], state1), cmult(gate[1], state2));
-  state2 = cadd(cmult(gate[2], buffer), cmult(gate[3], state2));
+  state1 = gate[0] * state1 + gate[1] * state2;
+  state2 = gate[2] * buffer + gate[3] * state2;
 }
 
 
@@ -54,8 +39,8 @@ __device__ void _apply_x(T& state1, T& state2) {
 // Helper method for apply_y_kernel()
 template<typename T>
 __device__ void _apply_y(T& state1, T& state2) {
-  state1 = cmult(state1, T(0, 1));
-  state2 = cmult(state2, T(0, -1));
+  state1 = state1 * T(0, 1);
+  state2 = state2 * T(0, -1);
   const T buffer = state1;
   state1 = state2;
   state2 = buffer;
@@ -65,14 +50,14 @@ __device__ void _apply_y(T& state1, T& state2) {
 // Helper method for apply_z_kernel()
 template<typename T>
 __device__ void _apply_z(T& state) {
-  state = cmult(state, T(-1));
+  state = state * T(-1);
 }
 
 
 // Helper method for apply_z_pow_kernel()
 template<typename T>
 __device__ void _apply_z_pow(T& state, T gate) {
-  state = cmult(state, gate);
+  state = state * gate;
 }
 
 
@@ -83,14 +68,14 @@ __device__ void _apply_two_qubit_gate(T& state0, T& state1, T& state2, T& state3
   const T buffer0 = state0;
   const T buffer1 = state1;
   const T buffer2 = state2;
-  state0 = cadd(cadd(cmult(gate[0], state0), cmult(gate[1], state1)),
-                cadd(cmult(gate[2], state2), cmult(gate[3], state3)));
-  state1 = cadd(cadd(cmult(gate[4], buffer0), cmult(gate[5], state1)),
-                cadd(cmult(gate[6], state2), cmult(gate[7], state3)));
-  state2 = cadd(cadd(cmult(gate[8], buffer0), cmult(gate[9], buffer1)),
-                cadd(cmult(gate[10], state2), cmult(gate[11], state3)));
-  state3 = cadd(cadd(cmult(gate[12], buffer0), cmult(gate[13], buffer1)),
-                cadd(cmult(gate[14], buffer2), cmult(gate[15], state3)));
+  state0 = gate[0]  * state0  + gate[1]  * state1
+         + gate[2]  * state2  + gate[3]  * state3;
+  state1 = gate[4]  * buffer0 + gate[5]  * state1
+         + gate[6]  * state2  + gate[7]  * state3;
+  state2 = gate[8]  * buffer0 + gate[9]  * buffer1
+         + gate[10] * state2  + gate[11] * state3;
+  state3 = gate[12] * buffer0 + gate[13] * buffer1
+         + gate[14] * buffer2 + gate[15] * state3;
 }
 
 
@@ -98,9 +83,9 @@ __device__ void _apply_two_qubit_gate(T& state0, T& state1, T& state2, T& state3
 template<typename T>
 __device__ void _apply_fsim(T& state1, T& state2, T& state3, const T* gate) {
   const T buffer = state1;
-  state1 = cadd(cmult(gate[0], state1), cmult(gate[1], state2));
-  state2 = cadd(cmult(gate[2], buffer), cmult(gate[3], state2));
-  state3 = cmult(gate[4], state3);
+  state1 = gate[0] * state1 + gate[1] * state2;
+  state2 = gate[2] * buffer + gate[3] * state2;
+  state3 = gate[4] * state3;
 }
 
 
@@ -440,7 +425,7 @@ __global__ void apply_multi_qubit_gate_kernel(T* state, T* buffer,
     state[t] = T(0., 0.);
     for (auto j = 0; j < nsubstates; j++) {
       const long u = ig - multitarget_index(targets, nsubstates - j - 1, ntargets);
-      state[t] = cadd(state[t], cmult(gate[nsubstates * i + j], buffer[u]));
+      state[t] = state[t] + gate[nsubstates * i + j] * buffer[u];
     }
   }
 }
