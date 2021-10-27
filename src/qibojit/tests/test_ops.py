@@ -37,10 +37,10 @@ def test_collapse_state(backend, nqubits, targets, results, normalize, dtype):
         norm = (np.abs(target_state) ** 2).sum()
         target_state = target_state / np.sqrt(norm)
 
-    qubits = sorted(nqubits - np.array(targets, dtype=np.int32) - 1)
+    qubits = op.cast(sorted(nqubits - np.array(targets, dtype=np.int32) - 1),dtype=np.int32)
     b2d = 2 ** np.arange(len(results) - 1, -1, -1)
     result = int(np.array(results).dot(b2d))
-    state = op.collapse_state(state, tuple(qubits), result, nqubits, normalize)
+    state = op.collapse_state(state, qubits, result, nqubits, normalize)
     state = op.to_numpy(state)
     np.testing.assert_allclose(state, target_state, atol=atol)
 
@@ -77,7 +77,7 @@ def test_swap_pieces_zero_global(nqubits, local, dtype):
     state = np.reshape(state, shape)
 
     qubits = qubits_tensor(nqubits, [0, local])
-    target_state = op.apply_swap(target_state, nqubits, 0, local, qubits)
+    target_state = op.apply_swap(target_state, nqubits, (0, local), qubits)
     target_state = np.reshape(op.to_numpy(target_state), shape)
     piece0, piece1 = state[0], state[1]
     op.swap_pieces(piece0, piece1, local - 1, nqubits - 1)
@@ -99,8 +99,9 @@ def test_swap_pieces(nqubits, qlocal, qglobal, dtype):
     transpose_order = ([qglobal] + list(range(qglobal)) +
                         list(range(qglobal + 1, nqubits)))
 
-    qubits = qubits_tensor(nqubits, [qglobal, qlocal])
-    target_state = op.apply_swap(target_state, nqubits, qglobal, qlocal, qubits)
+    targets = [qglobal, qlocal]
+    qubits = qubits_tensor(nqubits, targets)
+    target_state = op.apply_swap(target_state, nqubits, targets, qubits)
     target_state = op.to_numpy(target_state)
     target_state = np.reshape(target_state, nqubits * (2,))
     target_state = np.transpose(target_state, transpose_order)

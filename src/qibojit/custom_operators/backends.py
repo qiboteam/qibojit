@@ -101,9 +101,9 @@ class NumbaBackend(AbstractBackend):
 
     def multi_qubit_base(self, state, nqubits, targets, qubits=None, gate=None):
         if qubits is None:
-            qubits = tuple(sorted(nqubits - q - 1 for q in targets))
+            qubits = self.np.array(sorted(nqubits - q - 1 for q in targets), dtype="int32")
         nstates = 1 << (nqubits - len(qubits))
-        targets = tuple(1 << (nqubits - t - 1) for t in targets[::-1])
+        targets = self.np.array([1 << (nqubits - t - 1) for t in targets[::-1]], dtype="int64")
         if len(targets) > 5:
             kernel = self.gates.apply_multi_qubit_gate_kernel
         else:
@@ -126,7 +126,7 @@ class NumbaBackend(AbstractBackend):
         return self.ops.collapse_state(state, qubits, result, nqubits)
 
     def transpose_state(self, pieces, state, nqubits, order):
-        return self.ops.transpose_state(tuple(pieces), state, nqubits, tuple(order))
+        return self.ops.transpose_state(tuple(pieces), state, nqubits, order)
 
     def swap_pieces(self, piece0, piece1, new_global, nlocal):
         return self.ops.swap_pieces(piece0, piece1, new_global, nlocal)
