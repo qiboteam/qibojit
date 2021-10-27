@@ -141,13 +141,6 @@ class NumbaBackend(AbstractBackend):
 class CupyBackend(AbstractBackend): # pragma: no cover
 
     DEFAULT_BLOCK_SIZE = 1024
-    KERNELS = ("apply_gate", "apply_x", "apply_y", "apply_z", "apply_z_pow",
-               "apply_two_qubit_gate", "apply_fsim", "apply_swap")
-    MULTIQUBIT_KERNELS = {
-        3: "apply_three_qubit_gate_kernel",
-        4: "apply_four_qubit_gate_kernel",
-        5: "apply_five_qubit_gate_kernel"
-    }
 
     def __init__(self):
         import os
@@ -163,7 +156,13 @@ class CupyBackend(AbstractBackend): # pragma: no cover
         self.np = np
         self.cp = cp
         base_dir = os.path.dirname(os.path.realpath(__file__))
-
+        self.KERNELS = ("apply_gate", "apply_x", "apply_y", "apply_z", "apply_z_pow",
+                        "apply_two_qubit_gate", "apply_fsim", "apply_swap")
+        self.MULTIQUBIT_KERNELS = {
+            3: "apply_three_qubit_gate_kernel",
+            4: "apply_four_qubit_gate_kernel",
+            5: "apply_five_qubit_gate_kernel"
+        }
         self.kernel_double_suffix = "<thrust::complex<double> >"
         self.kernel_float_suffix = "<thrust::complex<float> >"
 
@@ -174,9 +173,8 @@ class CupyBackend(AbstractBackend): # pragma: no cover
             kernels.append(f"{kernel}_kernel{self.kernel_float_suffix}")
             kernels.append(f"multicontrol_{kernel}_kernel{self.kernel_double_suffix}")
             kernels.append(f"multicontrol_{kernel}_kernel{self.kernel_float_suffix}")
-        for ntargets in self.MULTIQUBIT_KERNELS:
-            kernels.append(self.MULTIQUBIT_KERNELS.get(ntargets)+self.kernel_double_suffix)
-            kernels.append(self.MULTIQUBIT_KERNELS.get(ntargets)+self.kernel_float_suffix)
+        kernels.extend(f"{kernel}{self.kernel_double_suffix}" for kernel in self.MULTIQUBIT_KERNELS.values())
+        kernels.extend(f"{kernel}{self.kernel_float_suffix}" for kernel in self.MULTIQUBIT_KERNELS.values())
         kernels.append(f"apply_multi_qubit_gate_kernel{self.kernel_double_suffix}")
         kernels.append(f"apply_multi_qubit_gate_kernel{self.kernel_float_suffix}")
         kernels.append(f"collapse_state_kernel{self.kernel_double_suffix}")
@@ -190,7 +188,7 @@ class CupyBackend(AbstractBackend): # pragma: no cover
             self.gates = cp.RawModule(code=code, options=("--std=c++11",),
                                       name_expressions=kernels)
 
-    def calculate_blocks(self, nstates, block_size=None):
+    def calculate_blocks(self, nstates, block_size=DEFAULT_BLOCK_SIZE):
         """Compute the number of blocks and of threads per block.
 
         The total number of threads is always equal to ``nstates``, give that
@@ -198,16 +196,11 @@ class CupyBackend(AbstractBackend): # pragma: no cover
         Therefore, the number of threads per block (``block_size``) changes also
         the total number of blocks. By default, it is set to ``self.DEFAULT_BLOCK_SIZE``.
         """
-        # Set default value for block_size
-        if block_size is None:
-            block_size = self.DEFAULT_BLOCK_SIZE
-
         # Compute the number of blocks so that at least ``nstates`` threads are launched
         nblocks = (nstates + block_size - 1) // block_size
         if nstates < block_size:
             nblocks = 1
             block_size = nstates
-
         return nblocks, block_size
 
     def cast(self, x, dtype=None):
