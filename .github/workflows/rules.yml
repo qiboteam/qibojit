@@ -8,7 +8,7 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
-        python-version: [3.7, 3.8, 3.9]
+        python-version: [3.6, 3.7, 3.8, 3.9]
     runs-on: ${{ matrix.os }}
     steps:
     - uses: actions/checkout@v2
@@ -21,13 +21,8 @@ jobs:
         python -m pip install --upgrade pip
         pip install pylint
         pip install pytest-cov
-        pip install numba scipy psutil
-        git clone https://github.com/qiboteam/qibo
-        cd qibo
-        git checkout rmbackends
-        python setup.py develop
-        cd ..
-        pip install . --no-deps
+        pip install .
+        pip install qibo --pre
     - name: Test with pylint
       run: |
         pylint src -E -d E1123,E1120
