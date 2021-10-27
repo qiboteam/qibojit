@@ -38,9 +38,13 @@ def execute_qiskit(gates, targets, nqubits, state):
     circuit.initialize(state)
     for gate, targets in zip(gates, targets):
         circuit.append(gate, targets)
-    circuit = qiskit.transpile(circuit, backend=simulator)
-    result = simulator.run(circuit).result()
-    state = result.get_statevector(circuit)
+    try:
+        result = simulator.run(circuit).result()
+        state = result.get_statevector(circuit)
+    except qiskit.exceptions.QiskitError:
+        circuit = qiskit.transpile(circuit, backend=simulator)
+        result = simulator.run(circuit).result()
+        state = result.get_statevector(circuit)
     state = np.reshape(state, nqubits * (2,))
     state = np.transpose(state, range(nqubits - 1, -1, -1))
     return np.reshape(state, (2 ** nqubits,))
@@ -57,7 +61,7 @@ def test_apply_gate(nqubits, target, controls, dtype):
 
     gate = qiskit.extensions.UnitaryGate(matrix)
     if controls:
-        gate = gate.control(num_ctrl_qubits=len(controls))
+        gate = gate.control(len(controls))
     target_state = execute_qiskit([gate], [controls + [target]], nqubits, state)
 
     state = state.astype(dtype)
@@ -85,5 +89,127 @@ def test_apply_pauli_gate(nqubits, target, pauli, controls, dtype):
     state = state.astype(dtype)
     qubits = qubits_tensor(nqubits, [target], controls)
     state = K.one_qubit_base(state, nqubits, target, f"apply_{pauli}", qubits)
+    state = K.to_numpy(state)
+    np.testing.assert_allclose(state, target_state, atol=ATOL.get(dtype))
+
+
+@pytest.mark.parametrize(("nqubits", "target", "controls"),
+                         [(3, 0, []), (3, 2, [1]),
+                          (3, 2, [0, 1]), (6, 1, [0, 2, 4])])
+def test_apply_zpow_gate(nqubits, target, controls, dtype):
+    state = random_state(nqubits)
+    theta = 0.1234
+
+    circuit = qiskit.QuantumCircuit(1)
+    circuit.u1(theta, 0)
+    gate = circuit.to_gate()
+    if controls:
+        gate = gate.control(len(controls))
+    target_state = execute_qiskit([gate], [controls + [target]], nqubits, state)
+
+    state = state.astype(dtype)
+    phase = np.exp(1j * theta).astype(dtype)
+    qubits = qubits_tensor(nqubits, [target], controls)
+    state = K.one_qubit_base(state, nqubits, target, f"apply_z_pow", qubits, phase)
+    state = K.to_numpy(state)
+    np.testing.assert_allclose(state, target_state, atol=ATOL.get(dtype))
+
+
+@pytest.mark.parametrize(("nqubits", "targets", "controls"),
+                         [(5, [3, 4], []), (4, [2, 0], []), (2, [0, 1], []),
+                          (8, [6, 3], []), (3, [0, 1], [2]), (4, [1, 3], [0]),
+                          (5, [2, 3], [1, 4]), (5, [3, 1], [0, 2]),
+                          (6, [2, 5], [0, 1, 3, 4])])
+def test_apply_two_qubit_gate(nqubits, targets, controls, dtype):
+    state = random_state(nqubits)
+    matrix = random_unitary((4, 4))
+
+    gate = qiskit.extensions.UnitaryGate(matrix)
+    if controls:
+        gate = gate.control(len(controls))
+    target_state = execute_qiskit([gate], [controls + targets[::-1]], nqubits, state)
+
+    state = state.astype(dtype)
+    matrix = matrix.astype(dtype)
+    qubits = qubits_tensor(nqubits, targets, controls)
+    state = K.two_qubit_base(state, nqubits, *targets, f"apply_two_qubit_gate", qubits, matrix)
+    state = K.to_numpy(state)
+    np.testing.assert_allclose(state, target_state, atol=ATOL.get(dtype))
+
+
+@pytest.mark.parametrize(("nqubits", "targets", "controls"),
+                         [(2, [0, 1], []), (3, [0, 2], []), (4, [1, 3], []),
+                          (3, [1, 2], [0]), (4, [0, 2], [1]), (4, [2, 3], [0]),
+                          (5, [3, 4], [1, 2]), (6, [1, 4], [0, 2, 5])])
+def test_apply_swap(nqubits, targets, controls, dtype):
+    state = random_state(nqubits)
+
+    circuit = qiskit.QuantumCircuit(2)
+    circuit.swap(0, 1)
+    gate = circuit.to_gate()
+    if controls:
+        gate = gate.control(len(controls))
+    target_state = execute_qiskit([gate], [controls + targets], nqubits, state)
+
+    state = state.astype(dtype)
+    qubits = qubits_tensor(nqubits, targets, controls)
+    state = K.two_qubit_base(state, nqubits, *targets, f"apply_swap", qubits)
+    state = K.to_numpy(state)
+    np.testing.assert_allclose(state, target_state, atol=ATOL.get(dtype))
+
+
+@pytest.mark.parametrize(("nqubits", "targets", "controls"),
+                         [(3, [0, 1], []), (4, [2, 0], []), (3, [1, 2], [0]),
+                          (4, [0, 1], [2]), (5, [0, 1], [2]), (5, [3, 4], [2]),
+                          (4, [0, 3], [1]), (4, [3, 2], [0]), (5, [1, 4], [2]),
+                          (6, [1, 3], [0, 4]), (6, [5, 0], [1, 2, 3])])
+def test_apply_fsim(nqubits, targets, controls, dtype):
+    state = random_state(nqubits)
+    matrix = random_unitary((2, 2))
+    phi = 0.4321
+
+    qmatrix = np.zeros((4, 4), dtype=np.complex128)
+    qmatrix[0, 0] = 1
+    qmatrix[1:3, 1:3] = matrix
+    qmatrix[3, 3] = np.exp(-1j * phi)
+    gate = qiskit.extensions.UnitaryGate(qmatrix)
+    if controls:
+        gate = gate.control(len(controls))
+    target_state = execute_qiskit([gate], [controls + targets[::-1]], nqubits, state)
+
+    state = state.astype(dtype)
+    matrix = list(matrix.ravel())
+    matrix.append(np.exp(-1j *phi))
+    matrix = np.array(matrix, dtype=dtype)
+    qubits = qubits_tensor(nqubits, targets, controls)
+    state = K.two_qubit_base(state, nqubits, *targets, f"apply_fsim", qubits, matrix)
+    state = K.to_numpy(state)
+    np.testing.assert_allclose(state, target_state, atol=ATOL.get(dtype))
+
+
+@pytest.mark.parametrize(("nqubits", "targets", "controls"),
+                         [(3, [0, 1, 2], []), (4, [2, 1, 3], []),
+                          (5, [0, 2, 3], []), (8, [2, 6, 3], []),
+                          (5, [0, 2, 3, 4], []), (8, [0, 4, 2, 5, 7], []),
+                          (7, [0, 2, 4, 3, 6, 5], []), (8, [0, 4, 2, 3, 5, 7, 1], []),
+                          (4, [2, 1, 3], [0]), (5, [0, 2, 3], [1]),
+                          (8, [2, 6, 3], [4, 7]), (5, [0, 2, 3, 4], [1]),
+                          (8, [0, 4, 2, 5, 7], [1, 3]),
+                          (10, [0, 4, 2, 5, 9], [1, 3, 7, 8])])
+def test_apply_multi_qubit_gate(nqubits, targets, controls, dtype):
+    state = random_state(nqubits)
+    rank = 2 ** len(targets)
+    matrix = random_unitary((rank, rank))
+
+    gate = qiskit.extensions.UnitaryGate(matrix)
+    if controls:
+        gate = gate.control(len(controls))
+    target_state = execute_qiskit([gate], [controls + targets[::-1]], nqubits, state)
+
+    state = state.astype(dtype)
+    matrix = matrix.astype(dtype)
+    targets = np.array(targets, dtype="int32")
+    qubits = qubits_tensor(nqubits, targets, controls) if controls else None
+    state = K.multi_qubit_base(state, nqubits, targets, qubits, matrix)
     state = K.to_numpy(state)
     np.testing.assert_allclose(state, target_state, atol=ATOL.get(dtype))
