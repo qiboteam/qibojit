@@ -55,11 +55,10 @@ setup(
     install_requires=[
         "numba>=0.51.0",
         "scipy",
-        "psutil",
-        "qibo" # TODO: Add version >=1.7.0 requirement here
+        "psutil"
     ],
     extras_require={
-        "tests": ["qibo", "pytest"],
+        "tests": ["qiskit", "pytest"],
     },
     python_requires=">=3.6.0",
     long_description=long_description,
