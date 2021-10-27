@@ -1,7 +1,7 @@
-from qibo.backends.abstract import AbstractBackend, AbstractCustomOperators
-from qibo.backends.numpy import NumpyBackend
-from qibo.abstractions.states import AbstractState
-from qibo.config import raise_error
+from qibo.backends.abstract import AbstractBackend, AbstractCustomOperators # pylint: disable=E0401
+from qibo.backends.numpy import NumpyBackend # pylint: disable=E0401
+from qibo.abstractions.states import AbstractState # pylint: disable=E0401
+from qibo.config import raise_error # pylint: disable=E0401
 from qibojit.custom_operators.backends import NumbaBackend
 
 
@@ -175,7 +175,7 @@ class JITCustomBackend(NumpyBackend, AbstractCustomOperators):
                                          is_matrix=is_matrix)
 
     def sample_frequencies(self, probs, nshots):
-        from qibo.config import SHOT_METROPOLIS_THRESHOLD
+        from qibo.config import SHOT_METROPOLIS_THRESHOLD # pylint: disable=E0401
         if nshots < SHOT_METROPOLIS_THRESHOLD:
             return super().sample_frequencies(probs, nshots)
         if not isinstance(probs, self.np.ndarray): # pragma: no cover
