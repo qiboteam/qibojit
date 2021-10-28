@@ -422,11 +422,12 @@ __global__ void apply_multi_qubit_gate_kernel(T* state, T* buffer,
   const long ig = multicontrol_index(qubits, g, ncontrols);
   for (auto i = 0; i < nsubstates; i++) {
     const long t = ig - multitarget_index(targets, nsubstates - i - 1, ntargets);
-    state[t] = T(0., 0.);
+    T new_state_elem = T(0., 0.); // use local variable because it is faster than global ones
     for (auto j = 0; j < nsubstates; j++) {
       const long u = ig - multitarget_index(targets, nsubstates - j - 1, ntargets);
-      state[t] = state[t] + gate[nsubstates * i + j] * buffer[u];
+      new_state_elem += gate[nsubstates * i + j] * buffer[u];
     }
+    state[t] = new_state_elem;
   }
 }
 
