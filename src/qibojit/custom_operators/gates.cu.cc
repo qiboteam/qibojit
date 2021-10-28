@@ -21,29 +21,28 @@ __device__ long multicontrol_index(const int* qubits, long g, int ncontrols) {
 // Helper method for apply_gate_kernel()
 template<typename T>
 __device__ void _apply_gate(T& state1, T& state2, const T* gate) {
-  const T buffer = state1;
-  state1 = gate[0] * state1 + gate[1] * state2;
-  state2 = gate[2] * buffer + gate[3] * state2;
+  const T buffer1 = state1;
+  const T buffer2 = state2;
+  state1 = gate[0] * buffer1 + gate[1] * buffer2;
+  state2 = gate[2] * buffer1 + gate[3] * buffer2;
 }
 
 
 // Helper method for apply_x_kernel()
 template<typename T>
 __device__ void _apply_x(T& state1, T& state2) {
-  const T buffer = state1;
+  const T buffer1 = state1;
   state1 = state2;
-  state2 = buffer;
+  state2 = buffer1;
 }
 
 
 // Helper method for apply_y_kernel()
 template<typename T>
 __device__ void _apply_y(T& state1, T& state2) {
-  state1 = state1 * T(0, 1);
-  state2 = state2 * T(0, -1);
-  const T buffer = state1;
-  state1 = state2;
-  state2 = buffer;
+  const T buffer1 = state1;
+  state1 = state2  * T(0, -1);
+  state2 = buffer1 * T(0, +1);
 }
 
 
@@ -68,23 +67,25 @@ __device__ void _apply_two_qubit_gate(T& state0, T& state1, T& state2, T& state3
   const T buffer0 = state0;
   const T buffer1 = state1;
   const T buffer2 = state2;
-  state0 = gate[0]  * state0  + gate[1]  * state1
-         + gate[2]  * state2  + gate[3]  * state3;
-  state1 = gate[4]  * buffer0 + gate[5]  * state1
-         + gate[6]  * state2  + gate[7]  * state3;
+  const T buffer3 = state3;
+  state0 = gate[0]  * buffer0 + gate[1]  * buffer1
+         + gate[2]  * buffer2 + gate[3]  * buffer3;
+  state1 = gate[4]  * buffer0 + gate[5]  * buffer1
+         + gate[6]  * buffer2 + gate[7]  * buffer3;
   state2 = gate[8]  * buffer0 + gate[9]  * buffer1
-         + gate[10] * state2  + gate[11] * state3;
+         + gate[10] * buffer2 + gate[11] * buffer3;
   state3 = gate[12] * buffer0 + gate[13] * buffer1
-         + gate[14] * buffer2 + gate[15] * state3;
+         + gate[14] * buffer2 + gate[15] * buffer3;
 }
 
 
 // Helper method for apply_fsim_kernel()
 template<typename T>
 __device__ void _apply_fsim(T& state1, T& state2, T& state3, const T* gate) {
-  const T buffer = state1;
-  state1 = gate[0] * state1 + gate[1] * state2;
-  state2 = gate[2] * buffer + gate[3] * state2;
+  const T buffer1 = state1;
+  const T buffer2 = state2;
+  state1 = gate[0] * buffer1 + gate[1] * buffer2;
+  state2 = gate[2] * buffer1 + gate[3] * buffer2;
   state3 = gate[4] * state3;
 }
 
