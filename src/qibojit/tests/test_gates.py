@@ -35,7 +35,7 @@ def execute_qiskit(gates, targets, nqubits, state):
     state = np.reshape(np.copy(state), nqubits * (2,))
     state = np.transpose(state, range(nqubits - 1, -1, -1))
     state = np.reshape(state, (2 ** nqubits,))
-    circuit.initialize(state) # pylint: disable=E1101
+    circuit.initialize(state)
     for gate, targets in zip(gates, targets):
         circuit.append(gate, targets)
     try:
