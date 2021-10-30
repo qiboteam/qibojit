@@ -59,7 +59,7 @@ setup(
         "qibo" # TODO: Add version >=1.7.0 requirement here
     ],
     extras_require={
-        "tests": ["qibo", "pytest"],
+        "tests": ["pytest"],
     },
     python_requires=">=3.6.0",
     long_description=long_description,
