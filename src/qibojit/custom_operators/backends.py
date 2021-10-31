@@ -158,11 +158,6 @@ class CupyBackend(AbstractBackend): # pragma: no cover
         base_dir = os.path.dirname(os.path.realpath(__file__))
         self.KERNELS = ("apply_gate", "apply_x", "apply_y", "apply_z", "apply_z_pow",
                         "apply_two_qubit_gate", "apply_fsim", "apply_swap")
-        self.MULTIQUBIT_KERNELS = {
-            3: "apply_three_qubit_gate_kernel",
-            4: "apply_four_qubit_gate_kernel",
-            5: "apply_five_qubit_gate_kernel"
-        }
         self.kernel_double_suffix = "<thrust::complex<double> >"
         self.kernel_float_suffix = "<thrust::complex<float> >"
 
@@ -173,10 +168,9 @@ class CupyBackend(AbstractBackend): # pragma: no cover
             kernels.append(f"{kernel}_kernel{self.kernel_float_suffix}")
             kernels.append(f"multicontrol_{kernel}_kernel{self.kernel_double_suffix}")
             kernels.append(f"multicontrol_{kernel}_kernel{self.kernel_float_suffix}")
-        kernels.extend(f"{kernel}{self.kernel_double_suffix}" for kernel in self.MULTIQUBIT_KERNELS.values())
-        kernels.extend(f"{kernel}{self.kernel_float_suffix}" for kernel in self.MULTIQUBIT_KERNELS.values())
-        kernels.append(f"apply_multi_qubit_gate_kernel{self.kernel_double_suffix}")
-        kernels.append(f"apply_multi_qubit_gate_kernel{self.kernel_float_suffix}")
+        for ntargets in range(3, 11):
+            kernels.append(f"apply_multi_qubit_gate_kernel{self.kernel_double_suffix[0:-2]}, {2**ntargets}>")
+            kernels.append(f"apply_multi_qubit_gate_kernel{self.kernel_float_suffix[0:-2]}, {2**ntargets}>")
         kernels.append(f"collapse_state_kernel{self.kernel_double_suffix}")
         kernels.append(f"collapse_state_kernel{self.kernel_float_suffix}")
         kernels.append(f"initial_state_kernel{self.kernel_double_suffix}")
@@ -295,25 +289,10 @@ class CupyBackend(AbstractBackend): # pragma: no cover
         nstates = 1 << (nqubits - nactive)
         nsubstates = 1 << ntargets
 
-        # If len(targets) is 3,4 or 5 we can use hard-coded kernels,
-        # otherwise we need to call general multi-qubit gate kernels.
-        # The latter require a full copy ``buffer``` of the state vector
         ktype = self.get_kernel_type(state)
-        if len(targets) < 6:
-            # Compute the number of blocks and threads
-            # To avoid memory issues, reduce the block size with len(targets)
-            # len(targets): 3 -> 1024 threads per block
-            # len(targets): 4 -> 512  threads per block
-            # len(targets): 5 -> 256  threads per block
-            nblocks, block_size = self.calculate_blocks(nstates,
-                                                        block_size=2**(13-len(targets)))
-            kernel = self.gates.get_function(self.MULTIQUBIT_KERNELS.get(len(targets))+ktype)
-            args = (state, gate, qubits, targets, ntargets, nactive)
-        else:
-            nblocks, block_size = self.calculate_blocks(nstates)
-            kernel = self.gates.get_function(f"apply_multi_qubit_gate_kernel{ktype}")
-            buffer = self.cp.copy(state) # full copy of the state vector, to be used as buffer
-            args = (state, buffer, gate, qubits, targets, nsubstates, ntargets, nactive)
+        nblocks, block_size = self.calculate_blocks(nstates)
+        kernel = self.gates.get_function(f"apply_multi_qubit_gate_kernel{ktype[0:-2]}, {nsubstates}>")
+        args = (state, gate, qubits, targets, ntargets, nactive)
         kernel((nblocks,), (block_size,), args)
         self.cp.cuda.stream.get_current_stream().synchronize()
         return state
