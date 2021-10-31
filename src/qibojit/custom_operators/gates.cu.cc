@@ -307,7 +307,7 @@ __global__ void apply_multi_qubit_gate_kernel(T* state,
     T new_state_elem = T(0., 0.); // use local variable because it is faster than global ones
     //#pragma unroll
     for (auto j = 0; j < nsubstates; j++) {
-      new_state_elem += gate[nsubstates * i + j] * buffer[i];
+      new_state_elem += gate[nsubstates * i + j] * buffer[j];
     }
     state[t] = new_state_elem;
   }
