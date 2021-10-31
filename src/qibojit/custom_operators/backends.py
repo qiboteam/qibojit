@@ -7,6 +7,7 @@ class AbstractBackend(ABC):
         self.name = "abstract"
         self.gates = None
         self.ops = None
+        self.test_regressions = {}
 
     @abstractmethod
     def cast(self, x, dtype=None): # pragma: no cover
@@ -164,9 +165,24 @@ class CupyBackend(AbstractBackend): # pragma: no cover
         if is_hip:  # pragma: no cover
             self.kernel_double_suffix = f"_complex_double"
             self.kernel_float_suffix = f"_complex_float"
+            self.test_regressions = {} # TODO: Fix this
         else:  # pragma: no cover
             self.kernel_double_suffix = f"<complex<double>>"
             self.kernel_float_suffix = f"<complex<float>>"
+            self.test_regressions = {
+                "test_measurementresult_apply_bitflips": [
+                    [0, 0, 0, 6, 4, 1, 1, 4, 0, 2],
+                    [0, 0, 0, 6, 4, 1, 1, 4, 0, 2],
+                    [0, 0, 0, 0, 4, 1, 1, 4, 0, 0],
+                    [0, 0, 0, 6, 4, 0, 0, 4, 0, 2]
+                ],
+                "test_probabilistic_measurement": {0: 264, 1: 235, 2: 269, 3: 232},
+                "test_unbalanced_probabilistic_measurement": {0: 170, 1: 154, 2: 167, 3: 509},
+                "test_post_measurement_bitflips_on_circuit": [
+                    {5: 30}, {5: 12, 7: 7, 6: 5, 4: 3, 1: 2, 2: 1},
+                    {2: 10, 6: 5, 5: 4, 0: 3, 7: 3, 1: 2, 3: 2, 4: 1}
+                ]
+            }
 
         # load gate kernels
         kernels = []

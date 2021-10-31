@@ -61,6 +61,11 @@ class JITCustomBackend(NumpyBackend, AbstractCustomOperators):
         if sys.platform != "darwin":
             self.supports_multigpu = True
 
+    def test_regressions(self, name):
+        if self.engine.name == "cupy":
+            return self.engine.test_regressions.get(name)
+        return NumpyBackend.test_regressions(self, name)
+
     def set_engine(self, name): # pragma: no cover
         """Switcher between ``cupy`` for GPU and ``numba`` for CPU."""
         if name == "numba":
