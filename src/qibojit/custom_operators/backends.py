@@ -216,9 +216,9 @@ class CupyBackend(AbstractBackend): # pragma: no cover
         return self.cp.asarray(x, dtype=dtype)
 
     def to_numpy(self, x):
-        if isinstance(x, self.np.ndarray):
-            return x
-        return x.get()
+        if isinstance(x, self.cp.ndarray):
+            return x.get()
+        return NumbaBackend.to_numpy(self, x)
 
     def get_kernel_type(self, state):
         if state.dtype == self.cp.complex128:
