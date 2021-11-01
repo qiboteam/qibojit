@@ -6,9 +6,13 @@ from qibo import K
 from qibojit.tests.test_gates import qubits_tensor, random_state
 
 
+@pytest.mark.parametrize("precision", ["double", "single"])
 @pytest.mark.parametrize("is_matrix", [False, True])
-def test_initial_state(backend, dtype, is_matrix):
-    final_state =  K.engine.initial_state(4, dtype, is_matrix)
+def test_initial_state(backend, precision, is_matrix):
+    original_precision = K.precision
+    dtype = "complex128" if precision == "double" else "complex64"
+    K.set_precision(precision)
+    final_state =  K.initial_state(4, is_matrix)
     if is_matrix:
         target_state = np.array([1] + [0]*255, dtype=dtype)
         target_state = np.reshape(target_state, (16, 16))
@@ -16,6 +20,7 @@ def test_initial_state(backend, dtype, is_matrix):
         target_state = np.array([1] + [0]*15, dtype=dtype)
     final_state = K.to_numpy(final_state)
     np.testing.assert_allclose(final_state, target_state)
+    K.set_precision(original_precision)
 
 
 @pytest.mark.parametrize("nqubits,targets,results",
