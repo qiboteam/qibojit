@@ -12,6 +12,21 @@ def test_engine_setter(backend_name):
     K.set_engine(original_backend)
 
 
+def test_device_setter():
+    original_device = K.default_device
+    K.set_device("/CPU:0")
+    assert K.default_device == "/CPU:0"
+    K.set_device(original_device)
+
+
+def test_thread_setter():
+    import numba
+    original_threads = numba.get_num_threads()
+    K.set_threads(1)
+    assert numba.get_num_threads() == 1
+    K.set_threads(original_threads)
+
+
 @pytest.mark.parametrize("array_type", [None, "float32", "float64"])
 def test_cast(backend, array_type):
     target = np.random.random(10)

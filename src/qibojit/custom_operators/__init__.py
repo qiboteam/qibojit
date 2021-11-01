@@ -62,7 +62,8 @@ class JITCustomBackend(NumpyBackend, AbstractCustomOperators):
         if sys.platform != "darwin":
             self.supports_multigpu = True
 
-    def test_regressions(self, name):
+    def test_regressions(self, name): # pragma: no cover
+        # Used for qibo tests only
         if self.engine.name == "cupy":
             return self.engine.test_regressions.get(name)
         return NumpyBackend.test_regressions(self, name)
