@@ -165,7 +165,20 @@ class CupyBackend(AbstractBackend): # pragma: no cover
         if is_hip:  # pragma: no cover
             self.kernel_double_suffix = f"_complex_double"
             self.kernel_float_suffix = f"_complex_float"
-            self.test_regressions = {} # TODO: Fix this
+            self.test_regressions = {
+                "test_measurementresult_apply_bitflips": [
+                    [2, 2, 6, 1, 0, 0, 0, 0, 1, 0],
+                    [2, 2, 6, 1, 0, 0, 0, 0, 1, 0],
+                    [0, 0, 4, 1, 0, 0, 0, 0, 1, 0],
+                    [0, 2, 4, 0, 0, 0, 0, 0, 0, 0]
+                ],
+                "test_probabilistic_measurement": {2: 267, 3: 247, 0: 243, 1: 243},
+                "test_unbalanced_probabilistic_measurement": {3: 500, 2: 174, 0: 163, 1: 163},
+                "test_post_measurement_bitflips_on_circuit": [
+                    {5: 30}, {5: 17, 7: 7, 1: 2, 4: 2, 2: 1, 3: 1},
+                    {7: 7, 1: 5, 3: 4, 6: 4, 2: 3, 5: 3, 0: 2, 4: 2}
+                ]
+            }
         else:  # pragma: no cover
             self.kernel_double_suffix = f"<complex<double>>"
             self.kernel_float_suffix = f"<complex<float>>"
