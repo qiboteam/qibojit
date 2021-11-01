@@ -147,14 +147,14 @@ class JITCustomBackend(NumpyBackend, AbstractCustomOperators):
         return super().expm(x)
 
     def unique(self, x, return_counts=False):
-        if self.engine.name == "cupy": # pragma: no cover
+        if self.engine.name == "cupy":  # pragma: no cover
             if isinstance(x, self.native_types):
                 x = x.get()
             # Uses numpy backend always
         return super().unique(x, return_counts)
 
     def gather(self, x, indices=None, condition=None, axis=0):
-        if self.engine.name == "cupy": # pragma: no cover
+        if self.engine.name == "cupy":  # pragma: no cover
             # Fallback to numpy because cupy does not support tuple indexing
             if isinstance(x, self.native_types):
                 x = x.get()

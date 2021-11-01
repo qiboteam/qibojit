@@ -31,7 +31,7 @@ def test_thread_setter():
 def test_cast(backend, array_type):
     target = np.random.random(10)
     final = K.to_numpy(K.cast(target, dtype=array_type))
-    np.testing.assert_allclose(final, target)
+    K.assert_allclose(final, target)
 
 
 def test_to_numpy(backend):
@@ -41,4 +41,28 @@ def test_to_numpy(backend):
         final = K.to_numpy(x)
     else: # pragma: no cover
         final = K.to_numpy(np.array(x))
-    np.testing.assert_allclose(final, target)
+    K.assert_allclose(final, target)
+
+
+def test_basic_matrices(backend):
+    K.assert_allclose(K.eye(4), np.eye(4))
+    K.assert_allclose(K.zeros((3, 3)), np.zeros((3, 3)))
+    K.assert_allclose(K.ones((5, 5)), np.ones((5, 5)))
+    from scipy.linalg import expm
+    m = np.random.random((4, 4))
+    K.assert_allclose(K.expm(m), expm(m))
+
+
+def test_unique_and_gather(backend):
+    samples = np.random.randint(0, 2, size=(100,))
+    K.assert_allclose(K.unique(samples), np.unique(samples))
+    indices = [0, 2, 6, 40]
+    final = K.gather(samples, indices)
+    K.assert_allclose(final, samples[indices])
+
+
+def test_with_device(backend):
+    with K.device("/CPU:0"):
+        pass
+    with K.device("/GPU:0"):
+        pass
