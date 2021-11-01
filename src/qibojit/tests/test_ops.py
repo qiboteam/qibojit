@@ -150,24 +150,17 @@ NONZERO = list(itertools.combinations(range(8), r=1))
 NONZERO.extend(itertools.combinations(range(8), r=2))
 NONZERO.extend(itertools.combinations(range(8), r=3))
 NONZERO.extend(itertools.combinations(range(8), r=4))
-@pytest.mark.parametrize("nonzero", NONZERO)
-def test_measure_frequencies_sparse_probabilities(backend, nonzero):
+NSHOTS = (len(NONZERO) // 2 + 1) * [1000, 200000]
+@pytest.mark.parametrize("nonzero,nshots", zip(NONZERO, NSHOTS))
+def test_measure_frequencies_sparse_probabilities(backend, nonzero, nshots):
     probs = np.zeros(8, dtype=np.float64)
     for i in nonzero:
         probs[i] = 1
     probs = probs / np.sum(probs)
-    frequencies = np.zeros(8, dtype=np.int64)
-    if K.engine.name == "cupy":  # pragma: no cover
-        # CI does not test for GPU
-        with pytest.raises(NotImplementedError):
-            frequencies = K.engine.measure_frequencies(frequencies, probs, nshots=1000,
-                                                       nqubits=3, nthreads=4)
-    else:
-        frequencies = K.engine.measure_frequencies(frequencies, probs, nshots=1000,
-                                                   nqubits=3, nthreads=4)
-        assert np.sum(frequencies) == 1000
-        for i, freq in enumerate(frequencies):
-            if i in nonzero:
-                assert freq != 0
-            else:
-                assert freq == 0
+    frequencies = K.sample_frequencies(probs, nshots)
+    assert np.sum(frequencies) == nshots
+    for i, freq in enumerate(frequencies):
+        if i in nonzero:
+            assert freq != 0
+        else:
+            assert freq == 0
