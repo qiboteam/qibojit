@@ -14,10 +14,6 @@ class AbstractBackend(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def to_numpy(self, x): # pragma: no cover
-        raise NotImplementedError
-
-    @abstractmethod
     def one_qubit_base(self, state, nqubits, target, kernel, qubits=None, gate=None): # pragma: no cover
         raise NotImplementedError
 
@@ -67,11 +63,6 @@ class NumbaBackend(AbstractBackend):
         if dtype and x.dtype != dtype:
             return x.astype(dtype)
         return x
-
-    def to_numpy(self, x):
-        if isinstance(x, self.np.ndarray):
-            return x
-        return self.np.array(x)
 
     def one_qubit_base(self, state, nqubits, target, kernel, qubits=None, gate=None):
         ncontrols = len(qubits) - 1 if qubits is not None else 0
@@ -215,11 +206,6 @@ class CupyBackend(AbstractBackend): # pragma: no cover
         if isinstance(x, self.cp.ndarray):
             return x
         return self.cp.asarray(x, dtype=dtype)
-
-    def to_numpy(self, x):
-        if isinstance(x, self.cp.ndarray):
-            return x.get()
-        return NumbaBackend.to_numpy(self, x)
 
     def get_kernel_type(self, state):
         if state.dtype == self.cp.complex128:

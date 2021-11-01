@@ -112,9 +112,9 @@ class JITCustomBackend(NumpyBackend, AbstractCustomOperators):
     def to_numpy(self, x):
         if isinstance(x, self.np.ndarray):
             return x
-        elif isinstance(x, AbstractState): # TODO: Remove this
-            x = x.numpy()
-        return self.engine.to_numpy(x)
+        elif self.engine.name == "cupy" and isinstance(x, self.engine.cp.ndarray):
+            return x.get()
+        return self.np.array(x)
 
     def cast(self, x, dtype='DTYPECPX'):
         if isinstance(dtype, str):
