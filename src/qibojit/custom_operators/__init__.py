@@ -144,6 +144,19 @@ class JITCustomBackend(NumpyBackend, AbstractCustomOperators):
             return self.backend.asarray(super().expm(x))
         return super().expm(x)
 
+    def eigh(self, x):
+        if self.engine.name == "cupy" and self.engine.is_hip: # pragma: no cover
+            # FIXME: Fallback to numpy because eigh is not implemented in rocblas
+            result = self.np.linalg.eigh(self.to_numpy(x))
+            return self.cast(result[0]), self.cast(result[1])
+        return super().eigh(x)
+
+    def eigvalsh(self, x):
+        if self.engine.name == "cupy" and self.engine.is_hip: # pragma: no cover
+            # FIXME: Fallback to numpy because eigvalsh is not implemented in rocblas
+            return self.cast(self.np.linalg.eigvalsh(self.to_numpy(x)))
+        return super().eigvalsh(x)
+
     def unique(self, x, return_counts=False):
         if self.engine.name == "cupy": # pragma: no cover
             if isinstance(x, self.native_types):
