@@ -5,7 +5,8 @@ from qibo.config import raise_error
 from qibojit.custom_operators.backends import NumbaBackend
 
 
-class CupyCpuDevice:
+class CupyCpuDevice:  # pragma: no cover
+    # This class is not tested in CI because no GPU is available
 
     def __init__(self, K):
         self.K = K
@@ -14,7 +15,7 @@ class CupyCpuDevice:
         self.K.set_engine("numba")
 
     def __exit__(self, *args):
-        if self.K.gpu_devices: # pragma: no cover
+        if self.K.gpu_devices:
             self.K.set_engine("cupy")
 
 
