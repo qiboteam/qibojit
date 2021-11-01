@@ -4,7 +4,8 @@ from qibo import K
 qibo.set_backend("qibojit")
 
 _BACKENDS = ["numba"]
-if K._cupy_engine is not None:
+if K._cupy_engine is not None:  # pragma: no cover
+    # CI does not test for GPU
     _BACKENDS.append("cupy")
 
 

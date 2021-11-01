@@ -124,7 +124,8 @@ def test_swap_pieces(nqubits, qlocal, qglobal, dtype):
 def test_measure_frequencies(backend, realtype, inttype, nthreads):
     probs = np.ones(16, dtype=realtype) / 16
     frequencies = np.zeros(16, dtype=inttype)
-    if K.engine.name == "cupy":
+    if K.engine.name == "cupy":  # pragma: no cover
+        # CI does not test for GPU
         with pytest.raises(NotImplementedError):
             frequencies = K.engine.measure_frequencies(frequencies, probs, nshots=1000,
                                                        nqubits=4, seed=1234,
@@ -151,7 +152,8 @@ def test_measure_frequencies_sparse_probabilities(backend, nonzero):
         probs[i] = 1
     probs = probs / np.sum(probs)
     frequencies = np.zeros(8, dtype=np.int64)
-    if K.engine.name == "cupy":
+    if K.engine.name == "cupy":  # pragma: no cover
+        # CI does not test for GPU
         with pytest.raises(NotImplementedError):
             frequencies = K.engine.measure_frequencies(frequencies, probs, nshots=1000,
                                                        nqubits=3, nthreads=4)

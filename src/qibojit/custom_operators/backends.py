@@ -140,6 +140,7 @@ class NumbaBackend(AbstractBackend):
 
 
 class CupyBackend(AbstractBackend): # pragma: no cover
+    # CI does not test for GPU
 
     DEFAULT_BLOCK_SIZE = 1024
     KERNELS = ("apply_gate", "apply_x", "apply_y", "apply_z", "apply_z_pow",
