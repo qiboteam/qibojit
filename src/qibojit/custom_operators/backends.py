@@ -160,9 +160,9 @@ class CupyBackend(AbstractBackend): # pragma: no cover
         self.np = np
         self.cp = cp
         base_dir = os.path.dirname(os.path.realpath(__file__))
-        is_hip = cupy_backends.cuda.api.runtime.is_hip
+        self.is_hip = cupy_backends.cuda.api.runtime.is_hip
 
-        if is_hip:  # pragma: no cover
+        if self.is_hip:  # pragma: no cover
             self.kernel_double_suffix = f"_complex_double"
             self.kernel_float_suffix = f"_complex_float"
             self.test_regressions = {
@@ -209,7 +209,7 @@ class CupyBackend(AbstractBackend): # pragma: no cover
         kernels.append(f"initial_state_kernel{self.kernel_double_suffix}")
         kernels.append(f"initial_state_kernel{self.kernel_float_suffix}")
         kernels = tuple(kernels)
-        gates_dir = os.path.join(base_dir, "gates.hip.cc" if is_hip else "gates.cu.cc")
+        gates_dir = os.path.join(base_dir, "gates.hip.cc" if self.is_hip else "gates.cu.cc")
         with open(gates_dir, "r") as file:
             code = r"{}".format(file.read())
             self.gates = cp.RawModule(code=code, options=("--std=c++11",),
