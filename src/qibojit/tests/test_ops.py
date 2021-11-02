@@ -23,6 +23,18 @@ def test_initial_state(backend, precision, is_matrix):
     K.set_precision(original_precision)
 
 
+@pytest.mark.parametrize("is_matrix", [False, True])
+def test_backends_initial_state(backend, dtype, is_matrix):
+    final_state =  K.engine.initial_state(4, dtype, is_matrix)
+    if is_matrix:
+        target_state = np.array([1] + [0]*255, dtype=dtype)
+        target_state = np.reshape(target_state, (16, 16))
+    else:
+        target_state = np.array([1] + [0]*15, dtype=dtype)
+    final_state = K.to_numpy(final_state)
+    np.testing.assert_allclose(final_state, target_state)
+
+
 @pytest.mark.parametrize("nqubits,targets,results",
                          [(2, [0], [1]), (2, [1], [0]), (3, [1], [1]),
                           (4, [1, 3], [1, 0]), (5, [1, 2, 4], [0, 1, 1]),
