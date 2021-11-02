@@ -284,28 +284,24 @@ __device__ long multitarget_index(const long* targets, long i, int ntargets) {
 
 
 // C++ implementation of gates.py:apply_multi_qubit_gate_kernel()
-// In contrast to the Python version, it does not perform in-place
-// updates of the state vector, but uses a copy of it
 template<typename T, size_t nsubstates>
-__global__ void apply_multi_qubit_gate_kernel(T* state,
-                                              const T* gate,
-                                              const int* qubits,
-                                              const long* targets,
-                                              int ntargets,
-                                              int ncontrols) {
+__global__ void __launch_bounds__(1024) // to prevent CUDA_ERROR_LAUNCH_OUT_OF_RESOURCES
+apply_multi_qubit_gate_kernel(T* state,
+                              const T* gate,
+                              const int* qubits,
+                              const long* targets,
+                              int ntargets,
+                              int ncontrols) {
   const long g = blockIdx.x * blockDim.x + threadIdx.x;
   const long ig = multicontrol_index(qubits, g, ncontrols);
   T buffer[nsubstates];
-  //#pragma unroll
   for (auto i = 0; i < nsubstates; i++) {
     const long t = ig - multitarget_index(targets, nsubstates - i - 1, ntargets);
     buffer[i] = state[t];
   }
-  //#pragma unroll
   for (auto i = 0; i < nsubstates; i++) {
     const long t = ig - multitarget_index(targets, nsubstates - i - 1, ntargets);
     T new_state_elem = T(0., 0.); // use local variable because it is faster than global ones
-    //#pragma unroll
     for (auto j = 0; j < nsubstates; j++) {
       new_state_elem += gate[nsubstates * i + j] * buffer[j];
     }
