@@ -112,7 +112,7 @@ class JITCustomBackend(NumpyBackend, AbstractCustomOperators):
     def to_numpy(self, x):
         if isinstance(x, self.np.ndarray):
             return x
-        elif self.engine.name == "cupy" and isinstance(x, self.engine.cp.ndarray):
+        elif self.engine.name == "cupy" and isinstance(x, self.engine.cp.ndarray):  # pragma: no cover
             return x.get()
         return self.np.array(x)
 

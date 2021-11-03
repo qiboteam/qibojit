@@ -1,7 +1,7 @@
 import pytest
 import numpy as np
 import qibo
-from qibo import K
+from qibo import K, gates
 
 
 ATOL = {"complex64": 1e-5, "complex128": 1e-10}
@@ -32,7 +32,7 @@ def test_apply_gate(backend, nqubits, target, controls, dtype):
     matrix = random_complex((2, 2), dtype=dtype)
 
     qibo.set_backend("numpy")
-    gate = qibo.gates.Unitary(matrix, target).controlled_by(*controls)
+    gate = gates.Unitary(matrix, target).controlled_by(*controls)
     target_state = gate(np.copy(state))
     qibo.set_backend("qibojit")
 
@@ -50,7 +50,7 @@ def test_apply_pauli_gate(backend, nqubits, target, pauli, controls, dtype):
     state = random_state(nqubits, dtype=dtype)
 
     qibo.set_backend("numpy")
-    gate = getattr(qibo.gates, pauli.capitalize())
+    gate = getattr(gates, pauli.capitalize())
     gate = gate(target).controlled_by(*controls)
     target_state = gate(np.copy(state))
     qibo.set_backend("qibojit")
@@ -70,7 +70,7 @@ def test_apply_zpow_gate(backend, nqubits, target, controls, dtype):
     theta = 0.1234
 
     qibo.set_backend("numpy")
-    gate = qibo.gates.U1(target, theta=theta).controlled_by(*controls)
+    gate = gates.U1(target, theta=theta).controlled_by(*controls)
     target_state = gate(np.copy(state))
     qibo.set_backend("qibojit")
 
@@ -91,7 +91,7 @@ def test_apply_two_qubit_gate(backend, nqubits, targets, controls, dtype):
     matrix = random_complex((4, 4), dtype=dtype)
 
     qibo.set_backend("numpy")
-    gate = qibo.gates.Unitary(matrix, *targets).controlled_by(*controls)
+    gate = gates.Unitary(matrix, *targets).controlled_by(*controls)
     target_state = gate(np.copy(state))
     qibo.set_backend("qibojit")
 
@@ -109,7 +109,7 @@ def test_apply_swap(backend, nqubits, targets, controls, dtype):
     state = random_state(nqubits, dtype=dtype)
 
     qibo.set_backend("numpy")
-    gate = qibo.gates.SWAP(*targets).controlled_by(*controls)
+    gate = gates.SWAP(*targets).controlled_by(*controls)
     target_state = gate(np.copy(state))
     qibo.set_backend("qibojit")
 
@@ -130,7 +130,7 @@ def test_apply_fsim(backend, nqubits, targets, controls, dtype):
     phi = 0.4321
 
     qibo.set_backend("numpy")
-    gate = qibo.gates.GeneralizedfSim(*targets, matrix, phi).controlled_by(*controls)
+    gate = gates.GeneralizedfSim(*targets, matrix, phi).controlled_by(*controls)
     target_state = gate(np.copy(state))
     qibo.set_backend("qibojit")
 
@@ -156,7 +156,7 @@ def test_apply_multi_qubit_gate(nqubits, targets, controls, dtype):
     matrix = random_complex((rank, rank), dtype=dtype)
 
     qibo.set_backend("numpy")
-    gate = qibo.gates.Unitary(matrix, *targets).controlled_by(*controls)
+    gate = gates.Unitary(matrix, *targets).controlled_by(*controls)
     target_state = gate(np.copy(state))
     qibo.set_backend("qibojit")
 
@@ -165,3 +165,25 @@ def test_apply_multi_qubit_gate(nqubits, targets, controls, dtype):
     state = K.apply_multi_qubit_gate(state, matrix, nqubits, targets, qubits)
     state = K.to_numpy(state)
     np.testing.assert_allclose(state, target_state, atol=ATOL.get(dtype))
+
+
+@pytest.mark.parametrize("gatename", ["H", "X", "Z"])
+@pytest.mark.parametrize("density_matrix", [False, True])
+def test_gates_on_circuit(backend, gatename, density_matrix):
+    from qibo.models import Circuit
+    if density_matrix:
+        state = random_complex((2, 2))
+        state = state + np.conj(state.T)
+    else:
+        state = random_state(1)
+
+    qibo.set_backend("numpy")
+    c = Circuit(1, density_matrix=density_matrix)
+    c.add(getattr(gates, gatename)(0))
+    target_state = c(np.copy(state))
+
+    qibo.set_backend("qibojit")
+    c = Circuit(1, density_matrix=density_matrix)
+    c.add(getattr(gates, gatename)(0))
+    final_state = c(np.copy(state))
+    np.testing.assert_allclose(final_state, target_state)

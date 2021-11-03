@@ -3,7 +3,7 @@ import itertools
 import numpy as np
 import qibo
 from qibo import K
-from qibojit.tests.test_gates import qubits_tensor, random_state
+from qibojit.tests.test_gates import qubits_tensor, random_complex, random_state
 
 
 @pytest.mark.parametrize("precision", ["double", "single"])
@@ -61,6 +61,38 @@ def test_collapse_state(backend, nqubits, targets, results, normalize, dtype):
     state = K.collapse_state(state, qubits, result, nqubits, normalize)
     state = K.to_numpy(state)
     np.testing.assert_allclose(state, target_state, atol=atol)
+
+
+@pytest.mark.parametrize("gatename", ["H", "X", "Z"])
+@pytest.mark.parametrize("density_matrix", [False, True])
+def test_collapse_call(backend, gatename, density_matrix):
+    from qibo import gates
+    if density_matrix:
+        state = random_complex((8, 8))
+        state = state + np.conj(state.T)
+    else:
+        state = random_state(3)
+
+    result = [0, 0]
+    qibo.set_backend("numpy")
+    gate = gates.M(0, 1)
+    gate.nqubits = 3
+    if density_matrix:
+        gate.density_matrix = density_matrix
+        target_state = K.density_matrix_collapse(gate, np.copy(state), result)
+    else:
+        target_state = K.state_vector_collapse(gate, np.copy(state), result)
+
+
+    qibo.set_backend("qibojit")
+    gate = gates.M(0, 1)
+    gate.nqubits = 3
+    if density_matrix:
+        gate.density_matrix = density_matrix
+        final_state = K.density_matrix_collapse(gate, np.copy(state), result)
+    else:
+        final_state = K.state_vector_collapse(gate, np.copy(state), result)
+    K.assert_allclose(final_state, target_state)
 
 
 def generate_transpose_qubits(nqubits):

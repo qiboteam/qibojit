@@ -66,3 +66,13 @@ def test_with_device(backend):
         pass
     with K.device("/GPU:0"):
         pass
+    with K.on_cpu():
+        pass
+    target = np.random.random(5)
+    final = K.cpu_cast(target)
+    K.assert_allclose(final, target)
+
+
+def test_cpu_ops(backend):
+    with K.on_cpu():
+        pass
