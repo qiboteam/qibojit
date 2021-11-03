@@ -18,8 +18,7 @@ def test_initial_state(backend, precision, is_matrix):
         target_state = np.reshape(target_state, (16, 16))
     else:
         target_state = np.array([1] + [0]*15, dtype=dtype)
-    final_state = K.to_numpy(final_state)
-    np.testing.assert_allclose(final_state, target_state)
+    K.assert_allclose(final_state, target_state)
     K.set_precision(original_precision)
 
 
@@ -31,8 +30,7 @@ def test_backends_initial_state(backend, dtype, is_matrix):
         target_state = np.reshape(target_state, (16, 16))
     else:
         target_state = np.array([1] + [0]*15, dtype=dtype)
-    final_state = K.to_numpy(final_state)
-    np.testing.assert_allclose(final_state, target_state)
+    K.assert_allclose(final_state, target_state)
 
 
 @pytest.mark.parametrize("nqubits,targets,results",
@@ -59,8 +57,7 @@ def test_collapse_state(backend, nqubits, targets, results, normalize, dtype):
     b2d = 2 ** np.arange(len(results) - 1, -1, -1)
     result = int(np.array(results).dot(b2d))
     state = K.collapse_state(state, qubits, result, nqubits, normalize)
-    state = K.to_numpy(state)
-    np.testing.assert_allclose(state, target_state, atol=atol)
+    K.assert_allclose(state, target_state, atol=atol)
 
 
 @pytest.mark.parametrize("gatename", ["H", "X", "Z"])
@@ -79,9 +76,9 @@ def test_collapse_call(backend, gatename, density_matrix):
     gate.nqubits = 3
     if density_matrix:
         gate.density_matrix = density_matrix
-        target_state = K.density_matrix_collapse(gate, np.copy(state), result)
+        target_state = K.density_matrix_collapse(gate, K.copy(state), result)
     else:
-        target_state = K.state_vector_collapse(gate, np.copy(state), result)
+        target_state = K.state_vector_collapse(gate, K.copy(state), result)
 
 
     qibo.set_backend("qibojit")
@@ -89,9 +86,9 @@ def test_collapse_call(backend, gatename, density_matrix):
     gate.nqubits = 3
     if density_matrix:
         gate.density_matrix = density_matrix
-        final_state = K.density_matrix_collapse(gate, np.copy(state), result)
+        final_state = K.density_matrix_collapse(gate, K.copy(state), result)
     else:
-        final_state = K.state_vector_collapse(gate, np.copy(state), result)
+        final_state = K.state_vector_collapse(gate, K.copy(state), result)
     K.assert_allclose(final_state, target_state)
 
 
@@ -115,14 +112,14 @@ def test_transpose_state(nqubits, qubits, ndevices, dtype):
     state = np.reshape(state, (ndevices, int(state.shape[0]) // ndevices))
     pieces = [state[i] for i in range(ndevices)]
     new_state = K.transpose_state(pieces, new_state, nqubits, qubit_order)
-    np.testing.assert_allclose(new_state, target_state)
+    K.assert_allclose(new_state, target_state)
 
 
 CONFIG = ((n, np.random.randint(1, n)) for _ in range(10) for n in range(4, 11))
 @pytest.mark.parametrize("nqubits,local", CONFIG)
 def test_swap_pieces_zero_global(nqubits, local, dtype):
     state = random_state(nqubits, dtype)
-    target_state = np.copy(state)
+    target_state = K.copy(state)
     shape = (2, int(state.shape[0]) // 2)
     state = np.reshape(state, shape)
 
@@ -131,8 +128,8 @@ def test_swap_pieces_zero_global(nqubits, local, dtype):
     target_state = np.reshape(K.to_numpy(target_state), shape)
     piece0, piece1 = state[0], state[1]
     K.swap_pieces(piece0, piece1, local - 1, nqubits - 1)
-    np.testing.assert_allclose(piece0, target_state[0])
-    np.testing.assert_allclose(piece1, target_state[1])
+    K.assert_allclose(piece0, target_state[0])
+    K.assert_allclose(piece1, target_state[1])
 
 
 CONFIG = ((n, np.random.randint(0, n), np.random.randint(0, n))
@@ -140,7 +137,7 @@ CONFIG = ((n, np.random.randint(0, n), np.random.randint(0, n))
 @pytest.mark.parametrize("nqubits,qlocal,qglobal", CONFIG)
 def test_swap_pieces(nqubits, qlocal, qglobal, dtype):
     state = random_state(nqubits, dtype)
-    target_state = np.copy(state)
+    target_state = K.copy(state)
     shape = (2, int(state.shape[0]) // 2)
 
     while qlocal == qglobal:
@@ -163,8 +160,8 @@ def test_swap_pieces(nqubits, qlocal, qglobal, dtype):
     piece0, piece1 = state[0], state[1]
     new_global = qlocal - int(qglobal < qlocal)
     K.swap_pieces(piece0, piece1, new_global, nqubits - 1)
-    np.testing.assert_allclose(piece0, target_state[0])
-    np.testing.assert_allclose(piece1, target_state[1])
+    K.assert_allclose(piece0, target_state[0])
+    K.assert_allclose(piece1, target_state[1])
 
 
 @pytest.mark.parametrize("realtype", ["float32", "float64"])
@@ -187,7 +184,7 @@ def test_measure_frequencies(backend, realtype, inttype, nthreads):
         if nthreads is not None:
             target_frequencies = np.array([72, 65, 63, 54, 57, 55, 67, 50, 53, 67, 69,
                                            68, 64, 68, 66, 62], dtype=inttype)
-            np.testing.assert_allclose(frequencies, target_frequencies)
+            K.assert_allclose(frequencies, target_frequencies)
 
 
 NONZERO = list(itertools.combinations(range(8), r=1))
