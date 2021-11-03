@@ -53,6 +53,21 @@ def test_basic_matrices(backend):
     K.assert_allclose(K.expm(m), expm(m))
 
 
+def test_backend_eigh(backend):
+    m = np.random.random((16, 16))
+    eigvals2, eigvecs2 = np.linalg.eigh(m)
+    eigvals1, eigvecs1 = K.eigh(K.cast(m))
+    K.assert_allclose(eigvals1, eigvals2)
+    K.assert_allclose(K.abs(eigvecs1), np.abs(eigvecs2))
+
+
+def test_backend_eigvalsh(backend):
+    m = np.random.random((16, 16))
+    target = np.linalg.eigvalsh(m)
+    result = K.eigvalsh(K.cast(m))
+    K.assert_allclose(target, result)
+
+
 def test_unique_and_gather(backend):
     samples = np.random.randint(0, 2, size=(100,))
     K.assert_allclose(K.unique(samples), np.unique(samples))
