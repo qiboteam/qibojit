@@ -182,6 +182,7 @@ class CupyBackend(AbstractBackend): # pragma: no cover
             code = code.replace("QIBO_MAX_BLOCK_SIZE", str(self.DEFAULT_BLOCK_SIZE))
             self.gates = cp.RawModule(code=code, options=("--std=c++11",),
                                       name_expressions=kernels)
+        self.gates.compile()
 
     def calculate_blocks(self, nstates, block_size=DEFAULT_BLOCK_SIZE):
         """Compute the number of blocks and of threads per block.
