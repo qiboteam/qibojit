@@ -3,11 +3,28 @@ import itertools
 import numpy as np
 import qibo
 from qibo import K
-from qibojit.tests.test_gates import qubits_tensor, random_state
+from qibojit.tests.test_gates import qubits_tensor, random_complex, random_state
+
+
+@pytest.mark.parametrize("precision", ["double", "single"])
+@pytest.mark.parametrize("is_matrix", [False, True])
+def test_initial_state(backend, precision, is_matrix):
+    original_precision = K.precision
+    dtype = "complex128" if precision == "double" else "complex64"
+    K.set_precision(precision)
+    final_state =  K.initial_state(4, is_matrix)
+    if is_matrix:
+        target_state = np.array([1] + [0]*255, dtype=dtype)
+        target_state = np.reshape(target_state, (16, 16))
+    else:
+        target_state = np.array([1] + [0]*15, dtype=dtype)
+    final_state = K.to_numpy(final_state)
+    np.testing.assert_allclose(final_state, target_state)
+    K.set_precision(original_precision)
 
 
 @pytest.mark.parametrize("is_matrix", [False, True])
-def test_initial_state(backend, dtype, is_matrix):
+def test_backends_initial_state(backend, dtype, is_matrix):
     final_state =  K.engine.initial_state(4, dtype, is_matrix)
     if is_matrix:
         target_state = np.array([1] + [0]*255, dtype=dtype)
@@ -44,6 +61,38 @@ def test_collapse_state(backend, nqubits, targets, results, normalize, dtype):
     state = K.collapse_state(state, qubits, result, nqubits, normalize)
     state = K.to_numpy(state)
     np.testing.assert_allclose(state, target_state, atol=atol)
+
+
+@pytest.mark.parametrize("gatename", ["H", "X", "Z"])
+@pytest.mark.parametrize("density_matrix", [False, True])
+def test_collapse_call(backend, gatename, density_matrix):
+    from qibo import gates
+    if density_matrix:
+        state = random_complex((8, 8))
+        state = state + np.conj(state.T)
+    else:
+        state = random_state(3)
+
+    result = [0, 0]
+    qibo.set_backend("numpy")
+    gate = gates.M(0, 1)
+    gate.nqubits = 3
+    if density_matrix:
+        gate.density_matrix = density_matrix
+        target_state = K.density_matrix_collapse(gate, np.copy(state), result)
+    else:
+        target_state = K.state_vector_collapse(gate, np.copy(state), result)
+
+
+    qibo.set_backend("qibojit")
+    gate = gates.M(0, 1)
+    gate.nqubits = 3
+    if density_matrix:
+        gate.density_matrix = density_matrix
+        final_state = K.density_matrix_collapse(gate, np.copy(state), result)
+    else:
+        final_state = K.state_vector_collapse(gate, np.copy(state), result)
+    K.assert_allclose(final_state, target_state)
 
 
 def generate_transpose_qubits(nqubits):
@@ -124,7 +173,8 @@ def test_swap_pieces(nqubits, qlocal, qglobal, dtype):
 def test_measure_frequencies(backend, realtype, inttype, nthreads):
     probs = np.ones(16, dtype=realtype) / 16
     frequencies = np.zeros(16, dtype=inttype)
-    if K.engine.name == "cupy":
+    if K.engine.name == "cupy":  # pragma: no cover
+        # CI does not test for GPU
         with pytest.raises(NotImplementedError):
             frequencies = K.engine.measure_frequencies(frequencies, probs, nshots=1000,
                                                        nqubits=4, seed=1234,
@@ -144,23 +194,17 @@ NONZERO = list(itertools.combinations(range(8), r=1))
 NONZERO.extend(itertools.combinations(range(8), r=2))
 NONZERO.extend(itertools.combinations(range(8), r=3))
 NONZERO.extend(itertools.combinations(range(8), r=4))
-@pytest.mark.parametrize("nonzero", NONZERO)
-def test_measure_frequencies_sparse_probabilities(backend, nonzero):
+NSHOTS = (len(NONZERO) // 2 + 1) * [1000, 200000]
+@pytest.mark.parametrize("nonzero,nshots", zip(NONZERO, NSHOTS))
+def test_measure_frequencies_sparse_probabilities(backend, nonzero, nshots):
     probs = np.zeros(8, dtype=np.float64)
     for i in nonzero:
         probs[i] = 1
     probs = probs / np.sum(probs)
-    frequencies = np.zeros(8, dtype=np.int64)
-    if K.engine.name == "cupy":
-        with pytest.raises(NotImplementedError):
-            frequencies = K.engine.measure_frequencies(frequencies, probs, nshots=1000,
-                                                       nqubits=3, nthreads=4)
-    else:
-        frequencies = K.engine.measure_frequencies(frequencies, probs, nshots=1000,
-                                                   nqubits=3, nthreads=4)
-        assert np.sum(frequencies) == 1000
-        for i, freq in enumerate(frequencies):
-            if i in nonzero:
-                assert freq != 0
-            else:
-                assert freq == 0
+    frequencies = K.sample_frequencies(probs, nshots)
+    assert np.sum(frequencies) == nshots
+    for i, freq in enumerate(frequencies):
+        if i in nonzero:
+            assert freq != 0
+        else:
+            assert freq == 0

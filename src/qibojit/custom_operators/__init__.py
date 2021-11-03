@@ -5,7 +5,8 @@ from qibo.config import raise_error
 from qibojit.custom_operators.backends import NumbaBackend
 
 
-class CupyCpuDevice:
+class CupyCpuDevice:  # pragma: no cover
+    # This class is not tested in CI because no GPU is available
 
     def __init__(self, K):
         self.K = K
@@ -14,7 +15,7 @@ class CupyCpuDevice:
         self.K.set_engine("numba")
 
     def __exit__(self, *args):
-        if self.K.gpu_devices: # pragma: no cover
+        if self.K.gpu_devices:
             self.K.set_engine("cupy")
 
 
@@ -61,7 +62,8 @@ class JITCustomBackend(NumpyBackend, AbstractCustomOperators):
         if sys.platform != "darwin":
             self.supports_multigpu = True
 
-    def test_regressions(self, name):
+    def test_regressions(self, name): # pragma: no cover
+        # Used for qibo tests only
         if self.engine.name == "cupy":
             return self.engine.test_regressions.get(name)
         return NumpyBackend.test_regressions(self, name)
@@ -110,9 +112,9 @@ class JITCustomBackend(NumpyBackend, AbstractCustomOperators):
     def to_numpy(self, x):
         if isinstance(x, self.np.ndarray):
             return x
-        elif isinstance(x, AbstractState): # TODO: Remove this
-            x = x.numpy()
-        return self.engine.to_numpy(x)
+        elif self.engine.name == "cupy" and isinstance(x, self.engine.cp.ndarray):  # pragma: no cover
+            return x.get()
+        return self.np.array(x)
 
     def cast(self, x, dtype='DTYPECPX'):
         if isinstance(dtype, str):
@@ -158,14 +160,14 @@ class JITCustomBackend(NumpyBackend, AbstractCustomOperators):
         return super().eigvalsh(x)
 
     def unique(self, x, return_counts=False):
-        if self.engine.name == "cupy": # pragma: no cover
+        if self.engine.name == "cupy":  # pragma: no cover
             if isinstance(x, self.native_types):
                 x = x.get()
             # Uses numpy backend always
         return super().unique(x, return_counts)
 
     def gather(self, x, indices=None, condition=None, axis=0):
-        if self.engine.name == "cupy": # pragma: no cover
+        if self.engine.name == "cupy":  # pragma: no cover
             # Fallback to numpy because cupy does not support tuple indexing
             if isinstance(x, self.native_types):
                 x = x.get()
