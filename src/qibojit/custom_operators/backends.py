@@ -179,6 +179,7 @@ class CupyBackend(AbstractBackend): # pragma: no cover
         gates_dir = os.path.join(base_dir, "gates.cu.cc")
         with open(gates_dir, "r") as file:
             code = r"{}".format(file.read())
+            code = code.replace("QIBO_MAX_BLOCK_SIZE", str(self.DEFAULT_BLOCK_SIZE))
             self.gates = cp.RawModule(code=code, options=("--std=c++11",),
                                       name_expressions=kernels)
 

@@ -285,7 +285,10 @@ __device__ long multitarget_index(const long* targets, long i, int ntargets) {
 
 // C++ implementation of gates.py:apply_multi_qubit_gate_kernel()
 template<typename T, int nsubstates>
-__global__ void __launch_bounds__(1024) // to prevent CUDA_ERROR_LAUNCH_OUT_OF_RESOURCES
+__global__ void
+__launch_bounds__(QIBO_MAX_BLOCK_SIZE) // to prevent CUDA_ERROR_LAUNCH_OUT_OF_RESOURCES.
+                                       // The maximum block size is chosen in backends.py
+                                       // and it is replaced here before compilation.
 apply_multi_qubit_gate_kernel(T* state,
                               const T* gate,
                               const int* qubits,
