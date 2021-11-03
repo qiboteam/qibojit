@@ -141,6 +141,7 @@ class NumbaBackend(AbstractBackend):
 class CupyBackend(AbstractBackend): # pragma: no cover
 
     DEFAULT_BLOCK_SIZE = 1024
+    MAX_NUM_TARGETS = 7
 
     def __init__(self):
         import os
@@ -168,7 +169,7 @@ class CupyBackend(AbstractBackend): # pragma: no cover
             kernels.append(f"{kernel}_kernel{self.kernel_float_suffix}")
             kernels.append(f"multicontrol_{kernel}_kernel{self.kernel_double_suffix}")
             kernels.append(f"multicontrol_{kernel}_kernel{self.kernel_float_suffix}")
-        for ntargets in range(3, 11):
+        for ntargets in range(3, self.MAX_NUM_TARGETS+1):
             kernels.append(f"apply_multi_qubit_gate_kernel{self.kernel_double_suffix[0:-2]}, {2**ntargets}>")
             kernels.append(f"apply_multi_qubit_gate_kernel{self.kernel_float_suffix[0:-2]}, {2**ntargets}>")
         kernels.append(f"collapse_state_kernel{self.kernel_double_suffix}")
@@ -280,6 +281,9 @@ class CupyBackend(AbstractBackend): # pragma: no cover
         assert state.dtype == gate.dtype
 
         ntargets = len(targets)
+        if ntargets > self.MAX_NUM_TARGETS:
+            raise ValueError(f"Number of target qubits must be <= {self.MAX_NUM_TARGETS}"
+                             f" but is {ntargets}.")
         if qubits is None:
             nactive = ntargets
             qubits = self.cast(sorted(nqubits - q - 1 for q in targets), dtype=self.cp.int32)
