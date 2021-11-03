@@ -187,3 +187,27 @@ def test_gates_on_circuit(backend, gatename, density_matrix):
     c.add(getattr(gates, gatename)(0))
     final_state = c(np.copy(state))
     np.testing.assert_allclose(final_state, target_state)
+
+
+@pytest.mark.parametrize("gatename", ["H", "X", "Z"])
+def test_density_matrix_half_calls(backend, gatename):
+    state = random_complex((8, 8))
+    state = state + np.conj(state.T)
+    qibo.set_backend("numpy")
+    gate = getattr(gates, gatename)(1)
+    gate.nqubits = 3
+    gate.density_matrix = True
+    if isinstance(gate, gates.MatrixGate):
+        target_state = K.density_matrix_half_matrix_call(gate, K.copy(state))
+    else:
+        target_state = K._density_matrix_half_call(gate, K.copy(state))
+
+    qibo.set_backend("qibojit")
+    gate = getattr(gates, gatename)(1)
+    gate.nqubits = 3
+    gate.density_matrix = True
+    if isinstance(gate, gates.MatrixGate):
+        final_state = K.density_matrix_half_matrix_call(gate, K.copy(state))
+    else:
+        final_state = K._density_matrix_half_call(gate, K.copy(state))
+    K.assert_allclose(final_state, target_state)
