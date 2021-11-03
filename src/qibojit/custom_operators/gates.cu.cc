@@ -284,7 +284,7 @@ __device__ long multitarget_index(const long* targets, long i, int ntargets) {
 
 
 // C++ implementation of gates.py:apply_multi_qubit_gate_kernel()
-template<typename T, size_t nsubstates>
+template<typename T, int nsubstates>
 __global__ void __launch_bounds__(1024) // to prevent CUDA_ERROR_LAUNCH_OUT_OF_RESOURCES
 apply_multi_qubit_gate_kernel(T* state,
                               const T* gate,
@@ -308,6 +308,7 @@ apply_multi_qubit_gate_kernel(T* state,
     state[t] = new_state_elem;
   }
 }
+
 
 // C++ implementation of ops.py:collapse_index()
 __device__ long collapse_index(const int* qubits, long g, long h, int ntargets) {
