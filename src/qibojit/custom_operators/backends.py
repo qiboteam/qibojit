@@ -152,12 +152,25 @@ class CupyBackend(AbstractBackend): # pragma: no cover
         self.np = np
         self.cp = cp
         base_dir = os.path.dirname(os.path.realpath(__file__))
-        is_hip = cupy_backends.cuda.api.runtime.is_hip
+        self.is_hip = cupy_backends.cuda.api.runtime.is_hip
 
-        if is_hip:  # pragma: no cover
+        if self.is_hip:  # pragma: no cover
             self.kernel_double_suffix = f"_complex_double"
             self.kernel_float_suffix = f"_complex_float"
-            self.test_regressions = {} # TODO: Fix this
+            self.test_regressions = {
+                "test_measurementresult_apply_bitflips": [
+                    [2, 2, 6, 1, 0, 0, 0, 0, 1, 0],
+                    [2, 2, 6, 1, 0, 0, 0, 0, 1, 0],
+                    [0, 0, 4, 1, 0, 0, 0, 0, 1, 0],
+                    [0, 2, 4, 0, 0, 0, 0, 0, 0, 0]
+                ],
+                "test_probabilistic_measurement": {2: 267, 3: 247, 0: 243, 1: 243},
+                "test_unbalanced_probabilistic_measurement": {3: 500, 2: 174, 0: 163, 1: 163},
+                "test_post_measurement_bitflips_on_circuit": [
+                    {5: 30}, {5: 17, 7: 7, 1: 2, 4: 2, 2: 1, 3: 1},
+                    {7: 7, 1: 5, 3: 4, 6: 4, 2: 3, 5: 3, 0: 2, 4: 2}
+                ]
+            }
         else:  # pragma: no cover
             self.kernel_double_suffix = f"<complex<double>>"
             self.kernel_float_suffix = f"<complex<float>>"
@@ -188,7 +201,7 @@ class CupyBackend(AbstractBackend): # pragma: no cover
         kernels.append(f"initial_state_kernel{self.kernel_double_suffix}")
         kernels.append(f"initial_state_kernel{self.kernel_float_suffix}")
         kernels = tuple(kernels)
-        gates_dir = os.path.join(base_dir, "gates.hip.cc" if is_hip else "gates.cu.cc")
+        gates_dir = os.path.join(base_dir, "gates.hip.cc" if self.is_hip else "gates.cu.cc")
         with open(gates_dir, "r") as file:
             code = r"{}".format(file.read())
             self.gates = cp.RawModule(code=code, options=("--std=c++11",),
