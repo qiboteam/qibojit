@@ -7,13 +7,10 @@ class AbstractBackend(ABC):
         self.name = "abstract"
         self.gates = None
         self.ops = None
+        self.test_regressions = {}
 
     @abstractmethod
     def cast(self, x, dtype=None): # pragma: no cover
-        raise NotImplementedError
-
-    @abstractmethod
-    def to_numpy(self, x): # pragma: no cover
         raise NotImplementedError
 
     @abstractmethod
@@ -54,7 +51,7 @@ class NumbaBackend(AbstractBackend):
         self.gates = gates
         self.ops = ops
         self.np = np
-        self.multiqubit_kernels = {
+        self.multi_qubit_kernels = {
             3: self.gates.apply_three_qubit_gate_kernel,
             4: self.gates.apply_four_qubit_gate_kernel,
             5: self.gates.apply_five_qubit_gate_kernel
@@ -66,11 +63,6 @@ class NumbaBackend(AbstractBackend):
         if dtype and x.dtype != dtype:
             return x.astype(dtype)
         return x
-
-    def to_numpy(self, x):
-        if isinstance(x, self.np.ndarray):
-            return x
-        return self.np.array(x)
 
     def one_qubit_base(self, state, nqubits, target, kernel, qubits=None, gate=None):
         ncontrols = len(qubits) - 1 if qubits is not None else 0
@@ -99,7 +91,7 @@ class NumbaBackend(AbstractBackend):
         kernel = getattr(self.gates, "{}_kernel".format(kernel))
         return kernel(state, gate, nstates, m1, m2, swap_targets)
 
-    def multiqubit_base(self, state, nqubits, targets, qubits=None, gate=None):
+    def multi_qubit_base(self, state, nqubits, targets, qubits=None, gate=None):
         if qubits is None:
             qubits = self.np.array(sorted(nqubits - q - 1 for q in targets), dtype="int32")
         nstates = 1 << (nqubits - len(qubits))
@@ -107,7 +99,7 @@ class NumbaBackend(AbstractBackend):
         if len(targets) > 5:
             kernel = self.gates.apply_multi_qubit_gate_kernel
         else:
-            kernel = self.multiqubit_kernels.get(len(targets))
+            kernel = self.multi_qubit_kernels.get(len(targets))
         return kernel(state, gate, qubits, nstates, targets)
 
     def initial_state(self, nqubits, dtype, is_matrix=False):
@@ -139,6 +131,7 @@ class NumbaBackend(AbstractBackend):
 
 
 class CupyBackend(AbstractBackend): # pragma: no cover
+    # CI does not test for GPU
 
     DEFAULT_BLOCK_SIZE = 1024
     KERNELS = ("apply_gate", "apply_x", "apply_y", "apply_z", "apply_z_pow",
@@ -159,14 +152,42 @@ class CupyBackend(AbstractBackend): # pragma: no cover
         self.np = np
         self.cp = cp
         base_dir = os.path.dirname(os.path.realpath(__file__))
-        is_hip = cupy_backends.cuda.api.runtime.is_hip
+        self.is_hip = cupy_backends.cuda.api.runtime.is_hip
 
-        if is_hip:  # pragma: no cover
+        if self.is_hip:  # pragma: no cover
             self.kernel_double_suffix = f"_complex_double"
             self.kernel_float_suffix = f"_complex_float"
+            self.test_regressions = {
+                "test_measurementresult_apply_bitflips": [
+                    [2, 2, 6, 1, 0, 0, 0, 0, 1, 0],
+                    [2, 2, 6, 1, 0, 0, 0, 0, 1, 0],
+                    [0, 0, 4, 1, 0, 0, 0, 0, 1, 0],
+                    [0, 2, 4, 0, 0, 0, 0, 0, 0, 0]
+                ],
+                "test_probabilistic_measurement": {2: 267, 3: 247, 0: 243, 1: 243},
+                "test_unbalanced_probabilistic_measurement": {3: 500, 2: 174, 0: 163, 1: 163},
+                "test_post_measurement_bitflips_on_circuit": [
+                    {5: 30}, {5: 17, 7: 7, 1: 2, 4: 2, 2: 1, 3: 1},
+                    {7: 7, 1: 5, 3: 4, 6: 4, 2: 3, 5: 3, 0: 2, 4: 2}
+                ]
+            }
         else:  # pragma: no cover
             self.kernel_double_suffix = f"<complex<double>>"
             self.kernel_float_suffix = f"<complex<float>>"
+            self.test_regressions = {
+                "test_measurementresult_apply_bitflips": [
+                    [0, 0, 0, 6, 4, 1, 1, 4, 0, 2],
+                    [0, 0, 0, 6, 4, 1, 1, 4, 0, 2],
+                    [0, 0, 0, 0, 4, 1, 1, 4, 0, 0],
+                    [0, 0, 0, 6, 4, 0, 0, 4, 0, 2]
+                ],
+                "test_probabilistic_measurement": {0: 264, 1: 235, 2: 269, 3: 232},
+                "test_unbalanced_probabilistic_measurement": {0: 170, 1: 154, 2: 167, 3: 509},
+                "test_post_measurement_bitflips_on_circuit": [
+                    {5: 30}, {5: 12, 7: 7, 6: 5, 4: 3, 1: 2, 2: 1},
+                    {2: 10, 6: 5, 5: 4, 0: 3, 7: 3, 1: 2, 3: 2, 4: 1}
+                ]
+            }
 
         # load gate kernels
         kernels = []
@@ -180,7 +201,7 @@ class CupyBackend(AbstractBackend): # pragma: no cover
         kernels.append(f"initial_state_kernel{self.kernel_double_suffix}")
         kernels.append(f"initial_state_kernel{self.kernel_float_suffix}")
         kernels = tuple(kernels)
-        gates_dir = os.path.join(base_dir, "gates.hip.cc" if is_hip else "gates.cu.cc")
+        gates_dir = os.path.join(base_dir, "gates.hip.cc" if self.is_hip else "gates.cu.cc")
         with open(gates_dir, "r") as file:
             code = r"{}".format(file.read())
             self.gates = cp.RawModule(code=code, options=("--std=c++11",),
@@ -198,11 +219,6 @@ class CupyBackend(AbstractBackend): # pragma: no cover
         if isinstance(x, self.cp.ndarray):
             return x
         return self.cp.asarray(x, dtype=dtype)
-
-    def to_numpy(self, x):
-        if isinstance(x, self.np.ndarray):
-            return x
-        return x.get()
 
     def get_kernel_type(self, state):
         if state.dtype == self.cp.complex128:
@@ -312,6 +328,6 @@ class CupyBackend(AbstractBackend): # pragma: no cover
         raise NotImplementedError("`swap_pieces` method is not "
                                   "implemented for GPU.")
 
-    def measure_frequencies(self, frequencies, probs, nshots, nqubits, seed=1234):
+    def measure_frequencies(self, frequencies, probs, nshots, nqubits, seed=1234, nthreads=None):
         raise NotImplementedError("`measure_frequencies` method is not "
                                   "implemented for GPU.")
