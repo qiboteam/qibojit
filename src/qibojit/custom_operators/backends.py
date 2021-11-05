@@ -7,13 +7,10 @@ class AbstractBackend(ABC):
         self.name = "abstract"
         self.gates = None
         self.ops = None
+        self.test_regressions = {}
 
     @abstractmethod
     def cast(self, x, dtype=None): # pragma: no cover
-        raise NotImplementedError
-
-    @abstractmethod
-    def to_numpy(self, x): # pragma: no cover
         raise NotImplementedError
 
     @abstractmethod
@@ -54,6 +51,11 @@ class NumbaBackend(AbstractBackend):
         self.gates = gates
         self.ops = ops
         self.np = np
+        self.multi_qubit_kernels = {
+            3: self.gates.apply_three_qubit_gate_kernel,
+            4: self.gates.apply_four_qubit_gate_kernel,
+            5: self.gates.apply_five_qubit_gate_kernel
+            }
 
     def cast(self, x, dtype=None):
         if not isinstance(x, self.np.ndarray):
@@ -61,11 +63,6 @@ class NumbaBackend(AbstractBackend):
         if dtype and x.dtype != dtype:
             return x.astype(dtype)
         return x
-
-    def to_numpy(self, x):
-        if isinstance(x, self.np.ndarray):
-            return x
-        return self.np.array(x)
 
     def one_qubit_base(self, state, nqubits, target, kernel, qubits=None, gate=None):
         ncontrols = len(qubits) - 1 if qubits is not None else 0
@@ -93,6 +90,17 @@ class NumbaBackend(AbstractBackend):
             return kernel(state, gate, qubits, nstates, m1, m2, swap_targets)
         kernel = getattr(self.gates, "{}_kernel".format(kernel))
         return kernel(state, gate, nstates, m1, m2, swap_targets)
+
+    def multi_qubit_base(self, state, nqubits, targets, qubits=None, gate=None):
+        if qubits is None:
+            qubits = self.np.array(sorted(nqubits - q - 1 for q in targets), dtype="int32")
+        nstates = 1 << (nqubits - len(qubits))
+        targets = self.np.array([1 << (nqubits - t - 1) for t in targets[::-1]], dtype="int64")
+        if len(targets) > 5:
+            kernel = self.gates.apply_multi_qubit_gate_kernel
+        else:
+            kernel = self.multi_qubit_kernels.get(len(targets))
+        return kernel(state, gate, qubits, nstates, targets)
 
     def initial_state(self, nqubits, dtype, is_matrix=False):
         if isinstance(dtype, str):
@@ -123,10 +131,10 @@ class NumbaBackend(AbstractBackend):
 
 
 class CupyBackend(AbstractBackend): # pragma: no cover
+    # CI does not test for GPU
 
     DEFAULT_BLOCK_SIZE = 1024
-    KERNELS = ("apply_gate", "apply_x", "apply_y", "apply_z", "apply_z_pow",
-               "apply_two_qubit_gate", "apply_fsim", "apply_swap")
+    MAX_NUM_TARGETS = 7
 
     def __init__(self):
         import os
@@ -143,14 +151,41 @@ class CupyBackend(AbstractBackend): # pragma: no cover
         self.np = np
         self.cp = cp
         base_dir = os.path.dirname(os.path.realpath(__file__))
-        is_hip = cupy_backends.cuda.api.runtime.is_hip
-
-        if is_hip:  # pragma: no cover
-            self.kernel_double_suffix = f"_complex_double"
-            self.kernel_float_suffix = f"_complex_float"
+        self.is_hip = cupy_backends.cuda.api.runtime.is_hip
+        self.KERNELS = ("apply_gate", "apply_x", "apply_y", "apply_z", "apply_z_pow",
+                        "apply_two_qubit_gate", "apply_fsim", "apply_swap")
+        self.kernel_double_suffix = "<thrust::complex<double> >"
+        self.kernel_float_suffix = "<thrust::complex<float> >"
+        if self.is_hip:  # pragma: no cover
+            self.test_regressions = {
+                "test_measurementresult_apply_bitflips": [
+                    [2, 2, 6, 1, 0, 0, 0, 0, 1, 0],
+                    [2, 2, 6, 1, 0, 0, 0, 0, 1, 0],
+                    [0, 0, 4, 1, 0, 0, 0, 0, 1, 0],
+                    [0, 2, 4, 0, 0, 0, 0, 0, 0, 0]
+                ],
+                "test_probabilistic_measurement": {2: 267, 3: 247, 0: 243, 1: 243},
+                "test_unbalanced_probabilistic_measurement": {3: 500, 2: 174, 0: 163, 1: 163},
+                "test_post_measurement_bitflips_on_circuit": [
+                    {5: 30}, {5: 17, 7: 7, 1: 2, 4: 2, 2: 1, 3: 1},
+                    {7: 7, 1: 5, 3: 4, 6: 4, 2: 3, 5: 3, 0: 2, 4: 2}
+                ]
+            }
         else:  # pragma: no cover
-            self.kernel_double_suffix = f"<complex<double>>"
-            self.kernel_float_suffix = f"<complex<float>>"
+            self.test_regressions = {
+                "test_measurementresult_apply_bitflips": [
+                    [0, 0, 0, 6, 4, 1, 1, 4, 0, 2],
+                    [0, 0, 0, 6, 4, 1, 1, 4, 0, 2],
+                    [0, 0, 0, 0, 4, 1, 1, 4, 0, 0],
+                    [0, 0, 0, 6, 4, 0, 0, 4, 0, 2]
+                ],
+                "test_probabilistic_measurement": {0: 264, 1: 235, 2: 269, 3: 232},
+                "test_unbalanced_probabilistic_measurement": {0: 170, 1: 154, 2: 167, 3: 509},
+                "test_post_measurement_bitflips_on_circuit": [
+                    {5: 30}, {5: 12, 7: 7, 6: 5, 4: 3, 1: 2, 2: 1},
+                    {2: 10, 6: 5, 5: 4, 0: 3, 7: 3, 1: 2, 3: 2, 4: 1}
+                ]
+            }
 
         # load gate kernels
         kernels = []
@@ -159,19 +194,31 @@ class CupyBackend(AbstractBackend): # pragma: no cover
             kernels.append(f"{kernel}_kernel{self.kernel_float_suffix}")
             kernels.append(f"multicontrol_{kernel}_kernel{self.kernel_double_suffix}")
             kernels.append(f"multicontrol_{kernel}_kernel{self.kernel_float_suffix}")
+        for ntargets in range(3, self.MAX_NUM_TARGETS+1):
+            kernels.append(f"apply_multi_qubit_gate_kernel{self.kernel_double_suffix[0:-2]}, {2**ntargets}>")
+            kernels.append(f"apply_multi_qubit_gate_kernel{self.kernel_float_suffix[0:-2]}, {2**ntargets}>")
         kernels.append(f"collapse_state_kernel{self.kernel_double_suffix}")
         kernels.append(f"collapse_state_kernel{self.kernel_float_suffix}")
         kernels.append(f"initial_state_kernel{self.kernel_double_suffix}")
         kernels.append(f"initial_state_kernel{self.kernel_float_suffix}")
         kernels = tuple(kernels)
-        gates_dir = os.path.join(base_dir, "gates.hip.cc" if is_hip else "gates.cu.cc")
+        gates_dir = os.path.join(base_dir, "gates.cu.cc")
         with open(gates_dir, "r") as file:
             code = r"{}".format(file.read())
+            code = code.replace("QIBO_MAX_BLOCK_SIZE", str(self.DEFAULT_BLOCK_SIZE))
             self.gates = cp.RawModule(code=code, options=("--std=c++11",),
                                       name_expressions=kernels)
+        self.gates.compile()
 
-    def calculate_blocks(self, nstates):
-        block_size = self.DEFAULT_BLOCK_SIZE
+    def calculate_blocks(self, nstates, block_size=DEFAULT_BLOCK_SIZE):
+        """Compute the number of blocks and of threads per block.
+
+        The total number of threads is always equal to ``nstates``, give that
+        the kernels are designed to execute only one out of ``nstates`` updates.
+        Therefore, the number of threads per block (``block_size``) changes also
+        the total number of blocks. By default, it is set to ``self.DEFAULT_BLOCK_SIZE``.
+        """
+        # Compute the number of blocks so that at least ``nstates`` threads are launched
         nblocks = (nstates + block_size - 1) // block_size
         if nstates < block_size:
             nblocks = 1
@@ -182,11 +229,6 @@ class CupyBackend(AbstractBackend): # pragma: no cover
         if isinstance(x, self.cp.ndarray):
             return x
         return self.cp.asarray(x, dtype=dtype)
-
-    def to_numpy(self, x):
-        if isinstance(x, self.np.ndarray):
-            return x
-        return x.get()
 
     def get_kernel_type(self, state):
         if state.dtype == self.cp.complex128:
@@ -252,6 +294,35 @@ class CupyBackend(AbstractBackend): # pragma: no cover
         self.cp.cuda.stream.get_current_stream().synchronize()
         return state
 
+    def multi_qubit_base(self, state, nqubits, targets, qubits=None, gate=None):
+        assert gate is not None
+        state = self.cast(state)
+        gate = self.cast(gate.flatten())
+        assert state.dtype == gate.dtype
+
+        ntargets = len(targets)
+        if ntargets > self.MAX_NUM_TARGETS:
+            raise ValueError(f"Number of target qubits must be <= {self.MAX_NUM_TARGETS}"
+                             f" but is {ntargets}.")
+        if qubits is None:
+            nactive = ntargets
+            qubits = self.cast(sorted(nqubits - q - 1 for q in targets), dtype=self.cp.int32)
+        else:
+            nactive = len(qubits)
+            qubits = self.cast(qubits, dtype=self.cp.int32)
+        targets = self.cast(tuple(1 << (nqubits - t - 1) for t in targets[::-1]),
+                            dtype=self.cp.int64)
+        nstates = 1 << (nqubits - nactive)
+        nsubstates = 1 << ntargets
+
+        ktype = self.get_kernel_type(state)
+        nblocks, block_size = self.calculate_blocks(nstates)
+        kernel = self.gates.get_function(f"apply_multi_qubit_gate_kernel{ktype[0:-2]}, {nsubstates}>")
+        args = (state, gate, qubits, targets, ntargets, nactive)
+        kernel((nblocks,), (block_size,), args)
+        self.cp.cuda.stream.get_current_stream().synchronize()
+        return state
+
     def initial_state(self, nqubits, dtype, is_matrix=False):
         n = 1 << nqubits
         if dtype in {"complex128", self.np.complex128, self.cp.complex128}:
@@ -296,6 +367,6 @@ class CupyBackend(AbstractBackend): # pragma: no cover
         raise NotImplementedError("`swap_pieces` method is not "
                                   "implemented for GPU.")
 
-    def measure_frequencies(self, frequencies, probs, nshots, nqubits, seed=1234):
+    def measure_frequencies(self, frequencies, probs, nshots, nqubits, seed=1234, nthreads=None):
         raise NotImplementedError("`measure_frequencies` method is not "
                                   "implemented for GPU.")

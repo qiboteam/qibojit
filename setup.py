@@ -31,7 +31,7 @@ class CustomInstall(install):
         install.run(self)
         os.environ["CUDA_VISIBLE_DEVICES"] = ""
         os.environ["HIP_VISIBLE_DEVICES"] = ""
-        from qibojit import custom_operators
+        from qibo import K
 
 
 setup(
@@ -54,10 +54,12 @@ setup(
     ],
     install_requires=[
         "numba>=0.51.0",
-        "psutil"
+        "scipy",
+        "psutil",
+        "qibo"
     ],
     extras_require={
-        "tests": ["qibo", "pytest"],
+        "tests": ["pytest"],
     },
     python_requires=">=3.6.0",
     long_description=long_description,
