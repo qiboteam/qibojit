@@ -134,8 +134,7 @@ class CupyBackend(AbstractBackend): # pragma: no cover
     # CI does not test for GPU
 
     DEFAULT_BLOCK_SIZE = 1024
-    KERNELS = ("apply_gate", "apply_x", "apply_y", "apply_z", "apply_z_pow",
-               "apply_two_qubit_gate", "apply_fsim", "apply_swap")
+    MAX_NUM_TARGETS = 7
 
     def __init__(self):
         import os
@@ -153,10 +152,11 @@ class CupyBackend(AbstractBackend): # pragma: no cover
         self.cp = cp
         base_dir = os.path.dirname(os.path.realpath(__file__))
         self.is_hip = cupy_backends.cuda.api.runtime.is_hip
-
+        self.KERNELS = ("apply_gate", "apply_x", "apply_y", "apply_z", "apply_z_pow",
+                        "apply_two_qubit_gate", "apply_fsim", "apply_swap")
+        self.kernel_double_suffix = "<thrust::complex<double> >"
+        self.kernel_float_suffix = "<thrust::complex<float> >"
         if self.is_hip:  # pragma: no cover
-            self.kernel_double_suffix = f"_complex_double"
-            self.kernel_float_suffix = f"_complex_float"
             self.test_regressions = {
                 "test_measurementresult_apply_bitflips": [
                     [2, 2, 6, 1, 0, 0, 0, 0, 1, 0],
@@ -172,8 +172,6 @@ class CupyBackend(AbstractBackend): # pragma: no cover
                 ]
             }
         else:  # pragma: no cover
-            self.kernel_double_suffix = f"<complex<double>>"
-            self.kernel_float_suffix = f"<complex<float>>"
             self.test_regressions = {
                 "test_measurementresult_apply_bitflips": [
                     [0, 0, 0, 6, 4, 1, 1, 4, 0, 2],
@@ -196,19 +194,31 @@ class CupyBackend(AbstractBackend): # pragma: no cover
             kernels.append(f"{kernel}_kernel{self.kernel_float_suffix}")
             kernels.append(f"multicontrol_{kernel}_kernel{self.kernel_double_suffix}")
             kernels.append(f"multicontrol_{kernel}_kernel{self.kernel_float_suffix}")
+        for ntargets in range(3, self.MAX_NUM_TARGETS+1):
+            kernels.append(f"apply_multi_qubit_gate_kernel{self.kernel_double_suffix[0:-2]}, {2**ntargets}>")
+            kernels.append(f"apply_multi_qubit_gate_kernel{self.kernel_float_suffix[0:-2]}, {2**ntargets}>")
         kernels.append(f"collapse_state_kernel{self.kernel_double_suffix}")
         kernels.append(f"collapse_state_kernel{self.kernel_float_suffix}")
         kernels.append(f"initial_state_kernel{self.kernel_double_suffix}")
         kernels.append(f"initial_state_kernel{self.kernel_float_suffix}")
         kernels = tuple(kernels)
-        gates_dir = os.path.join(base_dir, "gates.hip.cc" if self.is_hip else "gates.cu.cc")
+        gates_dir = os.path.join(base_dir, "gates.cu.cc")
         with open(gates_dir, "r") as file:
             code = r"{}".format(file.read())
+            code = code.replace("QIBO_MAX_BLOCK_SIZE", str(self.DEFAULT_BLOCK_SIZE))
             self.gates = cp.RawModule(code=code, options=("--std=c++11",),
                                       name_expressions=kernels)
+        self.gates.compile()
 
-    def calculate_blocks(self, nstates):
-        block_size = self.DEFAULT_BLOCK_SIZE
+    def calculate_blocks(self, nstates, block_size=DEFAULT_BLOCK_SIZE):
+        """Compute the number of blocks and of threads per block.
+
+        The total number of threads is always equal to ``nstates``, give that
+        the kernels are designed to execute only one out of ``nstates`` updates.
+        Therefore, the number of threads per block (``block_size``) changes also
+        the total number of blocks. By default, it is set to ``self.DEFAULT_BLOCK_SIZE``.
+        """
+        # Compute the number of blocks so that at least ``nstates`` threads are launched
         nblocks = (nstates + block_size - 1) // block_size
         if nstates < block_size:
             nblocks = 1
@@ -280,6 +290,35 @@ class CupyBackend(AbstractBackend): # pragma: no cover
             kernel = self.gates.get_function(f"{kernel}_kernel{ktype}")
 
         nblocks, block_size = self.calculate_blocks(nstates)
+        kernel((nblocks,), (block_size,), args)
+        self.cp.cuda.stream.get_current_stream().synchronize()
+        return state
+
+    def multi_qubit_base(self, state, nqubits, targets, qubits=None, gate=None):
+        assert gate is not None
+        state = self.cast(state)
+        gate = self.cast(gate.flatten())
+        assert state.dtype == gate.dtype
+
+        ntargets = len(targets)
+        if ntargets > self.MAX_NUM_TARGETS:
+            raise ValueError(f"Number of target qubits must be <= {self.MAX_NUM_TARGETS}"
+                             f" but is {ntargets}.")
+        if qubits is None:
+            nactive = ntargets
+            qubits = self.cast(sorted(nqubits - q - 1 for q in targets), dtype=self.cp.int32)
+        else:
+            nactive = len(qubits)
+            qubits = self.cast(qubits, dtype=self.cp.int32)
+        targets = self.cast(tuple(1 << (nqubits - t - 1) for t in targets[::-1]),
+                            dtype=self.cp.int64)
+        nstates = 1 << (nqubits - nactive)
+        nsubstates = 1 << ntargets
+
+        ktype = self.get_kernel_type(state)
+        nblocks, block_size = self.calculate_blocks(nstates)
+        kernel = self.gates.get_function(f"apply_multi_qubit_gate_kernel{ktype[0:-2]}, {nsubstates}>")
+        args = (state, gate, qubits, targets, ntargets, nactive)
         kernel((nblocks,), (block_size,), args)
         self.cp.cuda.stream.get_current_stream().synchronize()
         return state
