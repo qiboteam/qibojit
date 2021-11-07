@@ -105,9 +105,9 @@ class JITCustomBackend(NumpyBackend, AbstractCustomOperators):
         elif name == "numba_gpu":
             import numpy as xp
             from numba import cuda
-            self.tensor_types = (xp.ndarray, cuda.cudadrv.devicearray.DeviceNDArray)
-            self.native_types = (cuda.cudadrv.devicearray.DeviceNDArray,)
-            self.Tensor = cuda.cudadrv.devicearray.DeviceNDArray
+            self.tensor_types = (xp.ndarray, cuda.cudadrv.devicearray.DeviceNDArray) # pylint: disable=no-member
+            self.native_types = (cuda.cudadrv.devicearray.DeviceNDArray,) # pylint: disable=no-member
+            self.Tensor = cuda.cudadrv.devicearray.DeviceNDArray # pylint: disable=no-member
             if self._numba_gpu_engine is None:
                 from qibojit.custom_operators.backends import NumbaGPUBackend
                 self._numba_gpu_engine = NumbaGPUBackend()

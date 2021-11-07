@@ -1,4 +1,7 @@
+# pylint: disable=too-many-function-args
+
 from numba import cuda
+
 
 @cuda.jit
 def initial_density_matrix(state):

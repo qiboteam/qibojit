@@ -1,5 +1,8 @@
+# pylint: disable=too-many-function-args
+
 from numba import cuda
 import numpy as np
+
 
 @cuda.jit(device=True)
 def multicontrol_index(g, qubits):

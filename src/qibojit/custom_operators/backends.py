@@ -387,7 +387,7 @@ class NumbaGPUBackend(NumbaBackend):
         self.ops = cu_ops
         self.np = np
         self.cuda = cuda
-        self.device_array = self.cuda.cudadrv.devicearray.DeviceNDArray
+        self.device_array = self.cuda.cudadrv.devicearray.DeviceNDArray # pylint: disable=no-member
 
         self.multi_qubit_kernels = {
             3: self.gates.apply_three_qubit_gate_kernel,
