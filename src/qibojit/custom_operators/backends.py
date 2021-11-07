@@ -414,11 +414,9 @@ class NumbaGPUBackend(NumbaBackend):
             return self.cuda.to_device(x)
         # We need to cast on host memory and then move to device memory
         else:
-            try:
-                dev_x = self.cuda.device_array(x.shape, dtype=dtype)
-            except AttributeError:
-                dev_x = self.cuda.device_array(len(x), dtype=dtype)
-            self.cuda.to_device(self.np.array(x, dtype=dtype), to=dev_x)
+            np_x = self.np.array(x, dtype=dtype)
+            dev_x = self.cuda.device_array(np_x.shape, dtype=dtype)
+            self.cuda.to_device(np_x, to=dev_x)
             return dev_x
 
 
