@@ -282,14 +282,17 @@ def apply_five_qubit_gate_kernel(state, gate, qubits, targets):
 
 
 @cuda.jit
-def apply_multi_qubit_gate_kernel(state, gate, qubits, targets):
+def apply_multi_qubit_gate_kernel(state, buffer, gate, qubits, targets):
     nsubstates = 1 << len(targets)
     g = cuda.grid(1)
     ig = multicontrol_index(g, qubits)
-    buffer = np.empty(nsubstates, dtype=state.dtype)
     for i in range(nsubstates):
         t = ig - multitarget_index(nsubstates - i - 1, targets)
-        buffer[i] = state[t]
+        buffer[t] = state[t]
     for i in range(nsubstates):
         t = ig - multitarget_index(nsubstates - i - 1, targets)
-        state[t] = np.dot(gate[i], buffer)
+        new_state = 0
+        for j in range(nsubstates):
+            u = ig - multitarget_index(nsubstates - j - 1, targets)
+            new_state += gate[i, j] * buffer[u]
+        state[t] = new_state
