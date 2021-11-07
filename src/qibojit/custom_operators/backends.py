@@ -438,7 +438,7 @@ class NumbaGPUBackend(NumbaBackend):
 
     def one_qubit_base(self, state, nqubits, target, kernel, qubits=-1, gate=0):
         # Same as CPU
-        ncontrols = len(qubits) - 1 if qubits != -1 else 0
+        ncontrols = len(qubits) - 1 if not isinstance(qubits, int) else 0
         m = nqubits - target - 1
         nstates = 1 << (nqubits - ncontrols - 1)
 
@@ -458,7 +458,7 @@ class NumbaGPUBackend(NumbaBackend):
 
     def two_qubit_base(self, state, nqubits, target1, target2, kernel, qubits=-1, gate=0):
         # Same as CPU
-        ncontrols = len(qubits) - 2 if qubits != -1 else 0
+        ncontrols = len(qubits) - 2 if not isinstance(qubits, int) else 0
         if target1 > target2:
             swap_targets = True
             m1 = nqubits - target1 - 1
