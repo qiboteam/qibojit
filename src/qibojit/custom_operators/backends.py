@@ -403,14 +403,15 @@ class NumbaGPUBackend(NumbaBackend):
 
 
     def cast(self, x, dtype=None):
-        # If it's already in device, don't do anything
+        # If x is already in device memory, don't do anything
         if isinstance(x, self.device_array):
-            if dtype == x.dtype:
+            if (dtype is None) or (dtype == x.dtype):
                 return x
             else:
                 raise_error(NotImplementedError)
-        # If no dtype is specified, move x to the device memory
-        if dtype is None:
+        # We need to move the array from host to device
+        elif dtype is None:
+            # If no dtype is specified, move x to the device memory
             return self.cuda.to_device(x)
         # We need to cast on host memory and then move to device memory
         else:
@@ -444,11 +445,13 @@ class NumbaGPUBackend(NumbaBackend):
 
         # GPU specific operations
         nblocks, block_size = self.calculate_blocks(nstates)
+        state = self.cast(state)
+        gate  = self.cast(gate, dtype=state.dtype)
 
         # Launch the kernel
         if ncontrols:
             kernel = getattr(self.gates, "multicontrol_{}_kernel".format(kernel))
-            kernel[nblocks, block_size](state, gate, qubits, nstates, m)
+            kernel[nblocks, block_size](state, gate, self.cast(qubits, dtype="int32"), nstates, m)
         else:
             kernel = getattr(self.gates, "{}_kernel".format(kernel))
             kernel[nblocks, block_size](state, gate, nstates, m)
@@ -471,11 +474,14 @@ class NumbaGPUBackend(NumbaBackend):
 
         # GPU specific operations
         nblocks, block_size = self.calculate_blocks(nstates)
+        state = self.cast(state)
+        gate  = self.cast(gate, dtype=state.dtype)
 
         # Launch the kernel
         if ncontrols:
             kernel = getattr(self.gates, "multicontrol_{}_kernel".format(kernel))
-            kernel[nblocks, block_size](state, gate, qubits, nstates, m1, m2, swap_targets)
+            kernel[nblocks, block_size](state, gate, self.cast(qubits, dtype="int32"),
+                                        nstates, m1, m2, swap_targets)
         else:
             kernel = getattr(self.gates, "{}_kernel".format(kernel))
             kernel[nblocks, block_size](state, gate, nstates, m1, m2, swap_targets)
@@ -485,16 +491,18 @@ class NumbaGPUBackend(NumbaBackend):
     def multi_qubit_base(self, state, nqubits, targets, qubits=None, gate=0):
         # Same as CPU
         if qubits is None:
-            qubits = self.np.array(sorted(nqubits - q - 1 for q in targets), dtype="int32")
+            qubits = self.cast(sorted(nqubits - q - 1 for q in targets), dtype="int32")
         nstates = 1 << (nqubits - len(qubits))
-        targets = self.np.array([1 << (nqubits - t - 1) for t in targets[::-1]], dtype="int64")
+        targets = self.cast([1 << (nqubits - t - 1) for t in targets[::-1]], dtype="int64")
 
         # GPU specific operations
         nblocks, block_size = self.calculate_blocks(nstates)
+        state = self.cast(state)
+        gate  = self.cast(gate, dtype=state.dtype)
 
         # Launch the kernel
         if len(targets) > 5:
-            buffer = self.cuda.to_device(state)
+            buffer = self.cuda.device_array_like(state)
             kernel = self.gates.apply_multi_qubit_gate_kernel
             kernel[nblocks, block_size](state, buffer, gate, qubits, targets)
         else:
@@ -527,7 +535,8 @@ class NumbaGPUBackend(NumbaBackend):
 
         # GPU specific operations + kernel launch
         nblocks, block_size = self.calculate_blocks(nstates)
-        self.ops.collapse_state_kernel[nblocks, block_size](state, qubits, result, ntargets)
+        state = self.cast(state)
+        self.ops.collapse_state_kernel[nblocks, block_size](state, self.cast(qubits, "int32"), result, ntargets)
         self.cuda.synchronize()
         return state
 

@@ -90,7 +90,7 @@ def apply_z_pow_kernel(state, gate, nstates, m):
     tk = 1 << m
     g = cuda.grid(1)
     i = ((g >> m) << (m + 1)) + (g & (tk - 1))
-    state[i + tk] = gate * state[i + tk]
+    state[i + tk] = gate[()] * state[i + tk]
 
 
 @cuda.jit
@@ -98,7 +98,7 @@ def multicontrol_apply_z_pow_kernel(state, gate, qubits, nstates, m):
     tk = 1 << m
     g = cuda.grid(1)
     i = multicontrol_index(g, qubits)
-    state[i] = gate * state[i]
+    state[i] = gate[()] * state[i]
 
 
 @cuda.jit
