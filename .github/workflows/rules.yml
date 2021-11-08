@@ -21,11 +21,7 @@ jobs:
         python -m pip install --upgrade pip
         pip install pylint
         pip install pytest-cov
-        git clone https://github.com/qiboteam/qibo
-        cd qibo
-        git checkout rmbackends
-        pip install .
-        cd ..
+        pip install qibo --pre
         pip install .
     - name: Test with pylint
       run: |
