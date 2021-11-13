@@ -13,8 +13,7 @@ def multicontrol_index(g, qubits):
 
 
 @cuda.jit
-def apply_gate_kernel(state, gate, m):
-    tk = 1 << m
+def apply_gate_kernel(state, tk, m, gate):
     g = cuda.grid(1)
     i1 = ((g >> m) << (m + 1)) + (g & (tk - 1))
     i2 = i1 + tk
@@ -23,8 +22,7 @@ def apply_gate_kernel(state, gate, m):
 
 
 @cuda.jit
-def multicontrol_apply_gate_kernel(state, gate, qubits, m):
-    tk = 1 << m
+def multicontrol_apply_gate_kernel(state, tk, m, gate, qubits):
     g = cuda.grid(1)
     i = multicontrol_index(g, qubits)
     i1, i2 = i - tk, i
@@ -33,8 +31,7 @@ def multicontrol_apply_gate_kernel(state, gate, qubits, m):
 
 
 @cuda.jit
-def apply_x_kernel(state, gate, m):
-    tk = 1 << m
+def apply_x_kernel(state, tk, m):
     g = cuda.grid(1)
     i1 = ((g >> m) << (m + 1)) + (g & (tk - 1))
     i2 = i1 + tk
@@ -42,8 +39,7 @@ def apply_x_kernel(state, gate, m):
 
 
 @cuda.jit
-def multicontrol_apply_x_kernel(state, gate, qubits, m):
-    tk = 1 << m
+def multicontrol_apply_x_kernel(state, tk, m, qubits):
     g = cuda.grid(1)
     i = multicontrol_index(g, qubits)
     i1, i2 = i - tk, i
@@ -51,8 +47,7 @@ def multicontrol_apply_x_kernel(state, gate, qubits, m):
 
 
 @cuda.jit
-def apply_y_kernel(state, gate, m):
-    tk = 1 << m
+def apply_y_kernel(state, tk, m):
     g = cuda.grid(1)
     i1 = ((g >> m) << (m + 1)) + (g & (tk - 1))
     i2 = i1 + tk
@@ -60,8 +55,7 @@ def apply_y_kernel(state, gate, m):
 
 
 @cuda.jit
-def multicontrol_apply_y_kernel(state, gate, qubits, m):
-    tk = 1 << m
+def multicontrol_apply_y_kernel(state, tk, m, qubits):
     g = cuda.grid(1)
     i = multicontrol_index(g, qubits)
     i1, i2 = i - tk, i
@@ -69,43 +63,35 @@ def multicontrol_apply_y_kernel(state, gate, qubits, m):
 
 
 @cuda.jit
-def apply_z_kernel(state, gate, m):
-    tk = 1 << m
+def apply_z_kernel(state, tk, m):
     g = cuda.grid(1)
     i = ((g >> m) << (m + 1)) + (g & (tk - 1))
     state[i + tk] *= -1
 
 
 @cuda.jit
-def multicontrol_apply_z_kernel(state, gate, qubits, m):
-    tk = 1 << m
+def multicontrol_apply_z_kernel(state, tk, m, qubits):
     g = cuda.grid(1)
     i = multicontrol_index(g, qubits)
     state[i] *= -1
 
 
 @cuda.jit
-def apply_z_pow_kernel(state, gate, m):
-    tk = 1 << m
+def apply_z_pow_kernel(state, tk, m, gate):
     g = cuda.grid(1)
     i = ((g >> m) << (m + 1)) + (g & (tk - 1))
     state[i + tk] = gate[()] * state[i + tk]
 
 
 @cuda.jit
-def multicontrol_apply_z_pow_kernel(state, gate, qubits, m):
-    tk = 1 << m
+def multicontrol_apply_z_pow_kernel(state, tk, m, gate, qubits):
     g = cuda.grid(1)
     i = multicontrol_index(g, qubits)
     state[i] = gate[()] * state[i]
 
 
 @cuda.jit
-def apply_two_qubit_gate_kernel(state, gate, m1, m2, swap_targets=False):
-    tk1, tk2 = 1 << m1, 1 << m2
-    uk1, uk2 = tk1, tk2
-    if swap_targets:
-        uk1, uk2 = uk2, uk1
+def apply_two_qubit_gate_kernel(state, tk1, tk2, m1, m2, uk1, uk2, gate):
     g = cuda.grid(1)
     i = ((g >> m1) << (m1 + 1)) + (g & (tk1 - 1))
     i = ((i >> m2) << (m2 + 1)) + (i & (tk2 - 1))
@@ -123,11 +109,7 @@ def apply_two_qubit_gate_kernel(state, gate, m1, m2, swap_targets=False):
 
 
 @cuda.jit
-def multicontrol_apply_two_qubit_gate_kernel(state, gate, qubits, m1, m2, swap_targets=False):
-    tk1, tk2 = 1 << m1, 1 << m2
-    uk1, uk2 = tk1, tk2
-    if swap_targets:
-        uk1, uk2 = uk2, uk1
+def multicontrol_apply_two_qubit_gate_kernel(state, tk1, tk2, m1, m2, uk1, uk2, gate, qubits):
     g = cuda.grid(1)
     i = multicontrol_index(g, qubits)
     i1, i2 = i - uk2, i - uk1
@@ -144,8 +126,7 @@ def multicontrol_apply_two_qubit_gate_kernel(state, gate, qubits, m1, m2, swap_t
 
 
 @cuda.jit
-def apply_swap_kernel(state, gate, m1, m2, swap_targets=False):
-    tk1, tk2 = 1 << m1, 1 << m2
+def apply_swap_kernel(state, tk1, tk2, m1, m2, uk1, uk2):
     g = cuda.grid(1)
     i = ((g >> m1) << (m1 + 1)) + (g & (tk1 - 1))
     i = ((i >> m2) << (m2 + 1)) + (i & (tk2 - 1))
@@ -154,9 +135,7 @@ def apply_swap_kernel(state, gate, m1, m2, swap_targets=False):
 
 
 @cuda.jit
-def multicontrol_apply_swap_kernel(state, gate, qubits, m1, m2, swap_targets=False):
-    tk1, tk2 = 1 << m1, 1 << m2
-    uk1, uk2 = tk1, tk2
+def multicontrol_apply_swap_kernel(state, tk1, tk2, m1, m2, uk1, uk2, qubits):
     g = cuda.grid(1)
     i = multicontrol_index(g, qubits)
     i1, i2 = i - tk2, i - tk1
@@ -164,11 +143,7 @@ def multicontrol_apply_swap_kernel(state, gate, qubits, m1, m2, swap_targets=Fal
 
 
 @cuda.jit
-def apply_fsim_kernel(state, gate, m1, m2, swap_targets=False):
-    tk1, tk2 = 1 << m1, 1 << m2
-    uk1, uk2 = tk1, tk2
-    if swap_targets:
-        uk1, uk2 = uk2, uk1
+def apply_fsim_kernel(state, tk1, tk2, m1, m2, uk1, uk2, gate):
     g = cuda.grid(1)
     i = ((g >> m1) << (m1 + 1)) + (g & (tk1 - 1))
     i = ((i >> m2) << (m2 + 1)) + (i & (tk2 - 1))
@@ -180,11 +155,7 @@ def apply_fsim_kernel(state, gate, m1, m2, swap_targets=False):
 
 
 @cuda.jit
-def multicontrol_apply_fsim_kernel(state, gate, qubits, m1, m2, swap_targets=False):
-    tk1, tk2 = 1 << m1, 1 << m2
-    uk1, uk2 = tk1, tk2
-    if swap_targets:
-        uk1, uk2 = uk2, uk1
+def multicontrol_apply_fsim_kernel(state, tk1, tk2, m1, m2, uk1, uk2, gate, qubits):
     g = cuda.grid(1)
     i = multicontrol_index(g, qubits)
     i1, i2 = i - uk2, i - uk1
@@ -310,9 +281,7 @@ def collapse_index(g, h, qubits):
 
 
 @cuda.jit
-def collapse_state_kernel(state, qubits, result):
-    nsubstates = 1 << len(qubits)
-
+def collapse_state_kernel(state, qubits, result, nsubstates):
     g = cuda.grid(1)
     for h in range(result):
         state[collapse_index(g, h, qubits)] = 0
