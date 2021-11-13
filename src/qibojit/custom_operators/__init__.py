@@ -331,13 +331,7 @@ class JITCustomBackend(NumpyBackend, AbstractCustomOperators):
         return self.engine.two_qubit_base(state, nqubits, *targets, "apply_fsim", qubits, gate)
 
     def apply_multi_qubit_gate(self, state, gate, nqubits, targets, qubits=None):
-        # FIXME: fall back to numba temporarily until we implement this for GPU
-        state = self.to_numpy(state)
-        gate = self.to_numpy(gate)
-        targets = self.to_numpy(targets)
-        if qubits is not None:
-            qubits = self.to_numpy(qubits)
-        return self._numba_engine.multi_qubit_base(state, nqubits, targets, qubits, gate)
+        return self.engine.multi_qubit_base(state, nqubits, targets, qubits, gate)
 
     def collapse_state(self, state, qubits, result, nqubits, normalize=True):
         return self.engine.collapse_state(state, qubits, result, nqubits, normalize)
