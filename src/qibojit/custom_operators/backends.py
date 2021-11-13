@@ -232,7 +232,7 @@ class CupyBackend(AbstractBackend): # pragma: no cover
 
         nblocks, block_size = self.calculate_blocks(nstates)
         kernel[nblocks, block_size](*args)
-        self.cp.cuda.stream.get_current_stream().synchronize()
+        self.cuda.synchronize()
         return state
 
     def two_qubit_base(self, state, nqubits, target1, target2, kernel, qubits=None, gate=None):
@@ -264,7 +264,7 @@ class CupyBackend(AbstractBackend): # pragma: no cover
 
         nblocks, block_size = self.calculate_blocks(nstates)
         kernel[nblocks, block_size](*args)
-        self.cp.cuda.stream.get_current_stream().synchronize()
+        self.cuda.synchronize()
         return state
 
     def multi_qubit_base(self, state, nqubits, targets, qubits=None, gate=None):
@@ -293,7 +293,7 @@ class CupyBackend(AbstractBackend): # pragma: no cover
             kernel = getattr(self.kernels, self.multi_qubit_kernels.get(ntargets))
             args = (state, gate, qubits, targets)
         kernel[nblocks, block_size](*args)
-        self.cp.cuda.stream.get_current_stream().synchronize()
+        self.cuda.synchronize()
         return state
 
     def initial_state(self, nqubits, dtype, is_matrix=False):
