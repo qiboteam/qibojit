@@ -190,25 +190,24 @@ class CupyBackend(AbstractBackend): # pragma: no cover
         # load gate kernels
         kernels = []
         for kernel in self.KERNELS:
-            kernels.append(f"{kernel}_kernel{self.kernel_double_suffix}")
-            kernels.append(f"{kernel}_kernel{self.kernel_float_suffix}")
-            kernels.append(f"multicontrol_{kernel}_kernel{self.kernel_double_suffix}")
-            kernels.append(f"multicontrol_{kernel}_kernel{self.kernel_float_suffix}")
+            kernels.append((f"{kernel}_kernel", f"{kernel}_kernel{self.kernel_double_suffix}"))
+            kernels.append((f"{kernel}_kernel", f"{kernel}_kernel{self.kernel_float_suffix}"))
+            kernels.append((f"multicontrol_{kernel}_kernel", f"multicontrol_{kernel}_kernel{self.kernel_double_suffix}"))
+            kernels.append((f"multicontrol_{kernel}_kernel", f"multicontrol_{kernel}_kernel{self.kernel_float_suffix}"))
         for ntargets in range(3, self.MAX_NUM_TARGETS+1):
-            kernels.append(f"apply_multi_qubit_gate_kernel{self.kernel_double_suffix[0:-2]}, {2**ntargets}>")
-            kernels.append(f"apply_multi_qubit_gate_kernel{self.kernel_float_suffix[0:-2]}, {2**ntargets}>")
-        kernels.append(f"collapse_state_kernel{self.kernel_double_suffix}")
-        kernels.append(f"collapse_state_kernel{self.kernel_float_suffix}")
-        kernels.append(f"initial_state_kernel{self.kernel_double_suffix}")
-        kernels.append(f"initial_state_kernel{self.kernel_float_suffix}")
+            kernels.append((f"apply_multi_qubit_gate_kernel", f"apply_multi_qubit_gate_kernel{self.kernel_double_suffix[0:-2]}, {2**ntargets}>"))
+            kernels.append((f"apply_multi_qubit_gate_kernel", f"apply_multi_qubit_gate_kernel{self.kernel_float_suffix[0:-2]}, {2**ntargets}>"))
+        kernels.append((f"collapse_state_kernel", f"collapse_state_kernel{self.kernel_double_suffix}"))
+        kernels.append((f"collapse_state_kernel", f"collapse_state_kernel{self.kernel_float_suffix}"))
+        kernels.append((f"initial_state_kernel", f"initial_state_kernel{self.kernel_double_suffix}"))
+        kernels.append((f"initial_state_kernel", f"initial_state_kernel{self.kernel_float_suffix}"))
         kernels = tuple(kernels)
-        gates_dir = os.path.join(base_dir, "gates.cu.cc")
-        with open(gates_dir, "r") as file:
-            code = r"{}".format(file.read())
-            code = code.replace("QIBO_MAX_BLOCK_SIZE", str(self.DEFAULT_BLOCK_SIZE))
-            self.gates = cp.RawModule(code=code, options=("--std=c++11",),
-                                      name_expressions=kernels)
-        self.gates.compile()
+        self.gate_modules = {}
+        from qibojit.custom_operators import raw_kernels
+        for kernel_code, kernel_name in kernels:
+            gate = cp.RawModule(code=getattr(raw_kernels, kernel_code), options=("--std=c++11",), name_expressions=(kernel_name,))
+            self.gate_modules[kernel_name] = gate
+        self.gates = lambda name: self.gate_modules.get(name).get_function(name)
 
     def calculate_blocks(self, nstates, block_size=DEFAULT_BLOCK_SIZE):
         """Compute the number of blocks and of threads per block.
@@ -251,10 +250,10 @@ class CupyBackend(AbstractBackend): # pragma: no cover
 
         ktype = self.get_kernel_type(state)
         if ncontrols:
-            kernel = self.gates.get_function(f"multicontrol_{kernel}_kernel{ktype}")
+            kernel = self.gates(f"multicontrol_{kernel}_kernel{ktype}")
             args += (self.cast(qubits, dtype=self.cp.int32), ncontrols + 1)
         else:
-            kernel = self.gates.get_function(f"{kernel}_kernel{ktype}")
+            kernel = self.gates(f"{kernel}_kernel{ktype}")
 
         nblocks, block_size = self.calculate_blocks(nstates)
         kernel((nblocks,), (block_size,), args)
@@ -284,10 +283,10 @@ class CupyBackend(AbstractBackend): # pragma: no cover
 
         ktype = self.get_kernel_type(state)
         if ncontrols:
-            kernel = self.gates.get_function(f"multicontrol_{kernel}_kernel{ktype}")
+            kernel = self.gates(f"multicontrol_{kernel}_kernel{ktype}")
             args += (self.cast(qubits, dtype=self.cp.int32), ncontrols + 2)
         else:
-            kernel = self.gates.get_function(f"{kernel}_kernel{ktype}")
+            kernel = self.gates(f"{kernel}_kernel{ktype}")
 
         nblocks, block_size = self.calculate_blocks(nstates)
         kernel((nblocks,), (block_size,), args)
@@ -317,7 +316,7 @@ class CupyBackend(AbstractBackend): # pragma: no cover
 
         ktype = self.get_kernel_type(state)
         nblocks, block_size = self.calculate_blocks(nstates)
-        kernel = self.gates.get_function(f"apply_multi_qubit_gate_kernel{ktype[0:-2]}, {nsubstates}>")
+        kernel = self.gates(f"apply_multi_qubit_gate_kernel{ktype[0:-2]}, {nsubstates}>")
         args = (state, gate, qubits, targets, ntargets, nactive)
         kernel((nblocks,), (block_size,), args)
         self.cp.cuda.stream.get_current_stream().synchronize()
@@ -332,7 +331,7 @@ class CupyBackend(AbstractBackend): # pragma: no cover
         else: # pragma: no cover
             raise TypeError("Unknown dtype {} passed in initial state operator."
                             "".format(dtype))
-        kernel = self.gates.get_function(f"initial_state_kernel{ktype}")
+        kernel = self.gates(f"initial_state_kernel{ktype}")
 
         if is_matrix:
             state = self.cp.zeros(n * n, dtype=dtype)
@@ -351,7 +350,7 @@ class CupyBackend(AbstractBackend): # pragma: no cover
         state = self.cast(state)
         ktype = self.get_kernel_type(state)
         args = [state, self.cast(qubits, dtype=self.cp.int32), result, ntargets]
-        kernel = self.gates.get_function(f"collapse_state_kernel{ktype}")
+        kernel = self.gates(f"collapse_state_kernel{ktype}")
         kernel((nblocks,), (block_size,), args)
 
         if normalize:
