@@ -11,7 +11,7 @@ __device__ long multicontrol_index(const int* qubits, long g, int ncontrols) {
   long i = g;
   for (int iq = 0; iq < ncontrols; iq++) {
       const int n = qubits[iq];
-      long k = (long)(1 << n);
+      long k = ((long)1 << n);
       i = ((long)((long)i >> n) << (n + 1)) + (i & (k - 1)) + k;
   }
   return i;
