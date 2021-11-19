@@ -59,7 +59,10 @@ class NumbaBackend(AbstractBackend):
 
     def cast(self, x, dtype=None):
         if not isinstance(x, self.np.ndarray):
-            x = self.np.array(x)
+            try:
+                x = self.np.array(x)
+            except TypeError: # only for CuPy arrays
+                x = x.get()
         if dtype and x.dtype != dtype:
             return x.astype(dtype)
         return x
