@@ -61,7 +61,9 @@ class NumbaBackend(AbstractBackend):
         if not isinstance(x, self.np.ndarray):
             try:
                 x = self.np.array(x)
-            except TypeError: # only for CuPy arrays
+            # only for CuPy arrays, as implicit conversion raises TypeError
+            # and you need to cast manually using x.get()
+            except TypeError: # pragma: no cover
                 x = x.get()
         if dtype and x.dtype != dtype:
             return x.astype(dtype)
