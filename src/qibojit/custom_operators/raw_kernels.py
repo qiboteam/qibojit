@@ -11,7 +11,7 @@ __device__ long multicontrol_index(const int* qubits, long g, int ncontrols) {
   long i = g;
   for (int iq = 0; iq < ncontrols; iq++) {
       const int n = qubits[iq];
-      long k = (long)(1 << n);
+      long k = ((long)1 << n);
       i = ((long)((long)i >> n) << (n + 1)) + (i & (k - 1)) + k;
   }
   return i;
@@ -117,7 +117,7 @@ __device__ long collapse_index(const int* qubits, long g, long h, int ntargets) 
     const auto n = qubits[iq];
     long k = (long)1 << n;
     i = ((long)((long)i >> n) << (n + 1)) + (i & (k - 1));
-    i += ((long)((int)(h >> iq) % 2) * k);
+    i += ((long)((long)(h >> iq) % 2) * k);
   }
   return i;
 }

@@ -59,7 +59,12 @@ class NumbaBackend(AbstractBackend):
 
     def cast(self, x, dtype=None):
         if not isinstance(x, self.np.ndarray):
-            x = self.np.array(x)
+            try:
+                x = self.np.array(x)
+            # only for CuPy arrays, as implicit conversion raises TypeError
+            # and you need to cast manually using x.get()
+            except TypeError: # pragma: no cover
+                x = x.get()
         if dtype and x.dtype != dtype:
             return x.astype(dtype)
         return x
@@ -342,10 +347,12 @@ class CupyBackend(AbstractBackend): # pragma: no cover
         if is_matrix:
             state = self.cp.zeros(n * n, dtype=dtype)
             kernel((1,), (1,), [state])
+            self.cp.cuda.stream.get_current_stream().synchronize()
             state = state.reshape((n, n))
         else:
             state = self.cp.zeros(n, dtype=dtype)
             kernel((1,), (1,), [state])
+            self.cp.cuda.stream.get_current_stream().synchronize()
         return state
 
     def collapse_state(self, state, qubits, result, nqubits, normalize=True):
@@ -358,6 +365,7 @@ class CupyBackend(AbstractBackend): # pragma: no cover
         args = [state, self.cast(qubits, dtype=self.cp.int32), result, ntargets]
         kernel = self.gates.get(f"collapse_state_kernel_{ktype}")
         kernel((nblocks,), (block_size,), args)
+        self.cp.cuda.stream.get_current_stream().synchronize()
 
         if normalize:
             norm = self.cp.sqrt(self.cp.sum(self.cp.square(self.cp.abs(state))))
