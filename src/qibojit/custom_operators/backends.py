@@ -158,8 +158,6 @@ class CupyBackend(AbstractBackend): # pragma: no cover
         self.is_hip = cupy_backends.cuda.api.runtime.is_hip
         self.KERNELS = ("apply_gate", "apply_x", "apply_y", "apply_z", "apply_z_pow",
                         "apply_two_qubit_gate", "apply_fsim", "apply_swap")
-        self.kernel_double_suffix = "thrust::complex<double>"
-        self.kernel_float_suffix  = "thrust::complex<float>"
         if self.is_hip:  # pragma: no cover
             self.test_regressions = {
                 "test_measurementresult_apply_bitflips": [
@@ -192,33 +190,31 @@ class CupyBackend(AbstractBackend): # pragma: no cover
             }
 
         # load core kernels
-        kernels = []
-        for kernel in self.KERNELS:
-            kernels.append(f"{kernel}_kernel")
-            kernels.append(f"multicontrol_{kernel}_kernel")
-        kernels.append("collapse_state_kernel")
-        kernels.append("initial_state_kernel")
-        kernels = tuple(kernels)
         self.gates = {}
         from qibojit.custom_operators import raw_kernels
-        for name in kernels:
-            for suffix, ktype in (("float",  self.kernel_float_suffix),
-                                  ("double", self.kernel_double_suffix)):
-                code = getattr(raw_kernels, name)
-                code = code.replace("T", ktype)
-                gate = cp.RawKernel(code, name, ("--std=c++11",))
-                self.gates[f"{name}_{suffix}"] = gate
+        def kernel_loader(name, ktype):
+            code = getattr(raw_kernels, name)
+            code = code.replace("T", f"thrust::complex<{ktype}>")
+            gate = cp.RawKernel(code, name, ("--std=c++11",))
+            self.gates[f"{name}_{ktype}"] = gate
+
+        for ktype in ("float", "double"):
+            for name in self.KERNELS:
+                kernel_loader(f"{name}_kernel", ktype)
+                kernel_loader(f"multicontrol_{name}_kernel", ktype)
+            kernel_loader("collapse_state_kernel", ktype)
+            kernel_loader("initial_state_kernel", ktype)
 
         # load multiqubit kernels
-        for ntargets in range(3, self.MAX_NUM_TARGETS+1):
-            for suffix, ktype in (("float",  self.kernel_float_suffix),
-                                  ("double", self.kernel_double_suffix)):
-                code = getattr(raw_kernels, "apply_multi_qubit_gate_kernel")
-                code = code.replace("T", ktype)
+        name = "apply_multi_qubit_gate_kernel"
+        for ntargets in range(3, self.MAX_NUM_TARGETS + 1):
+            for ktype in ("float", "double"):
+                code = getattr(raw_kernels, name)
+                code = code.replace("T", f"thrust::complex<{ktype}>")
                 code = code.replace("nsubstates", str(2 ** ntargets))
                 code = code.replace("MAX_BLOCK_SIZE", str(self.DEFAULT_BLOCK_SIZE))
-                gate = cp.RawKernel(code, "apply_multi_qubit_gate_kernel", ("--std=c++11",))
-                self.gates[f"apply_multi_qubit_gate_kernel_{suffix}_{ntargets}"] = gate
+                gate = cp.RawKernel(code, name, ("--std=c++11",))
+                self.gates[f"{name}_{ktype}_{ntargets}"] = gate
 
     def calculate_blocks(self, nstates, block_size=DEFAULT_BLOCK_SIZE):
         """Compute the number of blocks and of threads per block.
