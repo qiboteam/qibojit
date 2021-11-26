@@ -195,7 +195,7 @@ apply_two_qubit_gate_kernel = f"""
 #include <cupy/complex.cuh>
 {_apply_two_qubit_gate}"""+"""
 // C++ implementation of gates.py:apply_two_qubit_gate_kernel()
-// The portion of code before the parallel for of the Python
+// the portion of code before the parallel for of the Python
 // method is in backends.py:CupyBackend.two_qubit_base()
 extern "C"
 __global__ void apply_two_qubit_gate_kernel(T* state, long tk1, long tk2,
@@ -213,7 +213,7 @@ apply_fsim_kernel = f"""
 #include <cupy/complex.cuh>
 {_apply_fsim}"""+"""
 // C++ implementation of gates.py:apply_fsim_kernel()
-// The portion of code before the parallel for of the Python
+// the portion of code before the parallel for of the Python
 // method is in backends.py:CupyBackend.two_qubit_base()
 extern "C"
 __global__ void apply_fsim_kernel(T* state, long tk1, long tk2,
@@ -323,7 +323,7 @@ multicontrol_apply_two_qubit_gate_kernel = f"""
 {_apply_two_qubit_gate}
 {multicontrol_index}"""+"""
 // C++ implementation of gates.py:multicontrol_apply_two_qubit_gate_kernel()
-// The portion of code before the parallel for of the Python method
+// the portion of code before the parallel for of the Python method
 // is in backends.py:CupyBackend.two_qubit_base()
 extern "C"
 __global__ void multicontrol_apply_two_qubit_gate_kernel(T* state,
@@ -345,7 +345,7 @@ multicontrol_apply_fsim_kernel = f"""
 {_apply_fsim}
 {multicontrol_index}"""+"""
 // C++ implementation of gates.py:multicontrol_apply_fsim_kernel()
-// The portion of code before the parallel for of the Python method
+// the portion of code before the parallel for of the Python method
 // is in backends.py:CupyBackend.two_qubit_base()
 extern "C"
 __global__ void multicontrol_apply_fsim_kernel(T* state,
@@ -387,8 +387,8 @@ apply_multi_qubit_gate_kernel = f"""
 {multitarget_index}"""+"""
 // C++ implementation of gates.py:apply_multi_qubit_gate_kernel()
 extern "C" __global__ void
-__launch_bounds__(MAX_BLOCK_SIZE) // to prevent CUDA_ERROR_LAUNCH_OUT_OF_RESOURCES.
-                                  // The maximum block size is chosen in backends.py
+__launch_bounds__(MAX_BLOCK_SIZE) // to prevent cuda_error_launch_out_of_resources.
+                                  // the maximum block size is chosen in backends.py
                                   // and it is replaced here before compilation.
 apply_multi_qubit_gate_kernel(T* state,
                               const T* gate,
@@ -419,7 +419,7 @@ collapse_state_kernel = f"""
 #include <cupy/complex.cuh>
 {collapse_index}"""+"""
 // C++ implementation of ops.py:collapse_state() and ops.py:collapse_state_normalized()
-// Only the parallel for is implemented here. The other portions of code are
+// Only the parallel for is implemented here. the other portions of code are
 // implemented in backends.py:CupyBackend.collapse_state()
 extern "C"
 __global__ void collapse_state_kernel(T* state, const int* qubits,
