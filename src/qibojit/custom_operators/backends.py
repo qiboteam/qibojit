@@ -139,7 +139,7 @@ class CupyBackend(AbstractBackend): # pragma: no cover
     # CI does not test for GPU
 
     DEFAULT_BLOCK_SIZE = 1024
-    MAX_NUM_TARGETS = 7
+    MAX_NUM_TARGETS = 10
 
     def __init__(self):
         import os
