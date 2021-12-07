@@ -7,6 +7,9 @@ _BACKENDS = ["numba"]
 if K._cupy_engine is not None:  # pragma: no cover
     # CI does not test for GPU
     _BACKENDS.append("cupy")
+if K._numba_gpu_engine is not None:  # pragma: no cover
+    # CI does not test for GPU
+    _BACKENDS.append("numba_gpu")
 
 
 @pytest.fixture

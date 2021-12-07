@@ -36,7 +36,8 @@ def test_backends_initial_state(backend, dtype, is_matrix):
 @pytest.mark.parametrize("nqubits,targets,results",
                          [(2, [0], [1]), (2, [1], [0]), (3, [1], [1]),
                           (4, [1, 3], [1, 0]), (5, [1, 2, 4], [0, 1, 1]),
-                          (15, [4, 7], [0, 0]), (16, [8, 12, 15], [1, 0, 1])])
+                          (15, [4, 7], [0, 0]), (16, [8, 12, 15], [1, 0, 1]),
+                          (20, [1, 2, 4, 9, 19], [0, 0, 1, 1, 1])])
 @pytest.mark.parametrize("normalize", [False, True])
 def test_collapse_state(backend, nqubits, targets, results, normalize, dtype):
     atol = 1e-7 if dtype == "complex64" else 1e-14
@@ -170,7 +171,7 @@ def test_swap_pieces(nqubits, qlocal, qglobal, dtype):
 def test_measure_frequencies(backend, realtype, inttype, nthreads):
     probs = np.ones(16, dtype=realtype) / 16
     frequencies = np.zeros(16, dtype=inttype)
-    if K.engine.name == "cupy":  # pragma: no cover
+    if K.engine.name in ("cupy", "numba_gpu"):  # pragma: no cover
         # CI does not test for GPU
         with pytest.raises(NotImplementedError):
             frequencies = K.engine.measure_frequencies(frequencies, probs, nshots=1000,

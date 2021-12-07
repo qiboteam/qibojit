@@ -1,6 +1,5 @@
 from qibo.backends.abstract import AbstractBackend, AbstractCustomOperators
 from qibo.backends.numpy import NumpyBackend
-from qibo.abstractions.states import AbstractState
 from qibo.config import raise_error
 from qibojit.custom_operators.backends import NumbaBackend
 
@@ -10,19 +9,22 @@ class CupyCpuDevice:  # pragma: no cover
 
     def __init__(self, K):
         self.K = K
+        self.original_engine = K.engine.name
 
     def __enter__(self, *args):
         self.K.set_engine("numba")
 
     def __exit__(self, *args):
         if self.K.gpu_devices:
-            self.K.set_engine("cupy")
+            self.K.set_engine(self.original_engine)
 
 
 class JITCustomBackend(NumpyBackend, AbstractCustomOperators):
 
     description = "Uses custom operators based on numba.jit for CPU and " \
-                  "custom CUDA kernels loaded with cupy GPU."
+                  "custom CUDA kernels loaded with cupy or numba for GPU."
+
+    default_gpu_engine = "numba_gpu"
 
     def __init__(self):
         NumpyBackend.__init__(self)
@@ -32,12 +34,23 @@ class JITCustomBackend(NumpyBackend, AbstractCustomOperators):
         self.engine = None # active engine
         self._numba_engine = NumbaBackend()
         self._cupy_engine = None
+        self._numba_gpu_engine = None
 
-        try: # pragma: no cover
-            from cupy import cuda # pylint: disable=E0401
-            ngpu = cuda.runtime.getDeviceCount()
-        except:
-            ngpu = 0
+        if self.default_gpu_engine == "numba_gpu":
+            try: # pragma: no cover
+                from numba import cuda # pylint: disable=E0401
+                ngpu = len(cuda.gpus)
+            except:
+                ngpu = 0
+        elif self.default_gpu_engine == "cupy":
+            try: # pragma: no cover
+                from cupy import cuda # pylint: disable=E0401
+                ngpu = cuda.runtime.getDeviceCount()
+            except:
+                ngpu = 0
+        else:
+            raise_error(ValueError, f"Default GPU engine {self.default_gpu_engine} "
+                                     "not recognized!")
 
         import os
         if "OMP_NUM_THREADS" in os.environ: # pragma: no cover
@@ -50,7 +63,7 @@ class JITCustomBackend(NumpyBackend, AbstractCustomOperators):
         if self.gpu_devices: # pragma: no cover
             # CI does not use GPUs
             self.default_device = self.gpu_devices[0]
-            self.set_engine("cupy")
+            self.set_engine(self.default_gpu_engine)
         elif self.cpu_devices:
             self.default_device = self.cpu_devices[0]
             self.set_engine("numba")
@@ -73,24 +86,38 @@ class JITCustomBackend(NumpyBackend, AbstractCustomOperators):
         if name == "numba":
             import numpy as xp
             self.tensor_types = (xp.ndarray,)
+            self.native_types = (xp.ndarray,)
             self.engine = self._numba_engine
+            self.Tensor = xp.ndarray
+            self.random = xp.random
+            self.newaxis = xp.newaxis
         elif name == "cupy":
             import cupy as xp # pylint: disable=E0401
             self.tensor_types = (self.np.ndarray, xp.ndarray)
+            self.native_types = (xp.ndarray,)
+            self.Tensor = xp.ndarray
+            self.random = xp.random
+            self.newaxis = xp.newaxis
             if self._cupy_engine is None:
                 from qibojit.custom_operators.backends import CupyBackend
                 self._cupy_engine = CupyBackend()
             self.engine = self._cupy_engine
+        elif name == "numba_gpu":
+            import numpy as xp
+            from numba import cuda
+            self.tensor_types = (xp.ndarray, cuda.cudadrv.devicearray.DeviceNDArray) # pylint: disable=no-member
+            self.native_types = (cuda.cudadrv.devicearray.DeviceNDArray,) # pylint: disable=no-member
+            self.Tensor = cuda.cudadrv.devicearray.DeviceNDArray # pylint: disable=no-member
+            if self._numba_gpu_engine is None:
+                from qibojit.custom_operators.backends import NumbaGPUBackend
+                self._numba_gpu_engine = NumbaGPUBackend()
+            self.engine = self._numba_gpu_engine
         else:
             raise_error(ValueError, "Unknown engine {}.".format(name))
         self.backend = xp
         self.numeric_types = (int, float, complex, xp.int32,
                               xp.int64, xp.float32, xp.float64,
                               xp.complex64, xp.complex128)
-        self.native_types = (xp.ndarray,)
-        self.Tensor = xp.ndarray
-        self.random = xp.random
-        self.newaxis = xp.newaxis
         if "GPU" in self.default_device: # pragma: no cover
             with self.device(self.default_device):
                 self.matrices.allocate_matrices()
@@ -100,7 +127,7 @@ class JITCustomBackend(NumpyBackend, AbstractCustomOperators):
     def set_device(self, name):
         AbstractBackend.set_device(self, name)
         if "GPU" in name: # pragma: no cover
-            self.set_engine("cupy")
+            self.set_engine(self.default_gpu_engine)
         else:
             self.set_engine("numba")
 
@@ -114,6 +141,8 @@ class JITCustomBackend(NumpyBackend, AbstractCustomOperators):
             return x
         elif self.engine.name == "cupy" and isinstance(x, self.engine.cp.ndarray):  # pragma: no cover
             return x.get()
+        elif self.engine.name == "numba_gpu" and isinstance(x, self.Tensor):  # pragma: no cover
+            return x.copy_to_host()
         return self.np.array(x)
 
     def cast(self, x, dtype='DTYPECPX'):
@@ -183,10 +212,16 @@ class JITCustomBackend(NumpyBackend, AbstractCustomOperators):
         # assume tf naming convention '/GPU:0'
         if self.engine.name == "numba":
             return super().device(device_name)
-        else: # pragma: no cover
+        elif self.engine.name == "cupy": # pragma: no cover
             if "GPU" in device_name:
                 device_id = int(device_name.split(":")[-1])
                 return self.backend.cuda.Device(device_id % len(self.gpu_devices))
+            else:
+                return self.cupy_cpu_device
+        else: # pragma: no cover
+            if "GPU" in device_name:
+                # FIXME: Replace the DummyModule
+                return super().device(device_name)
             else:
                 return self.cupy_cpu_device
 
@@ -303,6 +338,11 @@ class JITCustomBackend(NumpyBackend, AbstractCustomOperators):
                 value = value.get()
             if isinstance(target, self.backend.ndarray):
                 target = target.get()
+        elif self.engine.name == "numba_gpu": # pragma: no cover
+            if isinstance(value, self.Tensor):
+                value = self.to_numpy(value)
+            if isinstance(target, self.Tensor):
+                target = self.to_numpy(target)
         self.np.testing.assert_allclose(value, target, rtol=rtol, atol=atol)
 
     def apply_gate(self, state, gate, nqubits, targets, qubits=None):
@@ -334,7 +374,13 @@ class JITCustomBackend(NumpyBackend, AbstractCustomOperators):
         return self.engine.multi_qubit_base(state, nqubits, targets, qubits, gate)
 
     def collapse_state(self, state, qubits, result, nqubits, normalize=True):
-        return self.engine.collapse_state(state, qubits, result, nqubits, normalize)
+        if normalize:
+            # FIXME: fall back to numba temporarily until we implement this for GPU
+            state = self.to_numpy(state)
+            qubits = self.to_numpy(qubits)
+            return self.cast(self._numba_engine.collapse_state(state, qubits, result, nqubits, normalize=True))
+        else:
+            return self.engine.collapse_state(state, qubits, result, nqubits, normalize=False)
 
     def swap_pieces(self, piece0, piece1, new_global, nlocal):
         # always fall back to numba CPU backend because for ops not implemented on GPU

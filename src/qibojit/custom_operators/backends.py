@@ -1,5 +1,7 @@
 from abc import ABC, abstractmethod
 
+from qibo.config import raise_error
+
 
 class AbstractBackend(ABC):
 
@@ -365,6 +367,185 @@ class CupyBackend(AbstractBackend): # pragma: no cover
         if normalize:
             norm = self.cp.sqrt(self.cp.sum(self.cp.square(self.cp.abs(state))))
             state = state / norm
+        return state
+
+    def transpose_state(self, pieces, state, nqubits, order):
+        raise NotImplementedError("`transpose_state` method is not "
+                                  "implemented for GPU.")
+
+    def swap_pieces(self, piece0, piece1, new_global, nlocal):
+        raise NotImplementedError("`swap_pieces` method is not "
+                                  "implemented for GPU.")
+
+    def measure_frequencies(self, frequencies, probs, nshots, nqubits, seed=1234, nthreads=None):
+        raise NotImplementedError("`measure_frequencies` method is not "
+                                  "implemented for GPU.")
+
+
+class NumbaGPUBackend(NumbaBackend):
+
+    DEFAULT_BLOCK_SIZE = 64
+
+    def __init__(self):
+        import numpy as np
+        from numba import cuda
+        from qibojit.custom_operators import cu_gates, cu_ops
+        self.name = "numba_gpu"
+        self.gates = cu_gates
+        self.ops = cu_ops
+        self.np = np
+        self.cuda = cuda
+        self.device_array = self.cuda.cudadrv.devicearray.DeviceNDArray # pylint: disable=no-member
+
+        self.multi_qubit_kernels = {
+            3: self.gates.apply_three_qubit_gate_kernel,
+            4: self.gates.apply_four_qubit_gate_kernel,
+            5: self.gates.apply_five_qubit_gate_kernel
+            }
+
+        try:
+            if not cuda.is_available(): # pragma: no cover
+                raise RuntimeError("Cannot use numba_gpu backend if GPU is not available.")
+        except:
+            raise ImportError("Could not detect compatible GPUs.")
+
+
+    def cast(self, x, dtype=None):
+        # If x is already in device memory, don't do anything
+        if isinstance(x, self.device_array):
+            if (dtype is None) or (dtype == x.dtype):
+                return x
+            else:
+                raise_error(NotImplementedError)
+        # We need to move the array from host to device
+        elif dtype is None:
+            # If no dtype is specified, move x to the device memory
+            return self.cuda.to_device(x)
+        # We need to cast on host memory and then move to device memory
+        else:
+            np_x = self.np.array(x, dtype=dtype)
+            dev_x = self.cuda.device_array(np_x.shape, dtype=dtype)
+            self.cuda.to_device(np_x, to=dev_x)
+            return dev_x
+
+
+    def calculate_blocks(self, nstates, block_size=DEFAULT_BLOCK_SIZE):
+        """Compute the number of blocks and of threads per block.
+
+        The total number of threads is always equal to ``nstates``, give that
+        the kernels are designed to execute only one out of ``nstates`` updates.
+        Therefore, the number of threads per block (``block_size``) changes also
+        the total number of blocks. By default, it is set to ``self.DEFAULT_BLOCK_SIZE``.
+        """
+        # Compute the number of blocks so that at least ``nstates`` threads are launched
+        nblocks = (nstates + block_size - 1) // block_size
+        if nstates < block_size:
+            nblocks = 1
+            block_size = nstates
+        return nblocks, block_size
+
+
+    def one_qubit_base(self, state, nqubits, target, kernel, qubits=-1, gate=0):
+        # Same as CPU
+        ncontrols = len(qubits) - 1 if not isinstance(qubits, int) else 0
+        m = nqubits - target - 1
+        nstates = 1 << (nqubits - ncontrols - 1)
+
+        # GPU specific operations
+        nblocks, block_size = self.calculate_blocks(nstates)
+        state = self.cast(state)
+        gate  = self.cast(gate, dtype=state.dtype)
+
+        # Launch the kernel
+        if ncontrols:
+            kernel = getattr(self.gates, "multicontrol_{}_kernel".format(kernel))
+            kernel[nblocks, block_size](state, gate, self.cast(qubits, dtype="int32"), nstates, m)
+        else:
+            kernel = getattr(self.gates, "{}_kernel".format(kernel))
+            kernel[nblocks, block_size](state, gate, nstates, m)
+        self.cuda.synchronize()
+        return state
+
+
+    def two_qubit_base(self, state, nqubits, target1, target2, kernel, qubits=-1, gate=0):
+        # Same as CPU
+        ncontrols = len(qubits) - 2 if not isinstance(qubits, int) else 0
+        if target1 > target2:
+            swap_targets = True
+            m1 = nqubits - target1 - 1
+            m2 = nqubits - target2 - 1
+        else:
+            swap_targets = False
+            m1 = nqubits - target2 - 1
+            m2 = nqubits - target1 - 1
+        nstates = 1 << (nqubits - 2 - ncontrols)
+
+        # GPU specific operations
+        nblocks, block_size = self.calculate_blocks(nstates)
+        state = self.cast(state)
+        gate  = self.cast(gate, dtype=state.dtype)
+
+        # Launch the kernel
+        if ncontrols:
+            kernel = getattr(self.gates, "multicontrol_{}_kernel".format(kernel))
+            kernel[nblocks, block_size](state, gate, self.cast(qubits, dtype="int32"),
+                                        nstates, m1, m2, swap_targets)
+        else:
+            kernel = getattr(self.gates, "{}_kernel".format(kernel))
+            kernel[nblocks, block_size](state, gate, nstates, m1, m2, swap_targets)
+        self.cuda.synchronize()
+        return state
+
+    def multi_qubit_base(self, state, nqubits, targets, qubits=None, gate=0):
+        # Same as CPU
+        if qubits is None:
+            qubits = self.cast(sorted(nqubits - q - 1 for q in targets), dtype="int32")
+        nstates = 1 << (nqubits - len(qubits))
+        targets = self.cast([1 << (nqubits - t - 1) for t in targets[::-1]], dtype="int64")
+
+        # GPU specific operations
+        nblocks, block_size = self.calculate_blocks(nstates)
+        state = self.cast(state)
+        gate  = self.cast(gate, dtype=state.dtype)
+
+        # Launch the kernel
+        if len(targets) > 5:
+            buffer = self.cuda.device_array_like(state)
+            kernel = self.gates.apply_multi_qubit_gate_kernel
+            kernel[nblocks, block_size](state, buffer, gate, qubits, targets)
+        else:
+            kernel = self.multi_qubit_kernels.get(len(targets))
+            kernel[nblocks, block_size](state, gate, qubits, targets)
+        self.cuda.synchronize()
+        return state
+
+    def initial_state(self, nqubits, dtype, is_matrix=False):
+        # Same as CPU
+        if isinstance(dtype, str):
+            dtype = getattr(self.np, dtype)
+        size = 2 ** nqubits
+
+        # GPU specific operations + kernel launch
+        nblocks, block_size = self.calculate_blocks(size)
+        if is_matrix:
+            state = self.cuda.device_array((size, size), dtype=dtype)
+            self.ops.initial_density_matrix[nblocks, block_size](state)
+        else:
+            state = self.cuda.device_array((size,), dtype=dtype)
+            self.ops.initial_state[nblocks, block_size](state)
+        self.cuda.synchronize()
+        return state
+
+    def collapse_state(self, state, qubits, result, nqubits, normalize=False):
+        # Same as CPU
+        ntargets = len(qubits)
+        nstates = 1 << (nqubits - ntargets)
+
+        # GPU specific operations + kernel launch
+        nblocks, block_size = self.calculate_blocks(nstates)
+        state = self.cast(state)
+        self.ops.collapse_state_kernel[nblocks, block_size](state, self.cast(qubits, "int32"), result, ntargets)
+        self.cuda.synchronize()
         return state
 
     def transpose_state(self, pieces, state, nqubits, order):
