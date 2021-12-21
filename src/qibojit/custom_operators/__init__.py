@@ -1,7 +1,7 @@
 from qibo.backends.abstract import AbstractBackend, AbstractCustomOperators
 from qibo.backends.numpy import NumpyBackend
 from qibo.abstractions.states import AbstractState
-from qibo.config import raise_error
+from qibo.config import log, raise_error
 from qibojit.custom_operators.backends import NumbaBackend
 
 
@@ -289,6 +289,18 @@ class JITCustomBackend(NumpyBackend, AbstractCustomOperators):
             return x.get()
         except AttributeError:
             return super().cpu_cast(x, dtype)
+
+    def cpu_fallback(self, func, *args):
+        """Executes a function on CPU if the default devices raises OOM."""
+        try:
+            return func(*args)
+        except self.oom_error: # pragma: no cover
+            # case not covered by GitHub workflows because it requires OOM
+            log.warn("Falling back to CPU because the GPU is out-of-memory.")
+            # Make sure to convert all CuPy arrays to NumPy ones
+            args = [item.get() if isinstance(item, self.Tensor) else item for item in args]
+            with self.device(self.get_cpu()):
+                return func(*args)
 
     def transpose_state(self, pieces, state, nqubits, order):
         original_shape = state.shape
