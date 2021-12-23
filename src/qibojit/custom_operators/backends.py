@@ -58,16 +58,19 @@ class NumbaBackend(AbstractBackend):
             }
 
     def cast(self, x, dtype=None):
-        if not isinstance(x, self.np.ndarray):
+        if isinstance(x, self.np.ndarray):
+            if dtype is None:
+                return x
+            else:
+                return x.astype(dtype, copy=False)
+        else:
             try:
-                x = self.np.array(x)
+                x = self.np.array(x, dtype=dtype)
             # only for CuPy arrays, as implicit conversion raises TypeError
             # and you need to cast manually using x.get()
             except TypeError: # pragma: no cover
-                x = x.get()
-        if dtype and x.dtype != dtype:
-            return x.astype(dtype)
-        return x
+                x = self.np.array(x.get(), dtype=dtype, copy=False)
+            return x
 
     def one_qubit_base(self, state, nqubits, target, kernel, qubits=None, gate=None):
         ncontrols = len(qubits) - 1 if qubits is not None else 0
@@ -232,7 +235,10 @@ class CupyBackend(AbstractBackend): # pragma: no cover
 
     def cast(self, x, dtype=None):
         if isinstance(x, self.cp.ndarray):
-            return x
+            if dtype is None:
+                return x
+            else:
+                return x.astype(dtype, copy=False)
         return self.cp.asarray(x, dtype=dtype)
 
     def get_kernel_type(self, state):
