@@ -296,7 +296,7 @@ class JITCustomBackend(NumpyBackend, AbstractCustomOperators):
             return func(*args)
         except self.oom_error: # pragma: no cover
             # case not covered by GitHub workflows because it requires OOM
-            log.warn("Falling back to CPU because the GPU is out-of-memory.")
+            log.warn(f"Falling back to CPU for {func.__name__} because the GPU is out-of-memory.")
             # Make sure to convert all CuPy arrays to NumPy ones
             args = [item.get() if isinstance(item, self.Tensor) else item for item in args]
             with self.device(self.get_cpu()):
