@@ -91,3 +91,7 @@ def test_with_device(backend):
 def test_cpu_ops(backend):
     with K.on_cpu():
         pass
+
+
+def test_cpu_fallback(backend):
+    state = K.cpu_fallback(K.initial_state, 4)
