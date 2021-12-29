@@ -397,13 +397,13 @@ class CuQuantumBackend(CupyBackend): # pragma: no cover
         self.cusv = cusv
         self.name = "cuquantum"
 
-        # initialize custatevector library
-        self.handle = self.cusv.create()
-
     def one_qubit_base(self, state, nqubits, target, kernel, qubits=None, gate=None):
+        handle = self.cusv.create()
         ncontrols = len(qubits) - 1 if qubits is not None else 0
-        ncontrols = self.np.asarray([ncontrols], dtype=self.np.int32)
-        state = self.cast(state)
+        controls = self.np.asarray([ncontrols], dtype=self.np.int32)
+        state = self.cast(state, self.np.complex64)
+        gate = self.cast(gate, self.np.complex64)
+        ntarget = 1
         target = self.np.asarray([target], dtype=self.np.int32)
         adjoint = 0
         if isinstance(gate, self.cp.ndarray):
@@ -415,14 +415,15 @@ class CuQuantumBackend(CupyBackend): # pragma: no cover
 
         if gate is None:
             raise NotImplementedError("Gate must not be None")
-        args1 = (self.handle,
+
+        args1 = (handle,
                  self.cuquantum.cudaDataType.CUDA_C_32F,
                  len(qubits),
                  gate_ptr,
                  self.cuquantum.cudaDataType.CUDA_C_32F,
                  self.cusv.MatrixLayout.ROW,
                  adjoint,
-                 1,
+                 ntarget,
                  ncontrols,
                  self.cuquantum.ComputeType.COMPUTE_32F
                  )
@@ -435,7 +436,7 @@ class CuQuantumBackend(CupyBackend): # pragma: no cover
         else:
             workspace_ptr = 0
 
-        args2 = (self.handle,
+        args2 = (handle,
                  state.data.ptr,
                  self.cuquantum.cudaDataType.CUDA_C_32F,
                  len(qubits),
@@ -444,8 +445,8 @@ class CuQuantumBackend(CupyBackend): # pragma: no cover
                  self.cusv.MatrixLayout.ROW,
                  adjoint,
                  target.ctypes.data,
-                 1,
-                 ncontrols.ctypes.data,
+                 ntarget,
+                 controls.ctypes.data,
                  ncontrols,
                  0,
                  self.cuquantum.ComputeType.COMPUTE_32F,
@@ -454,6 +455,7 @@ class CuQuantumBackend(CupyBackend): # pragma: no cover
                  )
 
         self.cusv.apply_matrix(*args2)
+        self.cusv.destroy(handle)
         return state
 
     def initial_state(self, nqubits, dtype, is_matrix=False):
