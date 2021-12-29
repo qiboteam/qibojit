@@ -10,19 +10,22 @@ class CupyCpuDevice:  # pragma: no cover
 
     def __init__(self, K):
         self.K = K
+        self.original_engine = K.engine.name
 
     def __enter__(self, *args):
         self.K.set_engine("numba")
 
     def __exit__(self, *args):
         if self.K.gpu_devices:
-            self.K.set_engine("cupy")
+            self.K.set_engine(self.original_engine)
 
 
 class JITCustomBackend(NumpyBackend, AbstractCustomOperators):
 
     description = "Uses custom operators based on numba.jit for CPU and " \
                   "custom CUDA kernels loaded with cupy GPU."
+
+    default_gpu_engine = "cuquantum"
 
     def __init__(self):
         NumpyBackend.__init__(self)
@@ -32,6 +35,7 @@ class JITCustomBackend(NumpyBackend, AbstractCustomOperators):
         self.engine = None # active engine
         self._numba_engine = NumbaBackend()
         self._cupy_engine = None
+        self._cuquantum_engine = None
 
         try: # pragma: no cover
             from cupy import cuda # pylint: disable=E0401
@@ -50,7 +54,7 @@ class JITCustomBackend(NumpyBackend, AbstractCustomOperators):
         if self.gpu_devices: # pragma: no cover
             # CI does not use GPUs
             self.default_device = self.gpu_devices[0]
-            self.set_engine("cupy")
+            self.set_engine(self.default_gpu_engine)
         elif self.cpu_devices:
             self.default_device = self.cpu_devices[0]
             self.set_engine("numba")
@@ -81,6 +85,13 @@ class JITCustomBackend(NumpyBackend, AbstractCustomOperators):
                 from qibojit.custom_operators.backends import CupyBackend
                 self._cupy_engine = CupyBackend()
             self.engine = self._cupy_engine
+        elif name == "cuquantum":
+            import cupy as xp # pylint: disable=E0401
+            self.tensor_types = (self.np.ndarray, xp.ndarray)
+            if self._cuquantum_engine is None:
+                from qibojit.custom_operators.backends import CuQuantumBackend
+                self._cuquantum_engine = CuQuantumBackend()
+            self.engine = self._cuquantum_engine
         else:
             raise_error(ValueError, "Unknown engine {}.".format(name))
         self.backend = xp
@@ -100,7 +111,7 @@ class JITCustomBackend(NumpyBackend, AbstractCustomOperators):
     def set_device(self, name):
         AbstractBackend.set_device(self, name)
         if "GPU" in name: # pragma: no cover
-            self.set_engine("cupy")
+            self.set_engine(self.default_gpu_engine)
         else:
             self.set_engine("numba")
 
@@ -112,7 +123,7 @@ class JITCustomBackend(NumpyBackend, AbstractCustomOperators):
     def to_numpy(self, x):
         if isinstance(x, self.np.ndarray):
             return x
-        elif self.engine.name == "cupy" and isinstance(x, self.engine.cp.ndarray):  # pragma: no cover
+        elif self.engine.name in ["cupy", "cuquantum"]  and isinstance(x, self.engine.cp.ndarray):  # pragma: no cover
             return x.get()
         return self.np.array(x)
 
@@ -122,7 +133,7 @@ class JITCustomBackend(NumpyBackend, AbstractCustomOperators):
         return self.engine.cast(x, dtype=dtype)
 
     def check_shape(self, shape):
-        if self.engine.name == "cupy" and isinstance(shape, self.Tensor): # pragma: no cover
+        if self.engine.name in ["cupy", "cuquantum"]  and isinstance(shape, self.Tensor): # pragma: no cover
             shape = shape.get()
         return shape
 

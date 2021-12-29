@@ -384,3 +384,82 @@ class CupyBackend(AbstractBackend): # pragma: no cover
     def measure_frequencies(self, frequencies, probs, nshots, nqubits, seed=1234, nthreads=None):
         raise NotImplementedError("`measure_frequencies` method is not "
                                   "implemented for GPU.")
+
+
+class CuQuantumBackend(CupyBackend): # pragma: no cover
+    # CI does not test for GPU
+
+    def __init__(self):
+        super(CuQuantumBackend, self).__init__()
+        import cuquantum
+        from cuquantum import custatevec as cusv
+        self.cuquantum = cuquantum
+        self.cusv = cusv
+        self.name = "cuquantum"
+
+        # initialize custatevector library
+        self.handle = self.cusv.create()
+
+    def one_qubit_base(self, state, nqubits, target, kernel, qubits=None, gate=None):
+        ncontrols = len(qubits) - 1 if qubits is not None else 0
+        ncontrols = self.np.asarray([ncontrols], dtype=self.np.int32)
+        state = self.cast(state)
+        target = self.np.asarray([target], dtype=self.np.int32)
+        adjoint = 0
+        if isinstance(gate, self.cp.ndarray):
+            gate_ptr = gate.data.ptr
+        elif isinstance(gate, self.np.ndarray):
+            gate_ptr = gate.ctypes.data
+        else:
+            raise ValueError
+
+        if gate is None:
+            raise NotImplementedError("Gate must not be None")
+        args1 = (self.handle,
+                 self.cuquantum.cudaDataType.CUDA_C_32F,
+                 len(qubits),
+                 gate_ptr,
+                 self.cuquantum.cudaDataType.CUDA_C_32F,
+                 self.cusv.MatrixLayout.ROW,
+                 adjoint,
+                 0,
+                 ncontrols,
+                 self.cuquantum.ComputeType.COMPUTE_32F
+                 )
+        workspaceSize = self.cusv.apply_matrix_buffer_size(*args1)
+
+        # check the size of external workspace
+        if workspaceSize > 0:
+            workspace = cp.cuda.memory.alloc(workspaceSize)
+            workspace_ptr = workspace.ptr
+        else:
+            workspace_ptr = 0
+
+        args2 = (self.handle,
+                 state.data.ptr,
+                 self.cuquantum.cudaDataType.CUDA_C_32F,
+                 len(qubits),
+                 gate_ptr,
+                 self.cuquantum.cudaDataType.CUDA_C_32F,
+                 self.cusv.MatrixLayout.ROW,
+                 adjoint,
+                 target.ctypes.data,
+                 0,
+                 ncontrols.ctypes.data,
+                 ncontrols,
+                 0,
+                 self.cuquantum.ComputeType.COMPUTE_32F,
+                 workspace_ptr,
+                 workspaceSize
+                 )
+
+        self.cusv.apply_matrix(*args2)
+        return state
+
+    def initial_state(self, nqubits, dtype, is_matrix=False):
+        # cuQuantum doesn't have a kernel for the initial state
+        n = 1 << nqubits
+        state = self.cp.zeros(n, dtype=dtype)
+        state[0] = 1
+        return state
+
