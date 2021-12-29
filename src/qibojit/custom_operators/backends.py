@@ -392,8 +392,8 @@ class CuQuantumBackend(CupyBackend): # pragma: no cover
     def __init__(self):
         super(CuQuantumBackend, self).__init__()
         import cuquantum
-        from cuquantum import custatevec as cusv
-        self.cuquantum = cuquantum
+        from cuquantum import custatevec as cusv # pylint: disable=import-error
+        self.cuquantum = cuquantum # pylint: disable=import-error
         self.cusv = cusv
         self.name = "cuquantum"
 
@@ -430,7 +430,7 @@ class CuQuantumBackend(CupyBackend): # pragma: no cover
 
         # check the size of external workspace
         if workspaceSize > 0:
-            workspace = cp.cuda.memory.alloc(workspaceSize)
+            workspace = self.cp.cuda.memory.alloc(workspaceSize)
             workspace_ptr = workspace.ptr
         else:
             workspace_ptr = 0
@@ -444,7 +444,7 @@ class CuQuantumBackend(CupyBackend): # pragma: no cover
                  self.cusv.MatrixLayout.ROW,
                  adjoint,
                  target.ctypes.data,
-                 0,
+                 1,
                  ncontrols.ctypes.data,
                  ncontrols,
                  0,
