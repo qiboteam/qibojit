@@ -422,7 +422,7 @@ class CuQuantumBackend(CupyBackend): # pragma: no cover
                  self.cuquantum.cudaDataType.CUDA_C_32F,
                  self.cusv.MatrixLayout.ROW,
                  adjoint,
-                 0,
+                 1,
                  ncontrols,
                  self.cuquantum.ComputeType.COMPUTE_32F
                  )
