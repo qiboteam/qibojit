@@ -458,10 +458,3 @@ class CuQuantumBackend(CupyBackend): # pragma: no cover
         self.cusv.destroy(handle)
         return state
 
-    def initial_state(self, nqubits, dtype, is_matrix=False):
-        # cuQuantum doesn't have a kernel for the initial state
-        n = 1 << nqubits
-        state = self.cp.zeros(n, dtype=dtype)
-        state[0] = 1
-        return state
-
