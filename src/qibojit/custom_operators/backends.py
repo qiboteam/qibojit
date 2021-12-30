@@ -402,6 +402,16 @@ class CuQuantumBackend(CupyBackend): # pragma: no cover
         ncontrols = len(qubits) - 1 if qubits is not None else 0
         controls = self.np.asarray([ncontrols], dtype=self.np.int32)
         state = self.cast(state, self.np.complex64)
+        # implement x, y, z and z_pow kernel since cuquantum only has apply_matrix
+        # TODO: find a better way to implement this
+        if gate is None:
+            gate = self.cp.zeros((2, 2))
+            if kernel == "apply_x":
+                gate[0, 1], gate[1, 0] = 1, 1
+            elif kernel == "apply_y":
+                gate[0, 1], gate[1, 0] = -1j, 1j
+            elif kernel == "apply_z":
+                gate[0, 0], gate[1, 1] = 1, -1
         gate = self.cast(gate, self.np.complex64)
         ntarget = 1
         target = self.np.asarray([target], dtype=self.np.int32)
@@ -412,9 +422,6 @@ class CuQuantumBackend(CupyBackend): # pragma: no cover
             gate_ptr = gate.ctypes.data
         else:
             raise ValueError
-
-        if gate is None:
-            raise NotImplementedError("Gate must not be None")
 
         args1 = (handle,
                  self.cuquantum.cudaDataType.CUDA_C_32F,
