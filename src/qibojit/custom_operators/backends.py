@@ -399,11 +399,8 @@ class CuQuantumBackend(CupyBackend): # pragma: no cover
     def one_qubit_base(self, state, nqubits, target, kernel, qubits=None, gate=None):
         handle = self.cusv.create()
         ncontrols = len(qubits) - 1 if qubits is not None else 0
-        controls = self.np.asarray(self.np.arange(ncontrols), dtype=self.np.int32)
-        # TODO: improve this dummy conversion from little to big endian for 2 qubits
-        if nqubits == 2:
-            state[[1,2]] = state[[2,1]]
-
+        target = nqubits - target - 1
+        controls = self.np.asarray([i for i in qubits.get() if i != target], dtype = self.np.int32)
         state = self.cast(state, self.np.complex64)
         ntarget = 1
         target = self.np.asarray([target], dtype=self.np.int32)
@@ -465,41 +462,19 @@ class CuQuantumBackend(CupyBackend): # pragma: no cover
                  )
 
         self.cusv.apply_matrix(*args2)
-        # TODO: improve this dummy conversion from little to big endian for 2 qubits
-        if len(qubits) == 2:
-            state[[1,2]] = state[[2,1]]
         self.cusv.destroy(handle)
         return state
 
     def two_qubit_base(self, state, nqubits, target1, target2, kernel, qubits=None, gate=None):
         handle = self.cusv.create()
         ncontrols = len(qubits) - 2 if qubits is not None else 0
-        controls = self.np.asarray(self.np.arange(ncontrols), dtype=self.np.int32)
-        # TODO: improve this dummy conversion from little to big endian for 2 qubits
-        if nqubits == 2:
-            state[[1,2]] = state[[2,1]]
-
-        if target1 > target2:
-            m1 = nqubits - target1 - 1
-            m2 = nqubits - target2 - 1
-        else:
-            m1 = nqubits - target2 - 1
-            m2 = nqubits - target1 - 1
-
         state = self.cast(state, self.np.complex64)
         ntarget = 2
-        target = self.np.asarray([m1, m2], dtype=self.np.int32)
+        target1 = nqubits - target1 - 1
+        target2 = nqubits - target2 - 1
+        target = self.np.asarray([target2, target1], dtype=self.np.int32)
+        controls = self.np.asarray([i for i in qubits.get() if i not in [target1, target2]], dtype = self.np.int32)
         adjoint = 0
-        # implement x, y, z and z_pow kernel since cuquantum only has apply_matrix
-        # TODO: find a better way to implement this
-        if gate is None:
-            gate = self.cp.zeros((2, 2))
-            if kernel == "apply_x":
-                gate[0, 1], gate[1, 0] = 1, 1
-            elif kernel == "apply_y":
-                gate[0, 1], gate[1, 0] = -1j, 1j
-            elif kernel == "apply_z":
-                gate[0, 0], gate[1, 1] = 1, -1
         gate = self.cast(gate, self.np.complex64)
         if isinstance(gate, self.cp.ndarray):
             gate_ptr = gate.data.ptr
@@ -510,7 +485,7 @@ class CuQuantumBackend(CupyBackend): # pragma: no cover
 
         args1 = (handle,
                  self.cuquantum.cudaDataType.CUDA_C_32F,
-                 len(qubits),
+                 nqubits,
                  gate_ptr,
                  self.cuquantum.cudaDataType.CUDA_C_32F,
                  self.cusv.MatrixLayout.ROW,
@@ -531,7 +506,7 @@ class CuQuantumBackend(CupyBackend): # pragma: no cover
         args2 = (handle,
                  state.data.ptr,
                  self.cuquantum.cudaDataType.CUDA_C_32F,
-                 len(qubits),
+                 nqubits,
                  gate_ptr,
                  self.cuquantum.cudaDataType.CUDA_C_32F,
                  self.cusv.MatrixLayout.ROW,
@@ -545,11 +520,7 @@ class CuQuantumBackend(CupyBackend): # pragma: no cover
                  workspace_ptr,
                  workspaceSize
                  )
-
         self.cusv.apply_matrix(*args2)
-        # TODO: improve this dummy conversion from little to big endian for 2 qubits
-        if len(qubits) == 2:
-            state[[1,2]] = state[[2,1]]
         self.cusv.destroy(handle)
         return state
 
