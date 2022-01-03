@@ -524,3 +524,62 @@ class CuQuantumBackend(CupyBackend): # pragma: no cover
         self.cusv.destroy(handle)
         return state
 
+    def multi_qubit_base(self, state, nqubits, targets, qubits=None, gate=None):
+        handle = self.cusv.create()
+        state = self.cast(state, self.np.complex64)
+        ntarget = len(targets)
+        if qubits is None:
+            qubits = self.cast(sorted(nqubits - q - 1 for q in targets), dtype=self.cp.int32)
+        target = [ nqubits - q - 1 for q in targets]
+        target = self.np.asarray(target[::-1], dtype = self.np.int32)
+        controls = self.np.asarray([i for i in qubits.get() if i not in target], dtype = self.np.int32)
+        ncontrols = len(controls) if qubits is not None else 0
+        adjoint = 0
+        gate = self.cast(gate, self.np.complex64)
+        if isinstance(gate, self.cp.ndarray):
+            gate_ptr = gate.data.ptr
+        elif isinstance(gate, self.np.ndarray):
+            gate_ptr = gate.ctypes.data
+        else:
+            raise ValueError
+
+        args1 = (handle,
+                 self.cuquantum.cudaDataType.CUDA_C_32F,
+                 nqubits,
+                 gate_ptr,
+                 self.cuquantum.cudaDataType.CUDA_C_32F,
+                 self.cusv.MatrixLayout.ROW,
+                 adjoint,
+                 ntarget,
+                 ncontrols,
+                 self.cuquantum.ComputeType.COMPUTE_32F
+                 )
+        workspaceSize = self.cusv.apply_matrix_buffer_size(*args1)
+
+        # check the size of external workspace
+        if workspaceSize > 0:
+            workspace = self.cp.cuda.memory.alloc(workspaceSize)
+            workspace_ptr = workspace.ptr
+        else:
+            workspace_ptr = 0
+
+        args2 = (handle,
+                 state.data.ptr,
+                 self.cuquantum.cudaDataType.CUDA_C_32F,
+                 nqubits,
+                 gate_ptr,
+                 self.cuquantum.cudaDataType.CUDA_C_32F,
+                 self.cusv.MatrixLayout.ROW,
+                 adjoint,
+                 target.ctypes.data,
+                 ntarget,
+                 controls.ctypes.data,
+                 ncontrols,
+                 0,
+                 self.cuquantum.ComputeType.COMPUTE_32F,
+                 workspace_ptr,
+                 workspaceSize
+                 )
+        self.cusv.apply_matrix(*args2)
+        self.cusv.destroy(handle)
+        return state
