@@ -397,13 +397,14 @@ class CuQuantumBackend(CupyBackend): # pragma: no cover
         self.name = "cuquantum"
 
     def one_qubit_base(self, state, nqubits, target, kernel, qubits=None, gate=None):
+        # initialize cuStateVec library
         handle = self.cusv.create()
-        ncontrols = len(qubits) - 1 if qubits is not None else 0
-        target = nqubits - target - 1
-        controls = self.np.asarray([i for i in qubits.get() if i != target], dtype = self.np.int32)
-        state = self.cast(state, self.np.complex64)
+
         ntarget = 1
-        target = self.np.asarray([target], dtype=self.np.int32)
+        target = nqubits - target - 1
+        target = self.np.asarray([target], dtype = self.np.int32)
+        ncontrols = len(qubits) - 1 if qubits is not None else 0
+        controls = self.np.asarray([i for i in qubits.get() if i != target], dtype = self.np.int32)
         adjoint = 0
         # implement x, y, z and z_pow kernel since cuquantum only has apply_matrix
         # TODO: find a better way to implement this
@@ -415,7 +416,9 @@ class CuQuantumBackend(CupyBackend): # pragma: no cover
                 gate[0, 1], gate[1, 0] = -1j, 1j
             elif kernel == "apply_z":
                 gate[0, 0], gate[1, 1] = 1, -1
-        gate = self.cast(gate, self.np.complex64)
+
+        state = self.cast(state, self.np.complex64)
+        gate = self.cast(gate)
         if isinstance(gate, self.cp.ndarray):
             gate_ptr = gate.data.ptr
         elif isinstance(gate, self.np.ndarray):
@@ -466,16 +469,19 @@ class CuQuantumBackend(CupyBackend): # pragma: no cover
         return state
 
     def two_qubit_base(self, state, nqubits, target1, target2, kernel, qubits=None, gate=None):
+        # initialize cuStateVec library
         handle = self.cusv.create()
-        ncontrols = len(qubits) - 2 if qubits is not None else 0
-        state = self.cast(state, self.np.complex64)
+
         ntarget = 2
         target1 = nqubits - target1 - 1
         target2 = nqubits - target2 - 1
         target = self.np.asarray([target2, target1], dtype=self.np.int32)
+        ncontrols = len(qubits) - 2 if qubits is not None else 0
         controls = self.np.asarray([i for i in qubits.get() if i not in [target1, target2]], dtype = self.np.int32)
         adjoint = 0
-        gate = self.cast(gate, self.np.complex64)
+
+        state = self.cast(state)
+        gate = self.cast(gate)
         if isinstance(gate, self.cp.ndarray):
             gate_ptr = gate.data.ptr
         elif isinstance(gate, self.np.ndarray):
@@ -526,16 +532,16 @@ class CuQuantumBackend(CupyBackend): # pragma: no cover
 
     def multi_qubit_base(self, state, nqubits, targets, qubits=None, gate=None):
         handle = self.cusv.create()
-        state = self.cast(state, self.np.complex64)
+        state = self.cast(state)
         ntarget = len(targets)
         if qubits is None:
-            qubits = self.cast(sorted(nqubits - q - 1 for q in targets), dtype=self.cp.int32)
+            qubits = self.cast(sorted(nqubits - q - 1 for q in targets), dtype = self.cp.int32)
         target = [ nqubits - q - 1 for q in targets]
         target = self.np.asarray(target[::-1], dtype = self.np.int32)
         controls = self.np.asarray([i for i in qubits.get() if i not in target], dtype = self.np.int32)
         ncontrols = len(controls) if qubits is not None else 0
         adjoint = 0
-        gate = self.cast(gate, self.np.complex64)
+        gate = self.cast(gate)
         if isinstance(gate, self.cp.ndarray):
             gate_ptr = gate.data.ptr
         elif isinstance(gate, self.np.ndarray):
