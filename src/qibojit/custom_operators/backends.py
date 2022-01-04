@@ -396,6 +396,14 @@ class CuQuantumBackend(CupyBackend): # pragma: no cover
         self.cusv = cusv
         self.name = "cuquantum"
 
+    def get_cuda_type(self, dtype='complex64'):
+        if dtype == 'complex128':
+            return self.cuquantum.cudaDataType.CUDA_C_64F, self.cuquantum.ComputeType.COMPUTE_64F
+        elif dtype == 'complex64':
+            return self.cuquantum.cudaDataType.CUDA_C_32F, self.cuquantum.ComputeType.COMPUTE_32F
+        else:
+            raise TypeError("Type can be either complex64 or complex128")
+
     def one_qubit_base(self, state, nqubits, target, kernel, qubits=None, gate=None):
         # initialize cuStateVec library
         handle = self.cusv.create()
@@ -417,8 +425,10 @@ class CuQuantumBackend(CupyBackend): # pragma: no cover
             elif kernel == "apply_z":
                 gate[0, 0], gate[1, 1] = 1, -1
 
-        state = self.cast(state, self.np.complex64)
+        state = self.cast(state)
         gate = self.cast(gate)
+        assert state.dtype == gate.dtype
+        data_type, compute_type = self.get_cuda_type(state.dtype)
         if isinstance(gate, self.cp.ndarray):
             gate_ptr = gate.data.ptr
         elif isinstance(gate, self.np.ndarray):
@@ -427,15 +437,15 @@ class CuQuantumBackend(CupyBackend): # pragma: no cover
             raise ValueError
 
         args1 = (handle,
-                 self.cuquantum.cudaDataType.CUDA_C_32F,
+                 data_type,
                  nqubits,
                  gate_ptr,
-                 self.cuquantum.cudaDataType.CUDA_C_32F,
+                 data_type,
                  self.cusv.MatrixLayout.ROW,
                  adjoint,
                  ntarget,
                  ncontrols,
-                 self.cuquantum.ComputeType.COMPUTE_32F
+                 compute_type
                  )
         workspaceSize = self.cusv.apply_matrix_buffer_size(*args1)
 
@@ -448,10 +458,10 @@ class CuQuantumBackend(CupyBackend): # pragma: no cover
 
         args2 = (handle,
                  state.data.ptr,
-                 self.cuquantum.cudaDataType.CUDA_C_32F,
+                 data_type,
                  nqubits,
                  gate_ptr,
-                 self.cuquantum.cudaDataType.CUDA_C_32F,
+                 data_type,
                  self.cusv.MatrixLayout.ROW,
                  adjoint,
                  target.ctypes.data,
@@ -459,7 +469,7 @@ class CuQuantumBackend(CupyBackend): # pragma: no cover
                  controls.ctypes.data,
                  ncontrols,
                  0,
-                 self.cuquantum.ComputeType.COMPUTE_32F,
+                 compute_type,
                  workspace_ptr,
                  workspaceSize
                  )
@@ -482,6 +492,9 @@ class CuQuantumBackend(CupyBackend): # pragma: no cover
 
         state = self.cast(state)
         gate = self.cast(gate)
+
+        assert state.dtype == gate.dtype
+        data_type, compute_type = self.get_cuda_type(state.dtype)
         if isinstance(gate, self.cp.ndarray):
             gate_ptr = gate.data.ptr
         elif isinstance(gate, self.np.ndarray):
@@ -490,15 +503,15 @@ class CuQuantumBackend(CupyBackend): # pragma: no cover
             raise ValueError
 
         args1 = (handle,
-                 self.cuquantum.cudaDataType.CUDA_C_32F,
+                 data_type,
                  nqubits,
                  gate_ptr,
-                 self.cuquantum.cudaDataType.CUDA_C_32F,
+                 data_type,
                  self.cusv.MatrixLayout.ROW,
                  adjoint,
                  ntarget,
                  ncontrols,
-                 self.cuquantum.ComputeType.COMPUTE_32F
+                 compute_type
                  )
         workspaceSize = self.cusv.apply_matrix_buffer_size(*args1)
 
@@ -511,10 +524,10 @@ class CuQuantumBackend(CupyBackend): # pragma: no cover
 
         args2 = (handle,
                  state.data.ptr,
-                 self.cuquantum.cudaDataType.CUDA_C_32F,
+                 data_type,
                  nqubits,
                  gate_ptr,
-                 self.cuquantum.cudaDataType.CUDA_C_32F,
+                 data_type,
                  self.cusv.MatrixLayout.ROW,
                  adjoint,
                  target.ctypes.data,
@@ -522,7 +535,7 @@ class CuQuantumBackend(CupyBackend): # pragma: no cover
                  controls.ctypes.data,
                  ncontrols,
                  0,
-                 self.cuquantum.ComputeType.COMPUTE_32F,
+                 compute_type,
                  workspace_ptr,
                  workspaceSize
                  )
@@ -542,6 +555,9 @@ class CuQuantumBackend(CupyBackend): # pragma: no cover
         ncontrols = len(controls) if qubits is not None else 0
         adjoint = 0
         gate = self.cast(gate)
+        assert state.dtype == gate.dtype
+        data_type, compute_type = self.get_cuda_type(state.dtype)
+
         if isinstance(gate, self.cp.ndarray):
             gate_ptr = gate.data.ptr
         elif isinstance(gate, self.np.ndarray):
@@ -550,15 +566,15 @@ class CuQuantumBackend(CupyBackend): # pragma: no cover
             raise ValueError
 
         args1 = (handle,
-                 self.cuquantum.cudaDataType.CUDA_C_32F,
+                 data_type,
                  nqubits,
                  gate_ptr,
-                 self.cuquantum.cudaDataType.CUDA_C_32F,
+                 data_type,
                  self.cusv.MatrixLayout.ROW,
                  adjoint,
                  ntarget,
                  ncontrols,
-                 self.cuquantum.ComputeType.COMPUTE_32F
+                 compute_type
                  )
         workspaceSize = self.cusv.apply_matrix_buffer_size(*args1)
 
@@ -571,10 +587,10 @@ class CuQuantumBackend(CupyBackend): # pragma: no cover
 
         args2 = (handle,
                  state.data.ptr,
-                 self.cuquantum.cudaDataType.CUDA_C_32F,
+                 data_type,
                  nqubits,
                  gate_ptr,
-                 self.cuquantum.cudaDataType.CUDA_C_32F,
+                 data_type,
                  self.cusv.MatrixLayout.ROW,
                  adjoint,
                  target.ctypes.data,
@@ -582,7 +598,7 @@ class CuQuantumBackend(CupyBackend): # pragma: no cover
                  controls.ctypes.data,
                  ncontrols,
                  0,
-                 self.cuquantum.ComputeType.COMPUTE_32F,
+                 compute_type,
                  workspace_ptr,
                  workspaceSize
                  )
