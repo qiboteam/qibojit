@@ -494,6 +494,17 @@ class CuQuantumBackend(CupyBackend): # pragma: no cover
         controls = self.np.asarray([i for i in qubits.get() if i not in [target1, target2]], dtype = self.np.int32)
         adjoint = 0
 
+        if kernel == "apply_swap":
+            gate = self.cp.zeros((4, 4),dtype=state.dtype)
+            gate[0, 0], gate[3, 3] = 1, 1
+            gate[1, 2], gate[2, 1] = 1, 1
+        elif kernel == "apply_fsim":
+            fsimgate = self.cp.zeros((4, 4),dtype=state.dtype)
+            fsimgate[0, 0], fsimgate[3,3] = 1, gate[4]
+            fsimgate[1,1], fsimgate[1,2] = gate[0], gate[1]
+            fsimgate[2,1], fsimgate[2,2] = gate[2], gate[3]
+            gate = fsimgate
+
         state = self.cast(state)
         gate = self.cast(gate)
 
