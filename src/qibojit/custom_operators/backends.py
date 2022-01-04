@@ -583,3 +583,15 @@ class CuQuantumBackend(CupyBackend): # pragma: no cover
         self.cusv.apply_matrix(*args2)
         self.cusv.destroy(handle)
         return state
+
+    def transpose_state(self, pieces, state, nqubits, order):
+        raise NotImplementedError("`transpose_state` method is not "
+                                  "implemented for GPU.")
+
+    def swap_pieces(self, piece0, piece1, new_global, nlocal):
+        raise NotImplementedError("`swap_pieces` method is not "
+                                  "implemented for GPU.")
+
+    def measure_frequencies(self, frequencies, probs, nshots, nqubits, seed=1234, nthreads=None):
+        raise NotImplementedError("`measure_frequencies` method is not "
+                                  "implemented for GPU.")
