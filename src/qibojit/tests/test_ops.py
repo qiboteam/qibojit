@@ -170,7 +170,7 @@ def test_swap_pieces(nqubits, qlocal, qglobal, dtype):
 def test_measure_frequencies(backend, realtype, inttype, nthreads):
     probs = np.ones(16, dtype=realtype) / 16
     frequencies = np.zeros(16, dtype=inttype)
-    if K.engine.name == "cupy":  # pragma: no cover
+    if K.engine.name in ["cupy", "cuquantum"]:  # pragma: no cover
         # CI does not test for GPU
         with pytest.raises(NotImplementedError):
             frequencies = K.engine.measure_frequencies(frequencies, probs, nshots=1000,
