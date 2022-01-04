@@ -417,7 +417,7 @@ class CuQuantumBackend(CupyBackend): # pragma: no cover
         # implement x, y, z and z_pow kernel since cuquantum only has apply_matrix
         # TODO: find a better way to implement this
         if gate is None:
-            gate = self.cp.zeros((2, 2))
+            gate = self.cp.zeros((2, 2),dtype=state.dtype)
             if kernel == "apply_x":
                 gate[0, 1], gate[1, 0] = 1, 1
             elif kernel == "apply_y":
