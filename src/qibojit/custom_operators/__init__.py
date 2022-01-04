@@ -321,7 +321,7 @@ class JITCustomBackend(NumpyBackend, AbstractCustomOperators):
         return self.reshape(state, original_shape)
 
     def assert_allclose(self, value, target, rtol=1e-7, atol=0.0):
-        if self.engine.name == "cupy": # pragma: no cover
+        if self.engine.name in ["cupy", "cuquantum"]: # pragma: no cover
             if isinstance(value, self.backend.ndarray):
                 value = value.get()
             if isinstance(target, self.backend.ndarray):

@@ -8,6 +8,10 @@ if K._cupy_engine is not None:  # pragma: no cover
     # CI does not test for GPU
     _BACKENDS.append("cupy")
 
+if K._cuquantum_engine is not None:  # pragma: no cover
+    # CI does not test for GPU
+    _BACKENDS.append("cuquantum")
+
 
 @pytest.fixture
 def backend(backend_name):
