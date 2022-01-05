@@ -389,7 +389,7 @@ class CuQuantumBackend(CupyBackend): # pragma: no cover
     # CI does not test for GPU
 
     def __init__(self):
-        super(CuQuantumBackend, self).__init__()
+        super().__init__()
         import cuquantum # pylint: disable=import-error
         from cuquantum import custatevec as cusv # pylint: disable=import-error
         self.cuquantum = cuquantum 
@@ -440,18 +440,17 @@ class CuQuantumBackend(CupyBackend): # pragma: no cover
         else:
             raise ValueError
 
-        args1 = (handle,
-                 data_type,
-                 nqubits,
-                 gate_ptr,
-                 data_type,
-                 self.cusv.MatrixLayout.ROW,
-                 adjoint,
-                 ntarget,
-                 ncontrols,
-                 compute_type
-                 )
-        workspaceSize = self.cusv.apply_matrix_buffer_size(*args1)
+        workspaceSize = self.cusv.apply_matrix_buffer_size(handle,
+                                                           data_type,
+                                                           nqubits,
+                                                           gate_ptr,
+                                                           data_type,
+                                                           self.cusv.MatrixLayout.ROW,
+                                                           adjoint,
+                                                           ntarget,
+                                                           ncontrols,
+                                                           compute_type
+                                                           )
 
         # check the size of external workspace
         if workspaceSize > 0:
@@ -460,25 +459,24 @@ class CuQuantumBackend(CupyBackend): # pragma: no cover
         else:
             workspace_ptr = 0
 
-        args2 = (handle,
-                 state.data.ptr,
-                 data_type,
-                 nqubits,
-                 gate_ptr,
-                 data_type,
-                 self.cusv.MatrixLayout.ROW,
-                 adjoint,
-                 target.ctypes.data,
-                 ntarget,
-                 controls.ctypes.data,
-                 ncontrols,
-                 0,
-                 compute_type,
-                 workspace_ptr,
-                 workspaceSize
-                 )
+        self.cusv.apply_matrix(handle,
+                               state.data.ptr,
+                               data_type,
+                               nqubits,
+                               gate_ptr,
+                               data_type,
+                               self.cusv.MatrixLayout.ROW,
+                               adjoint,
+                               target.ctypes.data,
+                               ntarget,
+                               controls.ctypes.data,
+                               ncontrols,
+                               0,
+                               compute_type,
+                               workspace_ptr,
+                               workspaceSize
+                               )
 
-        self.cusv.apply_matrix(*args2)
         self.cusv.destroy(handle)
         return state
 
@@ -517,18 +515,17 @@ class CuQuantumBackend(CupyBackend): # pragma: no cover
         else:
             raise ValueError
 
-        args1 = (handle,
-                 data_type,
-                 nqubits,
-                 gate_ptr,
-                 data_type,
-                 self.cusv.MatrixLayout.ROW,
-                 adjoint,
-                 ntarget,
-                 ncontrols,
-                 compute_type
-                 )
-        workspaceSize = self.cusv.apply_matrix_buffer_size(*args1)
+        workspaceSize = self.cusv.apply_matrix_buffer_size(handle,
+                                                           data_type,
+                                                           nqubits,
+                                                           gate_ptr,
+                                                           data_type,
+                                                           self.cusv.MatrixLayout.ROW,
+                                                           adjoint,
+                                                           ntarget,
+                                                           ncontrols,
+                                                           compute_type
+                                                           )
 
         # check the size of external workspace
         if workspaceSize > 0:
@@ -537,24 +534,24 @@ class CuQuantumBackend(CupyBackend): # pragma: no cover
         else:
             workspace_ptr = 0
 
-        args2 = (handle,
-                 state.data.ptr,
-                 data_type,
-                 nqubits,
-                 gate_ptr,
-                 data_type,
-                 self.cusv.MatrixLayout.ROW,
-                 adjoint,
-                 target.ctypes.data,
-                 ntarget,
-                 controls.ctypes.data,
-                 ncontrols,
-                 0,
-                 compute_type,
-                 workspace_ptr,
-                 workspaceSize
-                 )
-        self.cusv.apply_matrix(*args2)
+        self.cusv.apply_matrix(handle,
+                               state.data.ptr,
+                               data_type,
+                               nqubits,
+                               gate_ptr,
+                               data_type,
+                               self.cusv.MatrixLayout.ROW,
+                               adjoint,
+                               target.ctypes.data,
+                               ntarget,
+                               controls.ctypes.data,
+                               ncontrols,
+                               0,
+                               compute_type,
+                               workspace_ptr,
+                               workspaceSize
+                               )
+
         self.cusv.destroy(handle)
         return state
 
@@ -580,18 +577,17 @@ class CuQuantumBackend(CupyBackend): # pragma: no cover
         else:
             raise ValueError
 
-        args1 = (handle,
-                 data_type,
-                 nqubits,
-                 gate_ptr,
-                 data_type,
-                 self.cusv.MatrixLayout.ROW,
-                 adjoint,
-                 ntarget,
-                 ncontrols,
-                 compute_type
-                 )
-        workspaceSize = self.cusv.apply_matrix_buffer_size(*args1)
+        workspaceSize = self.cusv.apply_matrix_buffer_size(handle,
+                                                           data_type,
+                                                           nqubits,
+                                                           gate_ptr,
+                                                           data_type,
+                                                           self.cusv.MatrixLayout.ROW,
+                                                           adjoint,
+                                                           ntarget,
+                                                           ncontrols,
+                                                           compute_type
+                                                           )
 
         # check the size of external workspace
         if workspaceSize > 0:
@@ -600,35 +596,24 @@ class CuQuantumBackend(CupyBackend): # pragma: no cover
         else:
             workspace_ptr = 0
 
-        args2 = (handle,
-                 state.data.ptr,
-                 data_type,
-                 nqubits,
-                 gate_ptr,
-                 data_type,
-                 self.cusv.MatrixLayout.ROW,
-                 adjoint,
-                 target.ctypes.data,
-                 ntarget,
-                 controls.ctypes.data,
-                 ncontrols,
-                 0,
-                 compute_type,
-                 workspace_ptr,
-                 workspaceSize
-                 )
-        self.cusv.apply_matrix(*args2)
+        self.cusv.apply_matrix(handle,
+                               state.data.ptr,
+                               data_type,
+                               nqubits,
+                               gate_ptr,
+                               data_type,
+                               self.cusv.MatrixLayout.ROW,
+                               adjoint,
+                               target.ctypes.data,
+                               ntarget,
+                               controls.ctypes.data,
+                               ncontrols,
+                               0,
+                               compute_type,
+                               workspace_ptr,
+                               workspaceSize
+                               )
+
         self.cusv.destroy(handle)
         return state
 
-    def transpose_state(self, pieces, state, nqubits, order):
-        raise NotImplementedError("`transpose_state` method is not "
-                                  "implemented for GPU.")
-
-    def swap_pieces(self, piece0, piece1, new_global, nlocal):
-        raise NotImplementedError("`swap_pieces` method is not "
-                                  "implemented for GPU.")
-
-    def measure_frequencies(self, frequencies, probs, nshots, nqubits, seed=1234, nthreads=None):
-        raise NotImplementedError("`measure_frequencies` method is not "
-                                  "implemented for GPU.")
