@@ -411,8 +411,12 @@ class CuQuantumBackend(CupyBackend): # pragma: no cover
         ntarget = 1
         target = nqubits - target - 1
         target = self.np.asarray([target], dtype = self.np.int32)
-        ncontrols = len(qubits) - 1 if qubits is not None else 0
-        controls = self.np.asarray([i for i in qubits.get() if i != target], dtype = self.np.int32)
+        if qubits is not None:
+            ncontrols = len(qubits) - 1
+            controls = self.np.asarray([i for i in qubits.get() if i != target], dtype = self.np.int32)
+        else:
+            ncontrols = 0
+            controls = self.np.empty()
         adjoint = 0
 
         state = self.cast(state)
