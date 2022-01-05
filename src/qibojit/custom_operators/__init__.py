@@ -347,7 +347,7 @@ class JITCustomBackend(NumpyBackend, AbstractCustomOperators):
         return self.engine.one_qubit_base(state, nqubits, *targets, "apply_z", qubits, gate)
 
     def apply_z_pow(self, state, gate, nqubits, targets, qubits=None):
-        if self.engine.name == "cuquantum":
+        if self.engine.name == "cuquantum": # pragma: no cover
             phase = gate
             gate = self.engine.cp.zeros((2, 2),dtype=state.dtype)
             gate[0, 0], gate[1, 1] = 1, phase
@@ -363,7 +363,7 @@ class JITCustomBackend(NumpyBackend, AbstractCustomOperators):
         return self.engine.two_qubit_base(state, nqubits, *targets, "apply_swap", qubits, gate)
 
     def apply_fsim(self, state, gate, nqubits, targets, qubits=None):
-        if self.engine.name == "cuquantum":
+        if self.engine.name == "cuquantum": # pragma: no cover
             fsimgate = self.engine.cp.zeros((4, 4),dtype=state.dtype)
             fsimgate[0, 0], fsimgate[3,3] = 1, gate[4]
             fsimgate[1,1], fsimgate[1,2] = gate[0], gate[1]
