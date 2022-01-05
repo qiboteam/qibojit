@@ -332,15 +332,25 @@ class JITCustomBackend(NumpyBackend, AbstractCustomOperators):
         return self.engine.one_qubit_base(state, nqubits, *targets, "apply_gate", qubits, gate)
 
     def apply_x(self, state, nqubits, targets, qubits=None):
-        return self.engine.one_qubit_base(state, nqubits, *targets, "apply_x", qubits)
+        # cast necessary to avoid numba error (missing signature with state complex 64 and gate complex128)
+        gate = self.engine.cast(self.matrices.X, dtype=state.dtype)
+        return self.engine.one_qubit_base(state, nqubits, *targets, "apply_x", qubits, gate)
 
     def apply_y(self, state, nqubits, targets, qubits=None):
-        return self.engine.one_qubit_base(state, nqubits, *targets, "apply_y", qubits)
+        # cast necessary to avoid numba error (missing signature with state complex 64 and gate complex128)
+        gate = self.engine.cast(self.matrices.Y, dtype=state.dtype)
+        return self.engine.one_qubit_base(state, nqubits, *targets, "apply_y", qubits, gate)
 
     def apply_z(self, state, nqubits, targets, qubits=None):
-        return self.engine.one_qubit_base(state, nqubits, *targets, "apply_z", qubits)
+        # cast necessary to avoid numba error (missing signature with state complex 64 and gate complex128)
+        gate = self.engine.cast(self.matrices.Z, dtype=state.dtype)
+        return self.engine.one_qubit_base(state, nqubits, *targets, "apply_z", qubits, gate)
 
     def apply_z_pow(self, state, gate, nqubits, targets, qubits=None):
+        if self.engine.name == "cuquantum":
+            phase = gate
+            gate = self.engine.cp.zeros((2, 2),dtype=state.dtype)
+            gate[0, 0], gate[1, 1] = 1, phase
         return self.engine.one_qubit_base(state, nqubits, *targets, "apply_z_pow", qubits, gate)
 
     def apply_two_qubit_gate(self, state, gate, nqubits, targets, qubits=None):
@@ -348,9 +358,17 @@ class JITCustomBackend(NumpyBackend, AbstractCustomOperators):
                                           qubits, gate)
 
     def apply_swap(self, state, nqubits, targets, qubits=None):
-        return self.engine.two_qubit_base(state, nqubits, *targets, "apply_swap", qubits)
+        # cast necessary to avoid numba error (missing signature with state complex 64 and gate complex128)
+        gate = self.engine.cast(self.matrices.SWAP, dtype=state.dtype)
+        return self.engine.two_qubit_base(state, nqubits, *targets, "apply_swap", qubits, gate)
 
     def apply_fsim(self, state, gate, nqubits, targets, qubits=None):
+        if self.engine.name == "cuquantum":
+            fsimgate = self.engine.cp.zeros((4, 4),dtype=state.dtype)
+            fsimgate[0, 0], fsimgate[3,3] = 1, gate[4]
+            fsimgate[1,1], fsimgate[1,2] = gate[0], gate[1]
+            fsimgate[2,1], fsimgate[2,2] = gate[2], gate[3]
+            gate = fsimgate
         return self.engine.two_qubit_base(state, nqubits, *targets, "apply_fsim", qubits, gate)
 
     def apply_multi_qubit_gate(self, state, gate, nqubits, targets, qubits=None):

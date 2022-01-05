@@ -254,7 +254,7 @@ class CupyBackend(AbstractBackend): # pragma: no cover
         tk = 1 << m
         nstates = 1 << (nqubits - ncontrols - 1)
         state = self.cast(state)
-        if gate is None:
+        if kernel in ("apply_x", "apply_y", "apply_z"):
             args = (state, tk, m)
         else:
             args = (state, tk, m, self.cast(gate, dtype=state.dtype).flatten())
@@ -286,7 +286,7 @@ class CupyBackend(AbstractBackend): # pragma: no cover
         nstates = 1 << (nqubits - 2 - ncontrols)
 
         state = self.cast(state)
-        if gate is None:
+        if kernel == "apply_swap":
             args = (state, tk1, tk2, m1, m2, uk1, uk2)
         else:
             args = (state, tk1, tk2, m1, m2, uk1, uk2, self.cast(gate).flatten())
@@ -414,20 +414,6 @@ class CuQuantumBackend(CupyBackend): # pragma: no cover
         ncontrols = len(qubits) - 1 if qubits is not None else 0
         controls = self.np.asarray([i for i in qubits.get() if i != target], dtype = self.np.int32)
         adjoint = 0
-        # implement x, y, z and z_pow kernel since cuquantum only has apply_matrix
-        # TODO: find a better way to implement this
-        if kernel == "apply_z_pow":
-            u1gate = self.cp.zeros((2, 2),dtype=state.dtype)
-            u1gate[0, 0], u1gate[1, 1] = 1, gate
-            gate = u1gate
-        if gate is None:
-            gate = self.cp.zeros((2, 2),dtype=state.dtype)
-            if kernel == "apply_x":
-                gate[0, 1], gate[1, 0] = 1, 1
-            elif kernel == "apply_y":
-                gate[0, 1], gate[1, 0] = -1j, 1j
-            elif kernel == "apply_z":
-                gate[0, 0], gate[1, 1] = 1, -1
 
         state = self.cast(state)
         gate = self.cast(gate)
@@ -491,17 +477,6 @@ class CuQuantumBackend(CupyBackend): # pragma: no cover
         ncontrols = len(qubits) - 2 if qubits is not None else 0
         controls = self.np.asarray([i for i in qubits.get() if i not in [target1, target2]], dtype = self.np.int32)
         adjoint = 0
-
-        if kernel == "apply_swap":
-            gate = self.cp.zeros((4, 4),dtype=state.dtype)
-            gate[0, 0], gate[3, 3] = 1, 1
-            gate[1, 2], gate[2, 1] = 1, 1
-        elif kernel == "apply_fsim":
-            fsimgate = self.cp.zeros((4, 4),dtype=state.dtype)
-            fsimgate[0, 0], fsimgate[3,3] = 1, gate[4]
-            fsimgate[1,1], fsimgate[1,2] = gate[0], gate[1]
-            fsimgate[2,1], fsimgate[2,2] = gate[2], gate[3]
-            gate = fsimgate
 
         state = self.cast(state)
         gate = self.cast(gate)
