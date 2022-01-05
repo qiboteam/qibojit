@@ -10,14 +10,13 @@ class CupyCpuDevice:  # pragma: no cover
 
     def __init__(self, K):
         self.K = K
-        self.original_engine = K.engine.name
 
     def __enter__(self, *args):
         self.K.set_engine("numba")
 
     def __exit__(self, *args):
         if self.K.gpu_devices:
-            self.K.set_engine(self.original_engine)
+            self.K.set_engine("cupy")
 
 
 class JITCustomBackend(NumpyBackend, AbstractCustomOperators):
@@ -25,7 +24,6 @@ class JITCustomBackend(NumpyBackend, AbstractCustomOperators):
     description = "Uses custom operators based on numba.jit for CPU and " \
                   "custom CUDA kernels loaded with cupy GPU."
 
-    default_gpu_engine = "cuquantum"
 
     def __init__(self):
         NumpyBackend.__init__(self)
@@ -54,7 +52,7 @@ class JITCustomBackend(NumpyBackend, AbstractCustomOperators):
         if self.gpu_devices: # pragma: no cover
             # CI does not use GPUs
             self.default_device = self.gpu_devices[0]
-            self.set_engine(self.default_gpu_engine)
+            self.set_engine("cupy")
         elif self.cpu_devices:
             self.default_device = self.cpu_devices[0]
             self.set_engine("numba")
@@ -111,7 +109,7 @@ class JITCustomBackend(NumpyBackend, AbstractCustomOperators):
     def set_device(self, name):
         AbstractBackend.set_device(self, name)
         if "GPU" in name: # pragma: no cover
-            self.set_engine(self.default_gpu_engine)
+            self.set_engine("cupy")
         else:
             self.set_engine("numba")
 
