@@ -12,7 +12,7 @@ class CupyCpuDevice:  # pragma: no cover
         self.K = K
 
     def __enter__(self, *args):
-        self.original_engine = K.engine.name
+        self.original_engine = self.K.engine.name
         self.K.set_engine("numba")
 
     def __exit__(self, *args):
