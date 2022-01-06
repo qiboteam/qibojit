@@ -52,7 +52,10 @@ class JITCustomBackend(NumpyBackend, AbstractCustomOperators):
         if self.gpu_devices: # pragma: no cover
             # CI does not use GPUs
             self.default_device = self.gpu_devices[0]
-            self.set_engine("cupy")
+            if os.environ.get("ENABLE_CUQUANTUM", False):
+                self.set_engine("cuquantum")
+            else:
+                self.set_engine("cupy")
         elif self.cpu_devices:
             self.default_device = self.cpu_devices[0]
             self.set_engine("numba")
