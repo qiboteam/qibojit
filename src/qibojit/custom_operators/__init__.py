@@ -22,7 +22,7 @@ class CupyCpuDevice:  # pragma: no cover
 class JITCustomBackend(NumpyBackend, AbstractCustomOperators):
 
     description = "Uses custom operators based on numba.jit for CPU and " \
-                  "custom CUDA kernels loaded with cupy GPU."
+                  "custom CUDA kernels loaded with cupy or CuQuantum for GPU."
 
 
     def __init__(self):
@@ -74,7 +74,7 @@ class JITCustomBackend(NumpyBackend, AbstractCustomOperators):
         return NumpyBackend.test_regressions(self, name)
 
     def set_engine(self, name): # pragma: no cover
-        """Switcher between ``cupy`` for GPU and ``numba`` for CPU."""
+        """Switcher between ``cupy`` and ``cuquantum`` for GPU and ``numba`` for CPU."""
         if name == "numba":
             import numpy as xp
             self.tensor_types = (xp.ndarray,)
@@ -151,7 +151,7 @@ class JITCustomBackend(NumpyBackend, AbstractCustomOperators):
         return super().ones(self.check_shape(shape), dtype=dtype)
 
     def expm(self, x):
-        if self.engine.name == "cupy": # pragma: no cover
+        if self.engine.name in ["cupy", "cuquantum"]: # pragma: no cover
             # Fallback to numpy because cupy does not have expm
             if isinstance(x, self.native_types):
                 x = x.get()
@@ -172,14 +172,14 @@ class JITCustomBackend(NumpyBackend, AbstractCustomOperators):
         return super().eigvalsh(x)
 
     def unique(self, x, return_counts=False):
-        if self.engine.name == "cupy":  # pragma: no cover
+        if self.engine.name in ["cupy", "cuquantum"]:  # pragma: no cover
             if isinstance(x, self.native_types):
                 x = x.get()
             # Uses numpy backend always
         return super().unique(x, return_counts)
 
     def gather(self, x, indices=None, condition=None, axis=0):
-        if self.engine.name == "cupy":  # pragma: no cover
+        if self.engine.name in ["cupy", "cuquantum"]:  # pragma: no cover
             # Fallback to numpy because cupy does not support tuple indexing
             if isinstance(x, self.native_types):
                 x = x.get()
