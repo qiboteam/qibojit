@@ -6,7 +6,12 @@ qibo.set_backend("qibojit")
 _BACKENDS = ["numba"]
 if K.gpu_devices:  # pragma: no cover
     # CI does not test for GPU
-    _BACKENDS.extend(("cupy", "cuquantum"))
+    _BACKENDS.append("cupy")
+    try:
+        import cuquantum
+        _BACKENDS.append("cuquantum")
+    except ModuleNotFoundError:
+        pass
 
 @pytest.fixture
 def dtype(precision):
