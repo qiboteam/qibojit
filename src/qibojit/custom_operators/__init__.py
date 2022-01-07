@@ -331,19 +331,13 @@ class JITCustomBackend(NumpyBackend, AbstractCustomOperators):
         return self.engine.one_qubit_base(state, nqubits, *targets, "apply_gate", qubits, gate)
 
     def apply_x(self, state, nqubits, targets, qubits=None):
-        # cast necessary to avoid numba error (missing signature with state complex 64 and gate complex128)
-        gate = self.engine.cast(self.matrices.X, dtype=state.dtype)
-        return self.engine.one_qubit_base(state, nqubits, *targets, "apply_x", qubits, gate)
+        return self.engine.one_qubit_base(state, nqubits, *targets, "apply_x", qubits, self.matrices.X)
 
     def apply_y(self, state, nqubits, targets, qubits=None):
-        # cast necessary to avoid numba error (missing signature with state complex 64 and gate complex128)
-        gate = self.engine.cast(self.matrices.Y, dtype=state.dtype)
-        return self.engine.one_qubit_base(state, nqubits, *targets, "apply_y", qubits, gate)
+        return self.engine.one_qubit_base(state, nqubits, *targets, "apply_y", qubits, self.matrices.Y)
 
     def apply_z(self, state, nqubits, targets, qubits=None):
-        # cast necessary to avoid numba error (missing signature with state complex 64 and gate complex128)
-        gate = self.engine.cast(self.matrices.Z, dtype=state.dtype)
-        return self.engine.one_qubit_base(state, nqubits, *targets, "apply_z", qubits, gate)
+        return self.engine.one_qubit_base(state, nqubits, *targets, "apply_z", qubits, self.matrices.Z)
 
     def apply_z_pow(self, state, gate, nqubits, targets, qubits=None):
         if self.engine.name == "cuquantum": # pragma: no cover
@@ -357,9 +351,7 @@ class JITCustomBackend(NumpyBackend, AbstractCustomOperators):
                                           qubits, gate)
 
     def apply_swap(self, state, nqubits, targets, qubits=None):
-        # cast necessary to avoid numba error (missing signature with state complex 64 and gate complex128)
-        gate = self.engine.cast(self.matrices.SWAP, dtype=state.dtype)
-        return self.engine.two_qubit_base(state, nqubits, *targets, "apply_swap", qubits, gate)
+        return self.engine.two_qubit_base(state, nqubits, *targets, "apply_swap", qubits, self.matrices.SWAP)
 
     def apply_fsim(self, state, gate, nqubits, targets, qubits=None):
         if self.engine.name == "cuquantum": # pragma: no cover
