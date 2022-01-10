@@ -596,3 +596,31 @@ class CuQuantumBackend(CupyBackend): # pragma: no cover
         self.cusv.destroy(handle)
         return state
 
+    def collapse_state(self, state, qubits, result, nqubits, normalize=True):
+
+        handle = self.cusv.create()
+        state = self.cast(state)
+        results = bin(result).replace("0b", "")
+        results = list(map(int,  '0'* (len(qubits) - len(results)) + results))[::-1]
+        ntarget = 1
+        qubits = self.np.asarray(qubits.get(), dtype = self.np.int32)
+        data_type, compute_type = self.get_cuda_type(state.dtype)
+
+        for i  in range(len(results)):
+            self.cusv.collapse_on_z_basis(handle,
+                                          state.data.ptr,
+                                          data_type,
+                                          nqubits,
+                                          results[i],
+                                          [qubits[i]],
+                                          ntarget,
+                                          1
+                                          )
+
+
+        if normalize:
+                norm  = self.cp.sqrt(self.cp.sum(self.cp.square(self.cp.abs(state))))
+                state = state / norm
+
+        self.cusv.destroy(handle)
+        return state
