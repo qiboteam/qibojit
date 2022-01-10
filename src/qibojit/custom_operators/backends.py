@@ -487,6 +487,43 @@ class CuQuantumBackend(CupyBackend): # pragma: no cover
 
         assert state.dtype == gate.dtype
         data_type, compute_type = self.get_cuda_type(state.dtype)
+
+        if kernel == 'apply_swap' and ncontrols == 0:
+            nBasisBits = 2
+            maskLen = 0
+            maskBitString = 0
+            maskOrdering = 0
+            basisBits = target
+            permutation  = self.np.asarray([0, 2, 1, 3], dtype=self.np.int64)
+            diagonals  = self.np.asarray([1,1,1,1], dtype=state.dtype)
+
+            workspaceSize = self.cusv.apply_generalized_permutation_matrix_buffer_size(
+                handle,
+                data_type,
+                nqubits,
+                permutation.ctypes.data,
+                diagonals.ctypes.data,
+                data_type,
+                basisBits,
+                nBasisBits,
+                maskLen)
+
+            if workspaceSize > 0:
+                workspace = self.cp.cuda.memory.alloc(workspaceSize)
+                workspace_ptr = workspace.ptr
+            else:
+                workspace_ptr = 0
+
+            # apply matrix
+            self.cusv.apply_generalized_permutation_matrix(
+                handle, state.data.ptr, data_type, nqubits,
+                permutation.ctypes.data, diagonals.ctypes.data, data_type, adjoint,
+                basisBits, nBasisBits, maskBitString, maskOrdering, maskLen,
+                workspace_ptr, workspaceSize)
+
+            self.cusv.destroy(handle)
+            return state
+
         if isinstance(gate, self.cp.ndarray):
             gate_ptr = gate.data.ptr
         elif isinstance(gate, self.np.ndarray):
