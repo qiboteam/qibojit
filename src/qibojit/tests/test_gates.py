@@ -117,7 +117,7 @@ def test_apply_two_qubit_gate(backend, nqubits, targets, controls, dtype):
 
 @pytest.mark.parametrize(("nqubits", "targets"), [(5, [3, 4]), (4, [2, 0])])
 @pytest.mark.parametrize("use_qubits", [False, True])
-def test_apply_two_qubit_gate(backend, nqubits, targets, use_qubits, dtype):
+def test_apply_two_qubit_base(backend, nqubits, targets, use_qubits, dtype):
     state = random_state(nqubits, dtype=dtype)
     matrix = random_complex((4, 4), dtype=dtype)
 
