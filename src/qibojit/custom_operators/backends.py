@@ -582,10 +582,10 @@ class CuQuantumBackend(CupyBackend): # pragma: no cover
         ntarget = len(targets)
         if qubits is None:
             qubits = self.cast(sorted(nqubits - q - 1 for q in targets), dtype = self.cp.int32)
-        target = [ nqubits - q - 1 for q in targets]
+        target = [nqubits - q - 1 for q in targets]
         target = self.np.asarray(target[::-1], dtype = self.np.int32)
         controls = self.np.asarray([i for i in qubits.get() if i not in target], dtype = self.np.int32)
-        ncontrols = len(controls) if qubits is not None else 0
+        ncontrols = len(controls)
         adjoint = 0
         gate = self.cast(gate)
         assert state.dtype == gate.dtype
