@@ -392,7 +392,7 @@ class CuQuantumBackend(CupyBackend): # pragma: no cover
         super().__init__()
         import cuquantum # pylint: disable=import-error
         from cuquantum import custatevec as cusv # pylint: disable=import-error
-        self.cuquantum = cuquantum 
+        self.cuquantum = cuquantum
         self.cusv = cusv
         self.name = "cuquantum"
 
@@ -416,7 +416,7 @@ class CuQuantumBackend(CupyBackend): # pragma: no cover
             controls = self.np.asarray([i for i in qubits.get() if i != target], dtype = self.np.int32)
         else:
             ncontrols = 0
-            controls = self.np.empty()
+            controls = self.np.empty(0)
         adjoint = 0
 
         state = self.cast(state)
@@ -483,7 +483,7 @@ class CuQuantumBackend(CupyBackend): # pragma: no cover
             controls = self.np.asarray([i for i in qubits.get() if i not in [target1, target2]], dtype = self.np.int32)
         else:
             ncontrols = 0
-            controls = self.np.empty()
+            controls = self.np.empty(0)
 
         adjoint = 0
 

@@ -42,6 +42,23 @@ def test_apply_gate(backend, nqubits, target, controls, dtype):
     K.assert_allclose(state, target_state, atol=ATOL.get(dtype))
 
 
+@pytest.mark.parametrize(("nqubits", "target"), [(4, 1), (6, 5)])
+@pytest.mark.parametrize("use_qubits", [False, True])
+def test_one_qubit_base(backend, nqubits, target, use_qubits, dtype):
+    state = random_state(nqubits, dtype=dtype)
+    matrix = random_complex((2, 2), dtype=dtype)
+
+    qibo.set_backend("numpy")
+    gate = gates.Unitary(matrix, target)
+    target_state = gate(K.copy(state))
+    qibo.set_backend("qibojit")
+
+    qubits = qubits_tensor(nqubits, [target]) if use_qubits else None
+    state = K.engine.one_qubit_base(state, nqubits, target, "apply_gate", matrix, qubits)
+    state = K.to_numpy(state)
+    K.assert_allclose(state, target_state, atol=ATOL.get(dtype))
+
+
 @pytest.mark.parametrize(("nqubits", "target", "controls"),
                          [(3, 0, []), (4, 3, []), (5, 2, []), (3, 1, []),
                           (3, 0, [1]), (4, 3, [0, 1]), (5, 2, [1, 3, 4])])
@@ -95,6 +112,22 @@ def test_apply_two_qubit_gate(backend, nqubits, targets, controls, dtype):
 
     qubits = qubits_tensor(nqubits, targets, controls)
     state = K.apply_two_qubit_gate(state, matrix, nqubits, targets, qubits)
+    K.assert_allclose(state, target_state, atol=ATOL.get(dtype))
+
+
+@pytest.mark.parametrize(("nqubits", "targets"), [(5, [3, 4]), (4, [2, 0])])
+@pytest.mark.parametrize("use_qubits", [False, True])
+def test_apply_two_qubit_gate(backend, nqubits, targets, use_qubits, dtype):
+    state = random_state(nqubits, dtype=dtype)
+    matrix = random_complex((4, 4), dtype=dtype)
+
+    qibo.set_backend("numpy")
+    gate = gates.Unitary(matrix, *targets)
+    target_state = gate(K.copy(state))
+    qibo.set_backend("qibojit")
+
+    qubits = qubits_tensor(nqubits, targets) if use_qubits else None
+    state = K.engine.two_qubit_base(state, nqubits, targets[0], targets[1], "apply_two_qubit_gate", matrix, qubits)
     K.assert_allclose(state, target_state, atol=ATOL.get(dtype))
 
 
