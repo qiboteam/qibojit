@@ -14,11 +14,11 @@ class AbstractBackend(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def one_qubit_base(self, state, nqubits, target, kernel, qubits=None, gate=None): # pragma: no cover
+    def one_qubit_base(self, state, nqubits, target, kernel, gate, qubits=None): # pragma: no cover
         raise NotImplementedError
 
     @abstractmethod
-    def two_qubit_base(self, state, nqubits, target1, target2, kernel, qubits=None, gate=None): # pragma: no cover
+    def two_qubit_base(self, state, nqubits, target1, target2, kernel, gate, qubits=None): # pragma: no cover
         raise NotImplementedError
 
     @abstractmethod
@@ -72,7 +72,7 @@ class NumbaBackend(AbstractBackend):
                 x = self.np.array(x.get(), dtype=dtype, copy=False)
             return x
 
-    def one_qubit_base(self, state, nqubits, target, kernel, qubits=None, gate=None):
+    def one_qubit_base(self, state, nqubits, target, kernel, gate, qubits=None):
         ncontrols = len(qubits) - 1 if qubits is not None else 0
         m = nqubits - target - 1
         nstates = 1 << (nqubits - ncontrols - 1)
@@ -82,7 +82,7 @@ class NumbaBackend(AbstractBackend):
         kernel = getattr(self.gates, "{}_kernel".format(kernel))
         return kernel(state, gate, nstates, m)
 
-    def two_qubit_base(self, state, nqubits, target1, target2, kernel, qubits=None, gate=None):
+    def two_qubit_base(self, state, nqubits, target1, target2, kernel, gate, qubits=None):
         ncontrols = len(qubits) - 2 if qubits is not None else 0
         if target1 > target2:
             swap_targets = True
@@ -99,7 +99,7 @@ class NumbaBackend(AbstractBackend):
         kernel = getattr(self.gates, "{}_kernel".format(kernel))
         return kernel(state, gate, nstates, m1, m2, swap_targets)
 
-    def multi_qubit_base(self, state, nqubits, targets, qubits=None, gate=None):
+    def multi_qubit_base(self, state, nqubits, targets, gate, qubits=None):
         if qubits is None:
             qubits = self.np.array(sorted(nqubits - q - 1 for q in targets), dtype="int32")
         nstates = 1 << (nqubits - len(qubits))
@@ -248,7 +248,7 @@ class CupyBackend(AbstractBackend): # pragma: no cover
             return self.kernel_float_suffix
         raise TypeError("State of invalid type {}.".format(state.dtype))
 
-    def one_qubit_base(self, state, nqubits, target, kernel, qubits=None, gate=None):
+    def one_qubit_base(self, state, nqubits, target, kernel, gate, qubits=None):
         ncontrols = len(qubits) - 1 if qubits is not None else 0
         m = nqubits - target - 1
         tk = 1 << m
@@ -271,7 +271,7 @@ class CupyBackend(AbstractBackend): # pragma: no cover
         self.cp.cuda.stream.get_current_stream().synchronize()
         return state
 
-    def two_qubit_base(self, state, nqubits, target1, target2, kernel, qubits=None, gate=None):
+    def two_qubit_base(self, state, nqubits, target1, target2, kernel, gate, qubits=None):
         ncontrols = len(qubits) - 2 if qubits is not None else 0
         if target1 > target2:
             m1 = nqubits - target1 - 1
@@ -304,7 +304,7 @@ class CupyBackend(AbstractBackend): # pragma: no cover
         self.cp.cuda.stream.get_current_stream().synchronize()
         return state
 
-    def multi_qubit_base(self, state, nqubits, targets, qubits=None, gate=None):
+    def multi_qubit_base(self, state, nqubits, targets, gate, qubits=None):
         assert gate is not None
         state = self.cast(state)
         gate = self.cast(gate.flatten())
@@ -404,7 +404,7 @@ class CuQuantumBackend(CupyBackend): # pragma: no cover
         else:
             raise TypeError("Type can be either complex64 or complex128")
 
-    def one_qubit_base(self, state, nqubits, target, kernel, qubits=None, gate=None):
+    def one_qubit_base(self, state, nqubits, target, kernel, gate, qubits=None):
         # initialize cuStateVec library
         handle = self.cusv.create()
 
@@ -470,7 +470,7 @@ class CuQuantumBackend(CupyBackend): # pragma: no cover
         self.cusv.destroy(handle)
         return state
 
-    def two_qubit_base(self, state, nqubits, target1, target2, kernel, qubits=None, gate=None):
+    def two_qubit_base(self, state, nqubits, target1, target2, kernel, gate, qubits=None):
         # initialize cuStateVec library
         handle = self.cusv.create()
 
@@ -576,7 +576,7 @@ class CuQuantumBackend(CupyBackend): # pragma: no cover
         self.cusv.destroy(handle)
         return state
 
-    def multi_qubit_base(self, state, nqubits, targets, qubits=None, gate=None):
+    def multi_qubit_base(self, state, nqubits, targets, gate, qubits=None):
         handle = self.cusv.create()
         state = self.cast(state)
         ntarget = len(targets)

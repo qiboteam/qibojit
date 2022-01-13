@@ -330,30 +330,30 @@ class JITCustomBackend(NumpyBackend, AbstractCustomOperators):
         self.np.testing.assert_allclose(value, target, rtol=rtol, atol=atol)
 
     def apply_gate(self, state, gate, nqubits, targets, qubits=None):
-        return self.engine.one_qubit_base(state, nqubits, *targets, "apply_gate", qubits, gate)
+        return self.engine.one_qubit_base(state, nqubits, *targets, "apply_gate", gate, qubits)
 
     def apply_x(self, state, nqubits, targets, qubits=None):
-        return self.engine.one_qubit_base(state, nqubits, *targets, "apply_x", qubits, self.matrices.X)
+        return self.engine.one_qubit_base(state, nqubits, *targets, "apply_x", self.matrices.X, qubits)
 
     def apply_y(self, state, nqubits, targets, qubits=None):
-        return self.engine.one_qubit_base(state, nqubits, *targets, "apply_y", qubits, self.matrices.Y)
+        return self.engine.one_qubit_base(state, nqubits, *targets, "apply_y", self.matrices.Y, qubits)
 
     def apply_z(self, state, nqubits, targets, qubits=None):
-        return self.engine.one_qubit_base(state, nqubits, *targets, "apply_z", qubits, self.matrices.Z)
+        return self.engine.one_qubit_base(state, nqubits, *targets, "apply_z", self.matrices.Z, qubits)
 
     def apply_z_pow(self, state, gate, nqubits, targets, qubits=None):
         if self.engine.name == "cuquantum": # pragma: no cover
             phase = gate
             gate = self.engine.cp.zeros((2, 2),dtype=state.dtype)
             gate[0, 0], gate[1, 1] = 1, phase
-        return self.engine.one_qubit_base(state, nqubits, *targets, "apply_z_pow", qubits, gate)
+        return self.engine.one_qubit_base(state, nqubits, *targets, "apply_z_pow", gate, qubits)
 
     def apply_two_qubit_gate(self, state, gate, nqubits, targets, qubits=None):
         return self.engine.two_qubit_base(state, nqubits, *targets, "apply_two_qubit_gate",
-                                          qubits, gate)
+                                          gate, qubits)
 
     def apply_swap(self, state, nqubits, targets, qubits=None):
-        return self.engine.two_qubit_base(state, nqubits, *targets, "apply_swap", qubits, self.matrices.SWAP)
+        return self.engine.two_qubit_base(state, nqubits, *targets, "apply_swap", self.matrices.SWAP, qubits)
 
     def apply_fsim(self, state, gate, nqubits, targets, qubits=None):
         if self.engine.name == "cuquantum": # pragma: no cover
@@ -362,10 +362,10 @@ class JITCustomBackend(NumpyBackend, AbstractCustomOperators):
             fsimgate[1,1], fsimgate[1,2] = gate[0], gate[1]
             fsimgate[2,1], fsimgate[2,2] = gate[2], gate[3]
             gate = fsimgate
-        return self.engine.two_qubit_base(state, nqubits, *targets, "apply_fsim", qubits, gate)
+        return self.engine.two_qubit_base(state, nqubits, *targets, "apply_fsim", gate, qubits)
 
     def apply_multi_qubit_gate(self, state, gate, nqubits, targets, qubits=None):
-        return self.engine.multi_qubit_base(state, nqubits, targets, qubits, gate)
+        return self.engine.multi_qubit_base(state, nqubits, targets, gate, qubits)
 
     def collapse_state(self, state, qubits, result, nqubits, normalize=True):
         return self.engine.collapse_state(state, qubits, result, nqubits, normalize)
