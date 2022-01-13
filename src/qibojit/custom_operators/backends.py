@@ -478,8 +478,13 @@ class CuQuantumBackend(CupyBackend): # pragma: no cover
         target1 = nqubits - target1 - 1
         target2 = nqubits - target2 - 1
         target = self.np.asarray([target2, target1], dtype=self.np.int32)
-        ncontrols = len(qubits) - 2 if qubits is not None else 0
-        controls = self.np.asarray([i for i in qubits.get() if i not in [target1, target2]], dtype = self.np.int32)
+        if qubits is not None:
+            ncontrols = len(qubits) - 2
+            controls = self.np.asarray([i for i in qubits.get() if i not in [target1, target2]], dtype = self.np.int32)
+        else:
+            ncontrols = 0
+            controls = self.np.empty()
+
         adjoint = 0
 
         state = self.cast(state)
@@ -495,7 +500,7 @@ class CuQuantumBackend(CupyBackend): # pragma: no cover
             maskOrdering = 0
             basisBits = target
             permutation  = self.np.asarray([0, 2, 1, 3], dtype=self.np.int64)
-            diagonals  = self.np.asarray([1,1,1,1], dtype=state.dtype)
+            diagonals  = self.np.asarray([1, 1, 1, 1], dtype=state.dtype)
 
             workspaceSize = self.cusv.apply_generalized_permutation_matrix_buffer_size(
                 handle,
@@ -654,10 +659,9 @@ class CuQuantumBackend(CupyBackend): # pragma: no cover
                                           1
                                           )
 
-
         if normalize:
-                norm  = self.cp.sqrt(self.cp.sum(self.cp.square(self.cp.abs(state))))
-                state = state / norm
+            norm  = self.cp.sqrt(self.cp.sum(self.cp.square(self.cp.abs(state))))
+            state = state / norm
 
         self.cusv.destroy(handle)
         return state
