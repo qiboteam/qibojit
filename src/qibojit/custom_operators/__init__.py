@@ -78,7 +78,7 @@ class JITCustomBackend(NumpyBackend, AbstractCustomOperators):
 
     def test_regressions(self, name): # pragma: no cover
         # Used for qibo tests only
-        if self.platform.name == "cupy" or self.platform.name == "cuquantum":
+        if self.platform.name in ("cupy", "cuquantum"):
             return self.platform.test_regressions.get(name)
         return NumpyBackend.test_regressions(self, name)
 
@@ -141,7 +141,7 @@ class JITCustomBackend(NumpyBackend, AbstractCustomOperators):
     def to_numpy(self, x):
         if isinstance(x, self.np.ndarray):
             return x
-        elif self.platform.name in ["cupy", "cuquantum"]  and isinstance(x, self.platform.cp.ndarray):  # pragma: no cover
+        elif self.platform.name in ("cupy", "cuquantum")  and isinstance(x, self.platform.cp.ndarray):  # pragma: no cover
             return x.get()
         return self.np.array(x)
 
@@ -151,7 +151,7 @@ class JITCustomBackend(NumpyBackend, AbstractCustomOperators):
         return self.platform.cast(x, dtype=dtype)
 
     def check_shape(self, shape):
-        if self.platform.name in ["cupy", "cuquantum"]  and isinstance(shape, self.Tensor): # pragma: no cover
+        if self.platform.name in ("cupy", "cuquantum")  and isinstance(shape, self.Tensor): # pragma: no cover
             shape = shape.get()
         return shape
 
@@ -168,7 +168,7 @@ class JITCustomBackend(NumpyBackend, AbstractCustomOperators):
         return super().ones(self.check_shape(shape), dtype=dtype)
 
     def expm(self, x):
-        if self.platform.name in ["cupy", "cuquantum"]: # pragma: no cover
+        if self.platform.name in ("cupy", "cuquantum"): # pragma: no cover
             # Fallback to numpy because cupy does not have expm
             if isinstance(x, self.native_types):
                 x = x.get()
@@ -189,14 +189,14 @@ class JITCustomBackend(NumpyBackend, AbstractCustomOperators):
         return super().eigvalsh(x)
 
     def unique(self, x, return_counts=False):
-        if self.platform.name in ["cupy", "cuquantum"]:  # pragma: no cover
+        if self.platform.name in ("cupy", "cuquantum"):  # pragma: no cover
             if isinstance(x, self.native_types):
                 x = x.get()
             # Uses numpy backend always
         return super().unique(x, return_counts)
 
     def gather(self, x, indices=None, condition=None, axis=0):
-        if self.platform.name in ["cupy", "cuquantum"]:  # pragma: no cover
+        if self.platform.name in ("cupy", "cuquantum"):  # pragma: no cover
             # Fallback to numpy because cupy does not support tuple indexing
             if isinstance(x, self.native_types):
                 x = x.get()
@@ -339,7 +339,7 @@ class JITCustomBackend(NumpyBackend, AbstractCustomOperators):
         return self.reshape(state, original_shape)
 
     def assert_allclose(self, value, target, rtol=1e-7, atol=0.0):
-        if self.platform.name in ["cupy", "cuquantum"]: # pragma: no cover
+        if self.platform.name in ("cupy", "cuquantum"): # pragma: no cover
             if isinstance(value, self.backend.ndarray):
                 value = value.get()
             if isinstance(target, self.backend.ndarray):
