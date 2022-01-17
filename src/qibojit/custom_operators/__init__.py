@@ -37,8 +37,12 @@ class JITCustomBackend(NumpyBackend, AbstractCustomOperators):
         self.available_platforms = ["numba"]
         try:  # pragma: no cover
             from cupy import cuda # pylint: disable=E0401
-            ngpu = cuda.runtime.getDeviceCount()
-            self.available_platforms.append("cupy")
+            from cupy_backends.cuda.api.runtime import CUDARuntimeError
+            try:
+                ngpu = cuda.runtime.getDeviceCount()
+                self.available_platforms.append("cupy")
+            except CUDARuntimeError:
+                ngpu = 0
         except ModuleNotFoundError:
             ngpu = 0
         if ngpu > 0:
