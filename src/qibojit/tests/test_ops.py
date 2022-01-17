@@ -24,7 +24,7 @@ def test_initial_state(backend, precision, is_matrix):
 
 @pytest.mark.parametrize("is_matrix", [False, True])
 def test_backends_initial_state(backend, dtype, is_matrix):
-    final_state =  K.engine.initial_state(4, dtype, is_matrix)
+    final_state =  K.platform.initial_state(4, dtype, is_matrix)
     if is_matrix:
         target_state = np.array([1] + [0]*255, dtype=dtype)
         target_state = np.reshape(target_state, (16, 16))
@@ -170,16 +170,16 @@ def test_swap_pieces(nqubits, qlocal, qglobal, dtype):
 def test_measure_frequencies(backend, realtype, inttype, nthreads):
     probs = np.ones(16, dtype=realtype) / 16
     frequencies = np.zeros(16, dtype=inttype)
-    if K.engine.name in ["cupy", "cuquantum"]:  # pragma: no cover
+    if K.platform.name in ["cupy", "cuquantum"]:  # pragma: no cover
         # CI does not test for GPU
         with pytest.raises(NotImplementedError):
-            frequencies = K.engine.measure_frequencies(frequencies, probs, nshots=1000,
-                                                       nqubits=4, seed=1234,
-                                                       nthreads=nthreads)
+            frequencies = K.platform.measure_frequencies(frequencies, probs, nshots=1000,
+                                                         nqubits=4, seed=1234,
+                                                         nthreads=nthreads)
     else:
-        frequencies = K.engine.measure_frequencies(frequencies, probs, nshots=1000,
-                                                   nqubits=4, seed=1234,
-                                                   nthreads=nthreads)
+        frequencies = K.platform.measure_frequencies(frequencies, probs, nshots=1000,
+                                                     nqubits=4, seed=1234,
+                                                     nthreads=nthreads)
         assert np.sum(frequencies) == 1000
         if nthreads is not None:
             target_frequencies = np.array([72, 65, 63, 54, 57, 55, 67, 50, 53, 67, 69,

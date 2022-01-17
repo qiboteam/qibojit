@@ -3,7 +3,7 @@ import qibo
 from qibo import K
 qibo.set_backend("qibojit")
 
-_BACKENDS = ["numba"]
+_BACKENDS = ["numba"] # TODO: rename this to ``_PLATFORMS``
 if K.gpu_devices:  # pragma: no cover
     # CI does not test for GPU
     _BACKENDS.append("cupy")
@@ -25,10 +25,10 @@ def dtype(precision):
 
 @pytest.fixture
 def backend(backend_name):
-    original_backend = K.engine.name
-    K.set_engine(backend_name)
+    original_backend = K.platform.name
+    K.set_platform(backend_name)
     yield
-    K.set_engine(original_backend)
+    K.set_platform(original_backend)
 
 
 def pytest_generate_tests(metafunc):

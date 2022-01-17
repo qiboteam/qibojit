@@ -3,13 +3,14 @@ import numpy as np
 from qibo import K
 
 
-def test_engine_setter(backend_name):
-    original_backend = K.engine.name
-    K.set_engine(backend_name)
-    assert K.engine.name == backend_name
+def test_platform_setter_and_getter(backend_name):
+    original_backend = K.platform.name
+    K.set_platform(backend_name)
+    assert K.platform.name == backend_name
+    assert K.get_platform() == backend_name
     with pytest.raises(ValueError):
-        K.set_engine("test")
-    K.set_engine(original_backend)
+        K.set_platform("test")
+    K.set_platform(original_backend)
 
 
 def test_device_setter():
@@ -37,7 +38,7 @@ def test_cast(backend, array_type):
 def test_to_numpy(backend):
     x = [0, 1, 2]
     target = K.to_numpy(K.cast(x))
-    if K.engine.name == "numba":
+    if K.platform.name == "numba":
         final = K.to_numpy(x)
     else: # pragma: no cover
         final = K.to_numpy(np.array(x))

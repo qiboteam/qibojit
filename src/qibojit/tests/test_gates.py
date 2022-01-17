@@ -54,7 +54,7 @@ def test_one_qubit_base(backend, nqubits, target, use_qubits, dtype):
     qibo.set_backend("qibojit")
 
     qubits = qubits_tensor(nqubits, [target]) if use_qubits else None
-    state = K.engine.one_qubit_base(state, nqubits, target, "apply_gate", matrix, qubits)
+    state = K.platform.one_qubit_base(state, nqubits, target, "apply_gate", matrix, qubits)
     state = K.to_numpy(state)
     K.assert_allclose(state, target_state, atol=ATOL.get(dtype))
 
@@ -127,7 +127,7 @@ def test_apply_two_qubit_base(backend, nqubits, targets, use_qubits, dtype):
     qibo.set_backend("qibojit")
 
     qubits = qubits_tensor(nqubits, targets) if use_qubits else None
-    state = K.engine.two_qubit_base(state, nqubits, targets[0], targets[1], "apply_two_qubit_gate", matrix, qubits)
+    state = K.platform.two_qubit_base(state, nqubits, targets[0], targets[1], "apply_two_qubit_gate", matrix, qubits)
     K.assert_allclose(state, target_state, atol=ATOL.get(dtype))
 
 
