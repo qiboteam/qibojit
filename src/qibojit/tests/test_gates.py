@@ -27,7 +27,7 @@ def random_state(nqubits, dtype="complex128"):
                           (3, 0, [1, 2]), (4, 3, [0, 1, 2]),
                           (5, 3, [1]), (5, 2, [1, 4]), (6, 3, [0, 2, 5]),
                           (6, 3, [0, 2, 4, 5])])
-def test_apply_gate(backend, nqubits, target, controls, dtype):
+def test_apply_gate(platform, nqubits, target, controls, dtype):
     state = random_state(nqubits, dtype=dtype)
     matrix = random_complex((2, 2), dtype=dtype)
 
@@ -44,7 +44,7 @@ def test_apply_gate(backend, nqubits, target, controls, dtype):
 
 @pytest.mark.parametrize(("nqubits", "target"), [(4, 1), (6, 5)])
 @pytest.mark.parametrize("use_qubits", [False, True])
-def test_one_qubit_base(backend, nqubits, target, use_qubits, dtype):
+def test_one_qubit_base(platform, nqubits, target, use_qubits, dtype):
     state = random_state(nqubits, dtype=dtype)
     matrix = random_complex((2, 2), dtype=dtype)
 
@@ -63,7 +63,7 @@ def test_one_qubit_base(backend, nqubits, target, use_qubits, dtype):
                          [(3, 0, []), (4, 3, []), (5, 2, []), (3, 1, []),
                           (3, 0, [1]), (4, 3, [0, 1]), (5, 2, [1, 3, 4])])
 @pytest.mark.parametrize("pauli", ["x", "y", "z"])
-def test_apply_pauli_gate(backend, nqubits, target, pauli, controls, dtype):
+def test_apply_pauli_gate(platform, nqubits, target, pauli, controls, dtype):
     state = random_state(nqubits, dtype=dtype)
 
     qibo.set_backend("numpy")
@@ -81,7 +81,7 @@ def test_apply_pauli_gate(backend, nqubits, target, pauli, controls, dtype):
 @pytest.mark.parametrize(("nqubits", "target", "controls"),
                          [(3, 0, []), (3, 2, [1]),
                           (3, 2, [0, 1]), (6, 1, [0, 2, 4])])
-def test_apply_zpow_gate(backend, nqubits, target, controls, dtype):
+def test_apply_zpow_gate(platform, nqubits, target, controls, dtype):
     state = random_state(nqubits, dtype=dtype)
     theta = 0.1234
 
@@ -101,7 +101,7 @@ def test_apply_zpow_gate(backend, nqubits, target, controls, dtype):
                           (8, [6, 3], []), (3, [0, 1], [2]), (4, [1, 3], [0]),
                           (5, [2, 3], [1, 4]), (5, [3, 1], [0, 2]),
                           (6, [2, 5], [0, 1, 3, 4])])
-def test_apply_two_qubit_gate(backend, nqubits, targets, controls, dtype):
+def test_apply_two_qubit_gate(platform, nqubits, targets, controls, dtype):
     state = random_state(nqubits, dtype=dtype)
     matrix = random_complex((4, 4), dtype=dtype)
 
@@ -117,7 +117,7 @@ def test_apply_two_qubit_gate(backend, nqubits, targets, controls, dtype):
 
 @pytest.mark.parametrize(("nqubits", "targets"), [(5, [3, 4]), (4, [2, 0])])
 @pytest.mark.parametrize("use_qubits", [False, True])
-def test_apply_two_qubit_base(backend, nqubits, targets, use_qubits, dtype):
+def test_apply_two_qubit_base(platform, nqubits, targets, use_qubits, dtype):
     state = random_state(nqubits, dtype=dtype)
     matrix = random_complex((4, 4), dtype=dtype)
 
@@ -135,7 +135,7 @@ def test_apply_two_qubit_base(backend, nqubits, targets, use_qubits, dtype):
                          [(2, [0, 1], []), (3, [0, 2], []), (4, [1, 3], []),
                           (3, [1, 2], [0]), (4, [0, 2], [1]), (4, [2, 3], [0]),
                           (5, [3, 4], [1, 2]), (6, [1, 4], [0, 2, 5])])
-def test_apply_swap(backend, nqubits, targets, controls, dtype):
+def test_apply_swap(platform, nqubits, targets, controls, dtype):
     state = random_state(nqubits, dtype=dtype)
 
     qibo.set_backend("numpy")
@@ -153,7 +153,7 @@ def test_apply_swap(backend, nqubits, targets, controls, dtype):
                           (4, [0, 1], [2]), (5, [0, 1], [2]), (5, [3, 4], [2]),
                           (4, [0, 3], [1]), (4, [3, 2], [0]), (5, [1, 4], [2]),
                           (6, [1, 3], [0, 4]), (6, [5, 0], [1, 2, 3])])
-def test_apply_fsim(backend, nqubits, targets, controls, dtype):
+def test_apply_fsim(platform, nqubits, targets, controls, dtype):
     state = random_state(nqubits, dtype=dtype)
     matrix = random_complex((2, 2), dtype=dtype)
     phi = 0.4321
@@ -203,7 +203,7 @@ def test_apply_multiqubit_gate(nqubits, targets, controls, dtype):
 
 @pytest.mark.parametrize("gatename", ["H", "X", "Z"])
 @pytest.mark.parametrize("density_matrix", [False, True])
-def test_gates_on_circuit(backend, gatename, density_matrix):
+def test_gates_on_circuit(platform, gatename, density_matrix):
     from qibo.models import Circuit
     if density_matrix:
         state = random_complex((2, 2))
@@ -224,7 +224,7 @@ def test_gates_on_circuit(backend, gatename, density_matrix):
 
 
 @pytest.mark.parametrize("gatename", ["H", "X", "Z"])
-def test_density_matrix_half_calls(backend, gatename):
+def test_density_matrix_half_calls(platform, gatename):
     state = random_complex((8, 8))
     state = state + np.conj(state.T)
     qibo.set_backend("numpy")

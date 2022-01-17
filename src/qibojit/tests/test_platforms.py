@@ -28,13 +28,13 @@ def test_thread_setter():
 
 
 @pytest.mark.parametrize("array_type", [None, "float32", "float64"])
-def test_cast(backend, array_type):
+def test_cast(platform, array_type):
     target = np.random.random(10)
     final = K.to_numpy(K.cast(target, dtype=array_type))
     K.assert_allclose(final, target)
 
 
-def test_to_numpy(backend):
+def test_to_numpy(platform):
     x = [0, 1, 2]
     target = K.to_numpy(K.cast(x))
     if K.platform.name == "numba":
@@ -44,7 +44,7 @@ def test_to_numpy(backend):
     K.assert_allclose(final, target)
 
 
-def test_basic_matrices(backend):
+def test_basic_matrices(platform):
     K.assert_allclose(K.eye(4), np.eye(4))
     K.assert_allclose(K.zeros((3, 3)), np.zeros((3, 3)))
     K.assert_allclose(K.ones((5, 5)), np.ones((5, 5)))
@@ -53,7 +53,7 @@ def test_basic_matrices(backend):
     K.assert_allclose(K.expm(m), expm(m))
 
 
-def test_backend_eigh(backend):
+def test_backend_eigh(platform):
     m = np.random.random((16, 16))
     eigvals2, eigvecs2 = np.linalg.eigh(m)
     eigvals1, eigvecs1 = K.eigh(K.cast(m))
@@ -61,14 +61,14 @@ def test_backend_eigh(backend):
     K.assert_allclose(K.abs(eigvecs1), np.abs(eigvecs2))
 
 
-def test_backend_eigvalsh(backend):
+def test_backend_eigvalsh(platform):
     m = np.random.random((16, 16))
     target = np.linalg.eigvalsh(m)
     result = K.eigvalsh(K.cast(m))
     K.assert_allclose(target, result)
 
 
-def test_unique_and_gather(backend):
+def test_unique_and_gather(platform):
     samples = np.random.randint(0, 2, size=(100,))
     K.assert_allclose(K.unique(samples), np.unique(samples))
     indices = [0, 2, 6, 40]
@@ -76,7 +76,7 @@ def test_unique_and_gather(backend):
     K.assert_allclose(final, samples[indices])
 
 
-def test_with_device(backend):
+def test_with_device(platform):
     with K.device("/CPU:0"):
         pass
     with K.device("/GPU:0"):
@@ -88,10 +88,10 @@ def test_with_device(backend):
     K.assert_allclose(final, target)
 
 
-def test_cpu_ops(backend):
+def test_cpu_ops(platform):
     with K.on_cpu():
         pass
 
 
-def test_cpu_fallback(backend):
+def test_cpu_fallback(platform):
     state = K.cpu_fallback(K.initial_state, 4)

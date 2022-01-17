@@ -16,7 +16,7 @@ def dtype(precision):
 
 
 @pytest.fixture
-def backend(platform_name):
+def platform(platform_name):
     original_platform = K.platform.name
     K.set_platform(platform_name)
     yield
