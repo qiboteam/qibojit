@@ -45,8 +45,8 @@ class JITCustomBackend(NumpyBackend, AbstractCustomOperators):
                 ngpu = 0
         except ModuleNotFoundError:
             ngpu = 0
-        if ngpu > 0:
-            try:  # pragma: no cover
+        if ngpu > 0:  # pragma: no cover
+            try:
                 import cuquantum
                 self.available_platforms.append("cuquantum")
             except ModuleNotFoundError:
