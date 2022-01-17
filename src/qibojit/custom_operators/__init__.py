@@ -2,7 +2,6 @@ from qibo.backends.abstract import AbstractBackend, AbstractCustomOperators
 from qibo.backends.numpy import NumpyBackend
 from qibo.abstractions.states import AbstractState
 from qibo.config import log, raise_error
-from qibojit.custom_operators.backends import NumbaBackend
 
 
 class CupyCpuDevice:  # pragma: no cover
@@ -33,16 +32,24 @@ class JITCustomBackend(NumpyBackend, AbstractCustomOperators):
         AbstractCustomOperators.__init__(self)
         self.is_custom = True
         self.name = "qibojit"
-        self.platform = None
-        self._numba_platform = NumbaBackend()
-        self._cupy_platform = None
-        self._cuquantum_platform = None
 
-        try: # pragma: no cover
+        # Find available platforms
+        self.available_platforms = ["numba"]
+        try:  # pragma: no cover
             from cupy import cuda # pylint: disable=E0401
             ngpu = cuda.runtime.getDeviceCount()
-        except:
+            self.available_platforms.append("cupy")
+        except ModuleNotFoundError:
             ngpu = 0
+        if ngpu > 0:
+            try:  # pragma: no cover
+                import cuquantum
+                self.available_platforms.append("cuquantum")
+            except ModuleNotFoundError:
+                pass
+        # Construct ``NumbaPlatform``
+        from qibojit.custom_operators.backends import NumbaBackend
+        self._constructed_platforms = {"numba": NumbaBackend()}
 
         import os
         if "OMP_NUM_THREADS" in os.environ: # pragma: no cover
@@ -54,11 +61,9 @@ class JITCustomBackend(NumpyBackend, AbstractCustomOperators):
         self.gpu_devices = [f"/GPU:{i}" for i in range(ngpu)]
         if self.gpu_devices: # pragma: no cover
             # CI does not use GPUs
-            self.default_device = self.gpu_devices[0]
             self.set_platform(os.environ.get("QIBOJIT_PLATFORM", "cupy"))
         elif self.cpu_devices:
-            self.default_device = self.cpu_devices[0]
-            self.set_platform("numba")
+            self.set_platform(os.environ.get("QIBOJIT_PLATFORM", "numba"))
             self.set_threads(self.nthreads)
         self.cupy_cpu_device = CupyCpuDevice(self)
 
@@ -69,32 +74,37 @@ class JITCustomBackend(NumpyBackend, AbstractCustomOperators):
 
     def test_regressions(self, name): # pragma: no cover
         # Used for qibo tests only
-        if self.platform.name == "cupy":
+        if self.platform.name == "cupy" or self.platform.name == "cuquantum":
             return self.platform.test_regressions.get(name)
         return NumpyBackend.test_regressions(self, name)
 
     def set_platform(self, name): # pragma: no cover
         """Switcher between ``cupy`` and ``cuquantum`` for GPU and ``numba`` for CPU."""
+        if name not in self.available_platforms:
+            log.warn(f"Qibojit platform {name} is not available. "
+                      "Falling back to numba.")
+            name = "numba"
+
         if name == "numba":
             import numpy as xp
             self.tensor_types = (xp.ndarray,)
-            self.platform = self._numba_platform
+            self.default_device = self.cpu_devices[0]
         elif name == "cupy":
             import cupy as xp # pylint: disable=E0401
             self.tensor_types = (self.np.ndarray, xp.ndarray)
-            if self._cupy_platform is None:
+            if self._constructed_platforms.get("cupy") is None:
                 from qibojit.custom_operators.backends import CupyBackend
-                self._cupy_platform = CupyBackend()
-            self.platform = self._cupy_platform
+                self._constructed_platforms["cupy"] = CupyBackend()
+            self.default_device = self.gpu_devices[0]
         elif name == "cuquantum":
             import cupy as xp # pylint: disable=E0401
             self.tensor_types = (self.np.ndarray, xp.ndarray)
-            if self._cuquantum_platform is None:
+            if self._constructed_platforms.get("cuquantum") is None:
                 from qibojit.custom_operators.backends import CuQuantumBackend
-                self._cuquantum_platform = CuQuantumBackend()
-            self.platform = self._cuquantum_platform
-        else:
-            raise_error(ValueError, "Unknown platform {}.".format(name))
+                self._constructed_platforms["cuquantum"] = CuQuantumBackend()
+            self.default_device = self.gpu_devices[0]
+
+        self.platform = self._constructed_platforms.get(name)
         self.backend = xp
         self.numeric_types = (int, float, complex, xp.int32,
                               xp.int64, xp.float32, xp.float64,
@@ -221,7 +231,7 @@ class JITCustomBackend(NumpyBackend, AbstractCustomOperators):
         nqubits = int(self.np.log2(tuple(probs.shape)[0]))
         frequencies = self.np.zeros(2 ** nqubits, dtype=dtype)
         # always fall back to numba CPU backend because for ops not implemented on GPU
-        frequencies = self._numba_platform.measure_frequencies(
+        frequencies = self._constructed_platforms.get("numba").measure_frequencies(
             frequencies, probs, nshots, nqubits, seed, self.nthreads)
         return frequencies
 
@@ -321,7 +331,7 @@ class JITCustomBackend(NumpyBackend, AbstractCustomOperators):
         original_shape = state.shape
         state = state.ravel()
         # always fall back to numba CPU backend because for ops not implemented on GPU
-        state = self._numba_platform.transpose_state(pieces, state, nqubits, order)
+        state = self._constructed_platforms.get("numba").transpose_state(pieces, state, nqubits, order)
         return self.reshape(state, original_shape)
 
     def assert_allclose(self, value, target, rtol=1e-7, atol=0.0):
@@ -375,4 +385,4 @@ class JITCustomBackend(NumpyBackend, AbstractCustomOperators):
 
     def swap_pieces(self, piece0, piece1, new_global, nlocal):
         # always fall back to numba CPU backend because for ops not implemented on GPU
-        return self._numba_platform.swap_pieces(piece0, piece1, new_global, nlocal)
+        return self._constructed_platforms.get("numba").swap_pieces(piece0, piece1, new_global, nlocal)

@@ -8,8 +8,7 @@ def test_platform_setter_and_getter(backend_name):
     K.set_platform(backend_name)
     assert K.platform.name == backend_name
     assert K.get_platform() == backend_name
-    with pytest.raises(ValueError):
-        K.set_platform("test")
+    K.set_platform("test")
     K.set_platform(original_backend)
 
 
