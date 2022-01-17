@@ -3,15 +3,6 @@ import qibo
 from qibo import K
 qibo.set_backend("qibojit")
 
-_BACKENDS = ["numba"] # TODO: rename this to ``_PLATFORMS``
-if K.gpu_devices:  # pragma: no cover
-    # CI does not test for GPU
-    _BACKENDS.append("cupy")
-    try:
-        import cuquantum
-        _BACKENDS.append("cuquantum")
-    except ModuleNotFoundError:
-        pass
 
 @pytest.fixture
 def dtype(precision):
@@ -23,16 +14,17 @@ def dtype(precision):
         yield "complex64"
     qibo.set_precision(original_precision)
 
+
 @pytest.fixture
-def backend(backend_name):
-    original_backend = K.platform.name
-    K.set_platform(backend_name)
+def backend(platform_name):
+    original_platform = K.platform.name
+    K.set_platform(platform_name)
     yield
-    K.set_platform(original_backend)
+    K.set_platform(original_platform)
 
 
 def pytest_generate_tests(metafunc):
-    if "backend_name" in metafunc.fixturenames:
-        metafunc.parametrize("backend_name", _BACKENDS)
+    if "platform_name" in metafunc.fixturenames:
+        metafunc.parametrize("platform_name", K.available_platforms)
     if "dtype" in metafunc.fixturenames:
         metafunc.parametrize("precision", ["double", "single"])

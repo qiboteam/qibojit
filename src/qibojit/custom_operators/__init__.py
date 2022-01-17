@@ -52,8 +52,8 @@ class JITCustomBackend(NumpyBackend, AbstractCustomOperators):
             except ModuleNotFoundError:
                 pass
         # Construct ``NumbaPlatform``
-        from qibojit.custom_operators.backends import NumbaBackend
-        self._constructed_platforms = {"numba": NumbaBackend()}
+        from qibojit.custom_operators.platforms import NumbaPlatform
+        self._constructed_platforms = {"numba": NumbaPlatform()}
 
         import os
         if "OMP_NUM_THREADS" in os.environ: # pragma: no cover
@@ -97,15 +97,15 @@ class JITCustomBackend(NumpyBackend, AbstractCustomOperators):
             import cupy as xp # pylint: disable=E0401
             self.tensor_types = (self.np.ndarray, xp.ndarray)
             if self._constructed_platforms.get("cupy") is None:
-                from qibojit.custom_operators.backends import CupyBackend
-                self._constructed_platforms["cupy"] = CupyBackend()
+                from qibojit.custom_operators.platforms import CupyPlatform
+                self._constructed_platforms["cupy"] = CupyPlatform()
             self.default_device = self.gpu_devices[0]
         elif name == "cuquantum":
             import cupy as xp # pylint: disable=E0401
             self.tensor_types = (self.np.ndarray, xp.ndarray)
             if self._constructed_platforms.get("cuquantum") is None:
-                from qibojit.custom_operators.backends import CuQuantumBackend
-                self._constructed_platforms["cuquantum"] = CuQuantumBackend()
+                from qibojit.custom_operators.platforms import CuQuantumPlatform
+                self._constructed_platforms["cuquantum"] = CuQuantumPlatform()
             self.default_device = self.gpu_devices[0]
 
         self.platform = self._constructed_platforms.get(name)

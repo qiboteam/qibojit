@@ -3,13 +3,13 @@ import numpy as np
 from qibo import K
 
 
-def test_platform_setter_and_getter(backend_name):
-    original_backend = K.platform.name
-    K.set_platform(backend_name)
-    assert K.platform.name == backend_name
-    assert K.get_platform() == backend_name
+def test_platform_setter_and_getter(platform_name):
+    original_platform = K.platform.name
+    K.set_platform(platform_name)
+    assert K.platform.name == platform_name
+    assert K.get_platform() == platform_name
     K.set_platform("test")
-    K.set_platform(original_backend)
+    K.set_platform(original_platform)
 
 
 def test_device_setter():
