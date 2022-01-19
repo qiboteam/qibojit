@@ -2,7 +2,6 @@ from qibo.backends.abstract import AbstractBackend, AbstractCustomOperators
 from qibo.backends.numpy import NumpyBackend
 from qibo.abstractions.states import AbstractState
 from qibo.config import log, raise_error
-from qibojit.custom_operators.backends import NumbaBackend
 
 
 class CupyCpuDevice:  # pragma: no cover
@@ -12,14 +11,14 @@ class CupyCpuDevice:  # pragma: no cover
         self.K = K
 
     def __enter__(self, *args):
-        name = self.K.engine.name
+        name = self.K.platform.name
         if name != "numba":
-            self.original_engine = name
-        self.K.set_engine("numba")
+            self.original_platform = name
+        self.K.set_platform("numba")
 
     def __exit__(self, *args):
         if self.K.gpu_devices:
-            self.K.set_engine(self.original_engine)
+            self.K.set_platform(self.original_platform)
 
 
 class JITCustomBackend(NumpyBackend, AbstractCustomOperators):
@@ -33,16 +32,28 @@ class JITCustomBackend(NumpyBackend, AbstractCustomOperators):
         AbstractCustomOperators.__init__(self)
         self.is_custom = True
         self.name = "qibojit"
-        self.engine = None # active engine
-        self._numba_engine = NumbaBackend()
-        self._cupy_engine = None
-        self._cuquantum_engine = None
 
-        try: # pragma: no cover
+        # Find available platforms
+        self.available_platforms = ["numba"]
+        try:  # pragma: no cover
             from cupy import cuda # pylint: disable=E0401
-            ngpu = cuda.runtime.getDeviceCount()
-        except:
+            from cupy_backends.cuda.api.runtime import CUDARuntimeError
+            try:
+                ngpu = cuda.runtime.getDeviceCount()
+                self.available_platforms.append("cupy")
+            except CUDARuntimeError:
+                ngpu = 0
+        except ModuleNotFoundError:
             ngpu = 0
+        if ngpu > 0:  # pragma: no cover
+            try:
+                import cuquantum
+                self.available_platforms.append("cuquantum")
+            except ModuleNotFoundError:
+                pass
+        # Construct ``NumbaPlatform``
+        from qibojit.custom_operators.platforms import NumbaPlatform
+        self._constructed_platforms = {"numba": NumbaPlatform()}
 
         import os
         if "OMP_NUM_THREADS" in os.environ: # pragma: no cover
@@ -54,11 +65,9 @@ class JITCustomBackend(NumpyBackend, AbstractCustomOperators):
         self.gpu_devices = [f"/GPU:{i}" for i in range(ngpu)]
         if self.gpu_devices: # pragma: no cover
             # CI does not use GPUs
-            self.default_device = self.gpu_devices[0]
-            self.set_engine(os.environ.get("GPU_ENGINE", "cupy"))
+            self.set_platform(os.environ.get("QIBOJIT_PLATFORM", "cupy"))
         elif self.cpu_devices:
-            self.default_device = self.cpu_devices[0]
-            self.set_engine("numba")
+            self.set_platform(os.environ.get("QIBOJIT_PLATFORM", "numba"))
             self.set_threads(self.nthreads)
         self.cupy_cpu_device = CupyCpuDevice(self)
 
@@ -69,32 +78,37 @@ class JITCustomBackend(NumpyBackend, AbstractCustomOperators):
 
     def test_regressions(self, name): # pragma: no cover
         # Used for qibo tests only
-        if self.engine.name == "cupy":
-            return self.engine.test_regressions.get(name)
+        if self.platform.name in ("cupy", "cuquantum"):
+            return self.platform.test_regressions.get(name)
         return NumpyBackend.test_regressions(self, name)
 
-    def set_engine(self, name): # pragma: no cover
+    def set_platform(self, name): # pragma: no cover
         """Switcher between ``cupy`` and ``cuquantum`` for GPU and ``numba`` for CPU."""
+        if name not in self.available_platforms:
+            log.warn(f"Qibojit platform {name} is not available. "
+                      "Falling back to numba.")
+            name = "numba"
+
         if name == "numba":
             import numpy as xp
             self.tensor_types = (xp.ndarray,)
-            self.engine = self._numba_engine
+            self.default_device = self.cpu_devices[0]
         elif name == "cupy":
             import cupy as xp # pylint: disable=E0401
             self.tensor_types = (self.np.ndarray, xp.ndarray)
-            if self._cupy_engine is None:
-                from qibojit.custom_operators.backends import CupyBackend
-                self._cupy_engine = CupyBackend()
-            self.engine = self._cupy_engine
+            if self._constructed_platforms.get("cupy") is None:
+                from qibojit.custom_operators.platforms import CupyPlatform
+                self._constructed_platforms["cupy"] = CupyPlatform()
+            self.default_device = self.gpu_devices[0]
         elif name == "cuquantum":
             import cupy as xp # pylint: disable=E0401
             self.tensor_types = (self.np.ndarray, xp.ndarray)
-            if self._cuquantum_engine is None:
-                from qibojit.custom_operators.backends import CuQuantumBackend
-                self._cuquantum_engine = CuQuantumBackend()
-            self.engine = self._cuquantum_engine
-        else:
-            raise_error(ValueError, "Unknown engine {}.".format(name))
+            if self._constructed_platforms.get("cuquantum") is None:
+                from qibojit.custom_operators.platforms import CuQuantumPlatform
+                self._constructed_platforms["cuquantum"] = CuQuantumPlatform()
+            self.default_device = self.gpu_devices[0]
+
+        self.platform = self._constructed_platforms.get(name)
         self.backend = xp
         self.numeric_types = (int, float, complex, xp.int32,
                               xp.int64, xp.float32, xp.float64,
@@ -109,12 +123,15 @@ class JITCustomBackend(NumpyBackend, AbstractCustomOperators):
         else:
             self.matrices.allocate_matrices()
 
+    def get_platform(self):
+        return self.platform.name
+
     def set_device(self, name):
         AbstractBackend.set_device(self, name)
         if "GPU" in name: # pragma: no cover
-            self.set_engine("cupy")
+            self.set_platform("cupy")
         else:
-            self.set_engine("numba")
+            self.set_platform("numba")
 
     def set_threads(self, nthreads):
         AbstractBackend.set_threads(self, nthreads)
@@ -124,17 +141,17 @@ class JITCustomBackend(NumpyBackend, AbstractCustomOperators):
     def to_numpy(self, x):
         if isinstance(x, self.np.ndarray):
             return x
-        elif self.engine.name in ["cupy", "cuquantum"]  and isinstance(x, self.engine.cp.ndarray):  # pragma: no cover
+        elif self.platform.name in ("cupy", "cuquantum")  and isinstance(x, self.platform.cp.ndarray):  # pragma: no cover
             return x.get()
         return self.np.array(x)
 
     def cast(self, x, dtype='DTYPECPX'):
         if isinstance(dtype, str):
             dtype = self.dtypes(dtype)
-        return self.engine.cast(x, dtype=dtype)
+        return self.platform.cast(x, dtype=dtype)
 
     def check_shape(self, shape):
-        if self.engine.name in ["cupy", "cuquantum"]  and isinstance(shape, self.Tensor): # pragma: no cover
+        if self.platform.name in ("cupy", "cuquantum")  and isinstance(shape, self.Tensor): # pragma: no cover
             shape = shape.get()
         return shape
 
@@ -151,7 +168,7 @@ class JITCustomBackend(NumpyBackend, AbstractCustomOperators):
         return super().ones(self.check_shape(shape), dtype=dtype)
 
     def expm(self, x):
-        if self.engine.name in ["cupy", "cuquantum"]: # pragma: no cover
+        if self.platform.name in ("cupy", "cuquantum"): # pragma: no cover
             # Fallback to numpy because cupy does not have expm
             if isinstance(x, self.native_types):
                 x = x.get()
@@ -159,27 +176,27 @@ class JITCustomBackend(NumpyBackend, AbstractCustomOperators):
         return super().expm(x)
 
     def eigh(self, x):
-        if self.engine.name == "cupy" and self.engine.is_hip: # pragma: no cover
+        if self.platform.name == "cupy" and self.platform.is_hip: # pragma: no cover
             # FIXME: Fallback to numpy because eigh is not implemented in rocblas
             result = self.np.linalg.eigh(self.to_numpy(x))
             return self.cast(result[0]), self.cast(result[1])
         return super().eigh(x)
 
     def eigvalsh(self, x):
-        if self.engine.name == "cupy" and self.engine.is_hip: # pragma: no cover
+        if self.platform.name == "cupy" and self.platform.is_hip: # pragma: no cover
             # FIXME: Fallback to numpy because eigvalsh is not implemented in rocblas
             return self.cast(self.np.linalg.eigvalsh(self.to_numpy(x)))
         return super().eigvalsh(x)
 
     def unique(self, x, return_counts=False):
-        if self.engine.name in ["cupy", "cuquantum"]:  # pragma: no cover
+        if self.platform.name in ("cupy", "cuquantum"):  # pragma: no cover
             if isinstance(x, self.native_types):
                 x = x.get()
             # Uses numpy backend always
         return super().unique(x, return_counts)
 
     def gather(self, x, indices=None, condition=None, axis=0):
-        if self.engine.name in ["cupy", "cuquantum"]:  # pragma: no cover
+        if self.platform.name in ("cupy", "cuquantum"):  # pragma: no cover
             # Fallback to numpy because cupy does not support tuple indexing
             if isinstance(x, self.native_types):
                 x = x.get()
@@ -193,7 +210,7 @@ class JITCustomBackend(NumpyBackend, AbstractCustomOperators):
 
     def device(self, device_name):
         # assume tf naming convention '/GPU:0'
-        if self.engine.name == "numba":
+        if self.platform.name == "numba":
             return super().device(device_name)
         else: # pragma: no cover
             if "GPU" in device_name:
@@ -203,8 +220,8 @@ class JITCustomBackend(NumpyBackend, AbstractCustomOperators):
                 return self.cupy_cpu_device
 
     def initial_state(self, nqubits, is_matrix=False):
-        return self.engine.initial_state(nqubits, self.dtypes('DTYPECPX'),
-                                         is_matrix=is_matrix)
+        return self.platform.initial_state(nqubits, self.dtypes('DTYPECPX'),
+                                           is_matrix=is_matrix)
 
     def sample_frequencies(self, probs, nshots):
         from qibo.config import SHOT_METROPOLIS_THRESHOLD
@@ -218,7 +235,7 @@ class JITCustomBackend(NumpyBackend, AbstractCustomOperators):
         nqubits = int(self.np.log2(tuple(probs.shape)[0]))
         frequencies = self.np.zeros(2 ** nqubits, dtype=dtype)
         # always fall back to numba CPU backend because for ops not implemented on GPU
-        frequencies = self._numba_engine.measure_frequencies(
+        frequencies = self._constructed_platforms.get("numba").measure_frequencies(
             frequencies, probs, nshots, nqubits, seed, self.nthreads)
         return frequencies
 
@@ -318,11 +335,11 @@ class JITCustomBackend(NumpyBackend, AbstractCustomOperators):
         original_shape = state.shape
         state = state.ravel()
         # always fall back to numba CPU backend because for ops not implemented on GPU
-        state = self._numba_engine.transpose_state(pieces, state, nqubits, order)
+        state = self._constructed_platforms.get("numba").transpose_state(pieces, state, nqubits, order)
         return self.reshape(state, original_shape)
 
     def assert_allclose(self, value, target, rtol=1e-7, atol=0.0):
-        if self.engine.name in ["cupy", "cuquantum"]: # pragma: no cover
+        if self.platform.name in ("cupy", "cuquantum"): # pragma: no cover
             if isinstance(value, self.backend.ndarray):
                 value = value.get()
             if isinstance(target, self.backend.ndarray):
@@ -330,46 +347,46 @@ class JITCustomBackend(NumpyBackend, AbstractCustomOperators):
         self.np.testing.assert_allclose(value, target, rtol=rtol, atol=atol)
 
     def apply_gate(self, state, gate, nqubits, targets, qubits=None):
-        return self.engine.one_qubit_base(state, nqubits, *targets, "apply_gate", gate, qubits)
+        return self.platform.one_qubit_base(state, nqubits, *targets, "apply_gate", gate, qubits)
 
     def apply_x(self, state, nqubits, targets, qubits=None):
-        return self.engine.one_qubit_base(state, nqubits, *targets, "apply_x", self.matrices.X, qubits)
+        return self.platform.one_qubit_base(state, nqubits, *targets, "apply_x", self.matrices.X, qubits)
 
     def apply_y(self, state, nqubits, targets, qubits=None):
-        return self.engine.one_qubit_base(state, nqubits, *targets, "apply_y", self.matrices.Y, qubits)
+        return self.platform.one_qubit_base(state, nqubits, *targets, "apply_y", self.matrices.Y, qubits)
 
     def apply_z(self, state, nqubits, targets, qubits=None):
-        return self.engine.one_qubit_base(state, nqubits, *targets, "apply_z", self.matrices.Z, qubits)
+        return self.platform.one_qubit_base(state, nqubits, *targets, "apply_z", self.matrices.Z, qubits)
 
     def apply_z_pow(self, state, gate, nqubits, targets, qubits=None):
-        if self.engine.name == "cuquantum": # pragma: no cover
+        if self.platform.name == "cuquantum": # pragma: no cover
             phase = gate
-            gate = self.engine.cp.zeros((2, 2),dtype=state.dtype)
+            gate = self.platform.cp.zeros((2, 2),dtype=state.dtype)
             gate[0, 0], gate[1, 1] = 1, phase
-        return self.engine.one_qubit_base(state, nqubits, *targets, "apply_z_pow", gate, qubits)
+        return self.platform.one_qubit_base(state, nqubits, *targets, "apply_z_pow", gate, qubits)
 
     def apply_two_qubit_gate(self, state, gate, nqubits, targets, qubits=None):
-        return self.engine.two_qubit_base(state, nqubits, *targets, "apply_two_qubit_gate",
-                                          gate, qubits)
+        return self.platform.two_qubit_base(state, nqubits, *targets, "apply_two_qubit_gate",
+                                            gate, qubits)
 
     def apply_swap(self, state, nqubits, targets, qubits=None):
-        return self.engine.two_qubit_base(state, nqubits, *targets, "apply_swap", self.matrices.SWAP, qubits)
+        return self.platform.two_qubit_base(state, nqubits, *targets, "apply_swap", self.matrices.SWAP, qubits)
 
     def apply_fsim(self, state, gate, nqubits, targets, qubits=None):
-        if self.engine.name == "cuquantum": # pragma: no cover
-            fsimgate = self.engine.cp.zeros((4, 4),dtype=state.dtype)
+        if self.platform.name == "cuquantum": # pragma: no cover
+            fsimgate = self.platform.cp.zeros((4, 4),dtype=state.dtype)
             fsimgate[0, 0], fsimgate[3,3] = 1, gate[4]
             fsimgate[1,1], fsimgate[1,2] = gate[0], gate[1]
             fsimgate[2,1], fsimgate[2,2] = gate[2], gate[3]
             gate = fsimgate
-        return self.engine.two_qubit_base(state, nqubits, *targets, "apply_fsim", gate, qubits)
+        return self.platform.two_qubit_base(state, nqubits, *targets, "apply_fsim", gate, qubits)
 
     def apply_multi_qubit_gate(self, state, gate, nqubits, targets, qubits=None):
-        return self.engine.multi_qubit_base(state, nqubits, targets, gate, qubits)
+        return self.platform.multi_qubit_base(state, nqubits, targets, gate, qubits)
 
     def collapse_state(self, state, qubits, result, nqubits, normalize=True):
-        return self.engine.collapse_state(state, qubits, result, nqubits, normalize)
+        return self.platform.collapse_state(state, qubits, result, nqubits, normalize)
 
     def swap_pieces(self, piece0, piece1, new_global, nlocal):
         # always fall back to numba CPU backend because for ops not implemented on GPU
-        return self._numba_engine.swap_pieces(piece0, piece1, new_global, nlocal)
+        return self._constructed_platforms.get("numba").swap_pieces(piece0, piece1, new_global, nlocal)

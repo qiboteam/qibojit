@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 
 
-class AbstractBackend(ABC):
+class AbstractPlatform(ABC):
 
     def __init__(self): # pragma: no cover
         self.name = "abstract"
@@ -42,7 +42,7 @@ class AbstractBackend(ABC):
         raise NotImplementedError
 
 
-class NumbaBackend(AbstractBackend):
+class NumbaPlatform(AbstractPlatform):
 
     def __init__(self):
         import numpy as np
@@ -138,7 +138,7 @@ class NumbaBackend(AbstractBackend):
         return self.ops.measure_frequencies(frequencies, probs, nshots, nqubits, seed, nthreads)
 
 
-class CupyBackend(AbstractBackend): # pragma: no cover
+class CupyPlatform(AbstractPlatform): # pragma: no cover
     # CI does not test for GPU
 
     DEFAULT_BLOCK_SIZE = 1024
@@ -385,7 +385,7 @@ class CupyBackend(AbstractBackend): # pragma: no cover
                                   "implemented for GPU.")
 
 
-class CuQuantumBackend(CupyBackend): # pragma: no cover
+class CuQuantumPlatform(CupyPlatform): # pragma: no cover
     # CI does not test for GPU
 
     def __init__(self):
