@@ -12,17 +12,21 @@ class CupyCpuDevice:  # pragma: no cover
         self.K = K
 
     def __enter__(self, *args):
+        name = self.K.engine.name
+        if name != "numba":
+            self.original_engine = name
         self.K.set_engine("numba")
 
     def __exit__(self, *args):
         if self.K.gpu_devices:
-            self.K.set_engine("cupy")
+            self.K.set_engine(self.original_engine)
 
 
 class JITCustomBackend(NumpyBackend, AbstractCustomOperators):
 
     description = "Uses custom operators based on numba.jit for CPU and " \
-                  "custom CUDA kernels loaded with cupy GPU."
+                  "custom CUDA kernels loaded with cupy or CuQuantum for GPU."
+
 
     def __init__(self):
         NumpyBackend.__init__(self)
@@ -32,6 +36,7 @@ class JITCustomBackend(NumpyBackend, AbstractCustomOperators):
         self.engine = None # active engine
         self._numba_engine = NumbaBackend()
         self._cupy_engine = None
+        self._cuquantum_engine = None
 
         try: # pragma: no cover
             from cupy import cuda # pylint: disable=E0401
@@ -50,7 +55,7 @@ class JITCustomBackend(NumpyBackend, AbstractCustomOperators):
         if self.gpu_devices: # pragma: no cover
             # CI does not use GPUs
             self.default_device = self.gpu_devices[0]
-            self.set_engine("cupy")
+            self.set_engine(os.environ.get("GPU_ENGINE", "cupy"))
         elif self.cpu_devices:
             self.default_device = self.cpu_devices[0]
             self.set_engine("numba")
@@ -69,7 +74,7 @@ class JITCustomBackend(NumpyBackend, AbstractCustomOperators):
         return NumpyBackend.test_regressions(self, name)
 
     def set_engine(self, name): # pragma: no cover
-        """Switcher between ``cupy`` for GPU and ``numba`` for CPU."""
+        """Switcher between ``cupy`` and ``cuquantum`` for GPU and ``numba`` for CPU."""
         if name == "numba":
             import numpy as xp
             self.tensor_types = (xp.ndarray,)
@@ -81,6 +86,13 @@ class JITCustomBackend(NumpyBackend, AbstractCustomOperators):
                 from qibojit.custom_operators.backends import CupyBackend
                 self._cupy_engine = CupyBackend()
             self.engine = self._cupy_engine
+        elif name == "cuquantum":
+            import cupy as xp # pylint: disable=E0401
+            self.tensor_types = (self.np.ndarray, xp.ndarray)
+            if self._cuquantum_engine is None:
+                from qibojit.custom_operators.backends import CuQuantumBackend
+                self._cuquantum_engine = CuQuantumBackend()
+            self.engine = self._cuquantum_engine
         else:
             raise_error(ValueError, "Unknown engine {}.".format(name))
         self.backend = xp
@@ -112,7 +124,7 @@ class JITCustomBackend(NumpyBackend, AbstractCustomOperators):
     def to_numpy(self, x):
         if isinstance(x, self.np.ndarray):
             return x
-        elif self.engine.name == "cupy" and isinstance(x, self.engine.cp.ndarray):  # pragma: no cover
+        elif self.engine.name in ["cupy", "cuquantum"]  and isinstance(x, self.engine.cp.ndarray):  # pragma: no cover
             return x.get()
         return self.np.array(x)
 
@@ -122,7 +134,7 @@ class JITCustomBackend(NumpyBackend, AbstractCustomOperators):
         return self.engine.cast(x, dtype=dtype)
 
     def check_shape(self, shape):
-        if self.engine.name == "cupy" and isinstance(shape, self.Tensor): # pragma: no cover
+        if self.engine.name in ["cupy", "cuquantum"]  and isinstance(shape, self.Tensor): # pragma: no cover
             shape = shape.get()
         return shape
 
@@ -139,7 +151,7 @@ class JITCustomBackend(NumpyBackend, AbstractCustomOperators):
         return super().ones(self.check_shape(shape), dtype=dtype)
 
     def expm(self, x):
-        if self.engine.name == "cupy": # pragma: no cover
+        if self.engine.name in ["cupy", "cuquantum"]: # pragma: no cover
             # Fallback to numpy because cupy does not have expm
             if isinstance(x, self.native_types):
                 x = x.get()
@@ -160,14 +172,14 @@ class JITCustomBackend(NumpyBackend, AbstractCustomOperators):
         return super().eigvalsh(x)
 
     def unique(self, x, return_counts=False):
-        if self.engine.name == "cupy":  # pragma: no cover
+        if self.engine.name in ["cupy", "cuquantum"]:  # pragma: no cover
             if isinstance(x, self.native_types):
                 x = x.get()
             # Uses numpy backend always
         return super().unique(x, return_counts)
 
     def gather(self, x, indices=None, condition=None, axis=0):
-        if self.engine.name == "cupy":  # pragma: no cover
+        if self.engine.name in ["cupy", "cuquantum"]:  # pragma: no cover
             # Fallback to numpy because cupy does not support tuple indexing
             if isinstance(x, self.native_types):
                 x = x.get()
@@ -310,7 +322,7 @@ class JITCustomBackend(NumpyBackend, AbstractCustomOperators):
         return self.reshape(state, original_shape)
 
     def assert_allclose(self, value, target, rtol=1e-7, atol=0.0):
-        if self.engine.name == "cupy": # pragma: no cover
+        if self.engine.name in ["cupy", "cuquantum"]: # pragma: no cover
             if isinstance(value, self.backend.ndarray):
                 value = value.get()
             if isinstance(target, self.backend.ndarray):
@@ -318,32 +330,42 @@ class JITCustomBackend(NumpyBackend, AbstractCustomOperators):
         self.np.testing.assert_allclose(value, target, rtol=rtol, atol=atol)
 
     def apply_gate(self, state, gate, nqubits, targets, qubits=None):
-        return self.engine.one_qubit_base(state, nqubits, *targets, "apply_gate", qubits, gate)
+        return self.engine.one_qubit_base(state, nqubits, *targets, "apply_gate", gate, qubits)
 
     def apply_x(self, state, nqubits, targets, qubits=None):
-        return self.engine.one_qubit_base(state, nqubits, *targets, "apply_x", qubits)
+        return self.engine.one_qubit_base(state, nqubits, *targets, "apply_x", self.matrices.X, qubits)
 
     def apply_y(self, state, nqubits, targets, qubits=None):
-        return self.engine.one_qubit_base(state, nqubits, *targets, "apply_y", qubits)
+        return self.engine.one_qubit_base(state, nqubits, *targets, "apply_y", self.matrices.Y, qubits)
 
     def apply_z(self, state, nqubits, targets, qubits=None):
-        return self.engine.one_qubit_base(state, nqubits, *targets, "apply_z", qubits)
+        return self.engine.one_qubit_base(state, nqubits, *targets, "apply_z", self.matrices.Z, qubits)
 
     def apply_z_pow(self, state, gate, nqubits, targets, qubits=None):
-        return self.engine.one_qubit_base(state, nqubits, *targets, "apply_z_pow", qubits, gate)
+        if self.engine.name == "cuquantum": # pragma: no cover
+            phase = gate
+            gate = self.engine.cp.zeros((2, 2),dtype=state.dtype)
+            gate[0, 0], gate[1, 1] = 1, phase
+        return self.engine.one_qubit_base(state, nqubits, *targets, "apply_z_pow", gate, qubits)
 
     def apply_two_qubit_gate(self, state, gate, nqubits, targets, qubits=None):
         return self.engine.two_qubit_base(state, nqubits, *targets, "apply_two_qubit_gate",
-                                          qubits, gate)
+                                          gate, qubits)
 
     def apply_swap(self, state, nqubits, targets, qubits=None):
-        return self.engine.two_qubit_base(state, nqubits, *targets, "apply_swap", qubits)
+        return self.engine.two_qubit_base(state, nqubits, *targets, "apply_swap", self.matrices.SWAP, qubits)
 
     def apply_fsim(self, state, gate, nqubits, targets, qubits=None):
-        return self.engine.two_qubit_base(state, nqubits, *targets, "apply_fsim", qubits, gate)
+        if self.engine.name == "cuquantum": # pragma: no cover
+            fsimgate = self.engine.cp.zeros((4, 4),dtype=state.dtype)
+            fsimgate[0, 0], fsimgate[3,3] = 1, gate[4]
+            fsimgate[1,1], fsimgate[1,2] = gate[0], gate[1]
+            fsimgate[2,1], fsimgate[2,2] = gate[2], gate[3]
+            gate = fsimgate
+        return self.engine.two_qubit_base(state, nqubits, *targets, "apply_fsim", gate, qubits)
 
     def apply_multi_qubit_gate(self, state, gate, nqubits, targets, qubits=None):
-        return self.engine.multi_qubit_base(state, nqubits, targets, qubits, gate)
+        return self.engine.multi_qubit_base(state, nqubits, targets, gate, qubits)
 
     def collapse_state(self, state, qubits, result, nqubits, normalize=True):
         return self.engine.collapse_state(state, qubits, result, nqubits, normalize)

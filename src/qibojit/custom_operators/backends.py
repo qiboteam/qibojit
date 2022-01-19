@@ -14,11 +14,11 @@ class AbstractBackend(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def one_qubit_base(self, state, nqubits, target, kernel, qubits=None, gate=None): # pragma: no cover
+    def one_qubit_base(self, state, nqubits, target, kernel, gate, qubits=None): # pragma: no cover
         raise NotImplementedError
 
     @abstractmethod
-    def two_qubit_base(self, state, nqubits, target1, target2, kernel, qubits=None, gate=None): # pragma: no cover
+    def two_qubit_base(self, state, nqubits, target1, target2, kernel, gate, qubits=None): # pragma: no cover
         raise NotImplementedError
 
     @abstractmethod
@@ -72,7 +72,7 @@ class NumbaBackend(AbstractBackend):
                 x = self.np.array(x.get(), dtype=dtype, copy=False)
             return x
 
-    def one_qubit_base(self, state, nqubits, target, kernel, qubits=None, gate=None):
+    def one_qubit_base(self, state, nqubits, target, kernel, gate, qubits=None):
         ncontrols = len(qubits) - 1 if qubits is not None else 0
         m = nqubits - target - 1
         nstates = 1 << (nqubits - ncontrols - 1)
@@ -82,7 +82,7 @@ class NumbaBackend(AbstractBackend):
         kernel = getattr(self.gates, "{}_kernel".format(kernel))
         return kernel(state, gate, nstates, m)
 
-    def two_qubit_base(self, state, nqubits, target1, target2, kernel, qubits=None, gate=None):
+    def two_qubit_base(self, state, nqubits, target1, target2, kernel, gate, qubits=None):
         ncontrols = len(qubits) - 2 if qubits is not None else 0
         if target1 > target2:
             swap_targets = True
@@ -99,7 +99,7 @@ class NumbaBackend(AbstractBackend):
         kernel = getattr(self.gates, "{}_kernel".format(kernel))
         return kernel(state, gate, nstates, m1, m2, swap_targets)
 
-    def multi_qubit_base(self, state, nqubits, targets, qubits=None, gate=None):
+    def multi_qubit_base(self, state, nqubits, targets, gate, qubits=None):
         if qubits is None:
             qubits = self.np.array(sorted(nqubits - q - 1 for q in targets), dtype="int32")
         nstates = 1 << (nqubits - len(qubits))
@@ -248,14 +248,13 @@ class CupyBackend(AbstractBackend): # pragma: no cover
             return self.kernel_float_suffix
         raise TypeError("State of invalid type {}.".format(state.dtype))
 
-    def one_qubit_base(self, state, nqubits, target, kernel, qubits=None, gate=None):
+    def one_qubit_base(self, state, nqubits, target, kernel, gate, qubits=None):
         ncontrols = len(qubits) - 1 if qubits is not None else 0
         m = nqubits - target - 1
         tk = 1 << m
         nstates = 1 << (nqubits - ncontrols - 1)
-
         state = self.cast(state)
-        if gate is None:
+        if kernel in ("apply_x", "apply_y", "apply_z"):
             args = (state, tk, m)
         else:
             args = (state, tk, m, self.cast(gate, dtype=state.dtype).flatten())
@@ -272,7 +271,7 @@ class CupyBackend(AbstractBackend): # pragma: no cover
         self.cp.cuda.stream.get_current_stream().synchronize()
         return state
 
-    def two_qubit_base(self, state, nqubits, target1, target2, kernel, qubits=None, gate=None):
+    def two_qubit_base(self, state, nqubits, target1, target2, kernel, gate, qubits=None):
         ncontrols = len(qubits) - 2 if qubits is not None else 0
         if target1 > target2:
             m1 = nqubits - target1 - 1
@@ -287,7 +286,7 @@ class CupyBackend(AbstractBackend): # pragma: no cover
         nstates = 1 << (nqubits - 2 - ncontrols)
 
         state = self.cast(state)
-        if gate is None:
+        if kernel == "apply_swap":
             args = (state, tk1, tk2, m1, m2, uk1, uk2)
         else:
             args = (state, tk1, tk2, m1, m2, uk1, uk2, self.cast(gate).flatten())
@@ -305,7 +304,7 @@ class CupyBackend(AbstractBackend): # pragma: no cover
         self.cp.cuda.stream.get_current_stream().synchronize()
         return state
 
-    def multi_qubit_base(self, state, nqubits, targets, qubits=None, gate=None):
+    def multi_qubit_base(self, state, nqubits, targets, gate, qubits=None):
         assert gate is not None
         state = self.cast(state)
         gate = self.cast(gate.flatten())
@@ -384,3 +383,285 @@ class CupyBackend(AbstractBackend): # pragma: no cover
     def measure_frequencies(self, frequencies, probs, nshots, nqubits, seed=1234, nthreads=None):
         raise NotImplementedError("`measure_frequencies` method is not "
                                   "implemented for GPU.")
+
+
+class CuQuantumBackend(CupyBackend): # pragma: no cover
+    # CI does not test for GPU
+
+    def __init__(self):
+        super().__init__()
+        import cuquantum # pylint: disable=import-error
+        from cuquantum import custatevec as cusv # pylint: disable=import-error
+        self.cuquantum = cuquantum
+        self.cusv = cusv
+        self.name = "cuquantum"
+
+    def get_cuda_type(self, dtype='complex64'):
+        if dtype == 'complex128':
+            return self.cuquantum.cudaDataType.CUDA_C_64F, self.cuquantum.ComputeType.COMPUTE_64F
+        elif dtype == 'complex64':
+            return self.cuquantum.cudaDataType.CUDA_C_32F, self.cuquantum.ComputeType.COMPUTE_32F
+        else:
+            raise TypeError("Type can be either complex64 or complex128")
+
+    def one_qubit_base(self, state, nqubits, target, kernel, gate, qubits=None):
+        # initialize cuStateVec library
+        handle = self.cusv.create()
+
+        ntarget = 1
+        target = nqubits - target - 1
+        target = self.np.asarray([target], dtype = self.np.int32)
+        if qubits is not None:
+            ncontrols = len(qubits) - 1
+            controls = self.np.asarray([i for i in qubits.get() if i != target], dtype = self.np.int32)
+        else:
+            ncontrols = 0
+            controls = self.np.empty(0)
+        adjoint = 0
+
+        state = self.cast(state)
+        gate = self.cast(gate)
+        assert state.dtype == gate.dtype
+        data_type, compute_type = self.get_cuda_type(state.dtype)
+        if isinstance(gate, self.cp.ndarray):
+            gate_ptr = gate.data.ptr
+        elif isinstance(gate, self.np.ndarray):
+            gate_ptr = gate.ctypes.data
+        else:
+            raise ValueError
+
+        workspaceSize = self.cusv.apply_matrix_buffer_size(handle,
+                                                           data_type,
+                                                           nqubits,
+                                                           gate_ptr,
+                                                           data_type,
+                                                           self.cusv.MatrixLayout.ROW,
+                                                           adjoint,
+                                                           ntarget,
+                                                           ncontrols,
+                                                           compute_type
+                                                           )
+
+        # check the size of external workspace
+        if workspaceSize > 0:
+            workspace = self.cp.cuda.memory.alloc(workspaceSize)
+            workspace_ptr = workspace.ptr
+        else:
+            workspace_ptr = 0
+
+        self.cusv.apply_matrix(handle,
+                               state.data.ptr,
+                               data_type,
+                               nqubits,
+                               gate_ptr,
+                               data_type,
+                               self.cusv.MatrixLayout.ROW,
+                               adjoint,
+                               target.ctypes.data,
+                               ntarget,
+                               controls.ctypes.data,
+                               ncontrols,
+                               0,
+                               compute_type,
+                               workspace_ptr,
+                               workspaceSize
+                               )
+
+        self.cusv.destroy(handle)
+        return state
+
+    def two_qubit_base(self, state, nqubits, target1, target2, kernel, gate, qubits=None):
+        # initialize cuStateVec library
+        handle = self.cusv.create()
+
+        ntarget = 2
+        target1 = nqubits - target1 - 1
+        target2 = nqubits - target2 - 1
+        target = self.np.asarray([target2, target1], dtype=self.np.int32)
+        if qubits is not None:
+            ncontrols = len(qubits) - 2
+            controls = self.np.asarray([i for i in qubits.get() if i not in [target1, target2]], dtype = self.np.int32)
+        else:
+            ncontrols = 0
+            controls = self.np.empty(0)
+
+        adjoint = 0
+
+        state = self.cast(state)
+        gate = self.cast(gate)
+
+        assert state.dtype == gate.dtype
+        data_type, compute_type = self.get_cuda_type(state.dtype)
+
+        if kernel == 'apply_swap' and ncontrols == 0:
+            nBasisBits = 2
+            maskLen = 0
+            maskBitString = 0
+            maskOrdering = 0
+            basisBits = target
+            permutation  = self.np.asarray([0, 2, 1, 3], dtype=self.np.int64)
+            diagonals  = self.np.asarray([1, 1, 1, 1], dtype=state.dtype)
+
+            workspaceSize = self.cusv.apply_generalized_permutation_matrix_buffer_size(
+                handle,
+                data_type,
+                nqubits,
+                permutation.ctypes.data,
+                diagonals.ctypes.data,
+                data_type,
+                basisBits,
+                nBasisBits,
+                maskLen)
+
+            if workspaceSize > 0:
+                workspace = self.cp.cuda.memory.alloc(workspaceSize)
+                workspace_ptr = workspace.ptr
+            else:
+                workspace_ptr = 0
+
+            # apply matrix
+            self.cusv.apply_generalized_permutation_matrix(
+                handle, state.data.ptr, data_type, nqubits,
+                permutation.ctypes.data, diagonals.ctypes.data, data_type, adjoint,
+                basisBits, nBasisBits, maskBitString, maskOrdering, maskLen,
+                workspace_ptr, workspaceSize)
+
+            self.cusv.destroy(handle)
+            return state
+
+        if isinstance(gate, self.cp.ndarray):
+            gate_ptr = gate.data.ptr
+        elif isinstance(gate, self.np.ndarray):
+            gate_ptr = gate.ctypes.data
+        else:
+            raise ValueError
+
+        workspaceSize = self.cusv.apply_matrix_buffer_size(handle,
+                                                           data_type,
+                                                           nqubits,
+                                                           gate_ptr,
+                                                           data_type,
+                                                           self.cusv.MatrixLayout.ROW,
+                                                           adjoint,
+                                                           ntarget,
+                                                           ncontrols,
+                                                           compute_type
+                                                           )
+
+        # check the size of external workspace
+        if workspaceSize > 0:
+            workspace = self.cp.cuda.memory.alloc(workspaceSize)
+            workspace_ptr = workspace.ptr
+        else:
+            workspace_ptr = 0
+
+        self.cusv.apply_matrix(handle,
+                               state.data.ptr,
+                               data_type,
+                               nqubits,
+                               gate_ptr,
+                               data_type,
+                               self.cusv.MatrixLayout.ROW,
+                               adjoint,
+                               target.ctypes.data,
+                               ntarget,
+                               controls.ctypes.data,
+                               ncontrols,
+                               0,
+                               compute_type,
+                               workspace_ptr,
+                               workspaceSize
+                               )
+
+        self.cusv.destroy(handle)
+        return state
+
+    def multi_qubit_base(self, state, nqubits, targets, gate, qubits=None):
+        handle = self.cusv.create()
+        state = self.cast(state)
+        ntarget = len(targets)
+        if qubits is None:
+            qubits = self.cast(sorted(nqubits - q - 1 for q in targets), dtype = self.cp.int32)
+        target = [nqubits - q - 1 for q in targets]
+        target = self.np.asarray(target[::-1], dtype = self.np.int32)
+        controls = self.np.asarray([i for i in qubits.get() if i not in target], dtype = self.np.int32)
+        ncontrols = len(controls)
+        adjoint = 0
+        gate = self.cast(gate)
+        assert state.dtype == gate.dtype
+        data_type, compute_type = self.get_cuda_type(state.dtype)
+
+        if isinstance(gate, self.cp.ndarray):
+            gate_ptr = gate.data.ptr
+        elif isinstance(gate, self.np.ndarray):
+            gate_ptr = gate.ctypes.data
+        else:
+            raise ValueError
+
+        workspaceSize = self.cusv.apply_matrix_buffer_size(handle,
+                                                           data_type,
+                                                           nqubits,
+                                                           gate_ptr,
+                                                           data_type,
+                                                           self.cusv.MatrixLayout.ROW,
+                                                           adjoint,
+                                                           ntarget,
+                                                           ncontrols,
+                                                           compute_type
+                                                           )
+
+        # check the size of external workspace
+        if workspaceSize > 0:
+            workspace = self.cp.cuda.memory.alloc(workspaceSize)
+            workspace_ptr = workspace.ptr
+        else:
+            workspace_ptr = 0
+
+        self.cusv.apply_matrix(handle,
+                               state.data.ptr,
+                               data_type,
+                               nqubits,
+                               gate_ptr,
+                               data_type,
+                               self.cusv.MatrixLayout.ROW,
+                               adjoint,
+                               target.ctypes.data,
+                               ntarget,
+                               controls.ctypes.data,
+                               ncontrols,
+                               0,
+                               compute_type,
+                               workspace_ptr,
+                               workspaceSize
+                               )
+
+        self.cusv.destroy(handle)
+        return state
+
+    def collapse_state(self, state, qubits, result, nqubits, normalize=True):
+
+        handle = self.cusv.create()
+        state = self.cast(state)
+        results = bin(result).replace("0b", "")
+        results = list(map(int,  '0'* (len(qubits) - len(results)) + results))[::-1]
+        ntarget = 1
+        qubits = self.np.asarray(qubits.get(), dtype = self.np.int32)
+        data_type, compute_type = self.get_cuda_type(state.dtype)
+
+        for i  in range(len(results)):
+            self.cusv.collapse_on_z_basis(handle,
+                                          state.data.ptr,
+                                          data_type,
+                                          nqubits,
+                                          results[i],
+                                          [qubits[i]],
+                                          ntarget,
+                                          1
+                                          )
+
+        if normalize:
+            norm  = self.cp.sqrt(self.cp.sum(self.cp.square(self.cp.abs(state))))
+            state = state / norm
+
+        self.cusv.destroy(handle)
+        return state
