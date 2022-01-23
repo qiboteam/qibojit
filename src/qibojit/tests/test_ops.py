@@ -8,7 +8,7 @@ from qibojit.tests.test_gates import qubits_tensor, random_complex, random_state
 
 @pytest.mark.parametrize("precision", ["double", "single"])
 @pytest.mark.parametrize("is_matrix", [False, True])
-def test_initial_state(backend, precision, is_matrix):
+def test_initial_state(platform, precision, is_matrix):
     original_precision = K.precision
     dtype = "complex128" if precision == "double" else "complex64"
     K.set_precision(precision)
@@ -23,8 +23,8 @@ def test_initial_state(backend, precision, is_matrix):
 
 
 @pytest.mark.parametrize("is_matrix", [False, True])
-def test_backends_initial_state(backend, dtype, is_matrix):
-    final_state =  K.engine.initial_state(4, dtype, is_matrix)
+def test_backends_initial_state(platform, dtype, is_matrix):
+    final_state =  K.platform.initial_state(4, dtype, is_matrix)
     if is_matrix:
         target_state = np.array([1] + [0]*255, dtype=dtype)
         target_state = np.reshape(target_state, (16, 16))
@@ -38,7 +38,7 @@ def test_backends_initial_state(backend, dtype, is_matrix):
                           (4, [1, 3], [1, 0]), (5, [1, 2, 4], [0, 1, 1]),
                           (15, [4, 7], [0, 0]), (16, [8, 12, 15], [1, 0, 1])])
 @pytest.mark.parametrize("normalize", [False, True])
-def test_collapse_state(backend, nqubits, targets, results, normalize, dtype):
+def test_collapse_state(platform, nqubits, targets, results, normalize, dtype):
     atol = 1e-7 if dtype == "complex64" else 1e-14
     state = random_state(nqubits, dtype)
     slicer = nqubits * [slice(None)]
@@ -62,7 +62,7 @@ def test_collapse_state(backend, nqubits, targets, results, normalize, dtype):
 
 @pytest.mark.parametrize("gatename", ["H", "X", "Z"])
 @pytest.mark.parametrize("density_matrix", [False, True])
-def test_collapse_call(backend, gatename, density_matrix):
+def test_collapse_call(platform, gatename, density_matrix):
     from qibo import gates
     if density_matrix:
         state = random_complex((8, 8))
@@ -167,19 +167,19 @@ def test_swap_pieces(nqubits, qlocal, qglobal, dtype):
 @pytest.mark.parametrize("realtype", ["float32", "float64"])
 @pytest.mark.parametrize("inttype", ["int32", "int64"])
 @pytest.mark.parametrize("nthreads", [None, 4])
-def test_measure_frequencies(backend, realtype, inttype, nthreads):
+def test_measure_frequencies(platform, realtype, inttype, nthreads):
     probs = np.ones(16, dtype=realtype) / 16
     frequencies = np.zeros(16, dtype=inttype)
-    if K.engine.name == "cupy":  # pragma: no cover
+    if K.platform.name in ["cupy", "cuquantum"]:  # pragma: no cover
         # CI does not test for GPU
         with pytest.raises(NotImplementedError):
-            frequencies = K.engine.measure_frequencies(frequencies, probs, nshots=1000,
-                                                       nqubits=4, seed=1234,
-                                                       nthreads=nthreads)
+            frequencies = K.platform.measure_frequencies(frequencies, probs, nshots=1000,
+                                                         nqubits=4, seed=1234,
+                                                         nthreads=nthreads)
     else:
-        frequencies = K.engine.measure_frequencies(frequencies, probs, nshots=1000,
-                                                   nqubits=4, seed=1234,
-                                                   nthreads=nthreads)
+        frequencies = K.platform.measure_frequencies(frequencies, probs, nshots=1000,
+                                                     nqubits=4, seed=1234,
+                                                     nthreads=nthreads)
         assert np.sum(frequencies) == 1000
         if nthreads is not None:
             target_frequencies = np.array([72, 65, 63, 54, 57, 55, 67, 50, 53, 67, 69,
@@ -193,7 +193,7 @@ NONZERO.extend(itertools.combinations(range(8), r=3))
 NONZERO.extend(itertools.combinations(range(8), r=4))
 NSHOTS = (len(NONZERO) // 2 + 1) * [1000, 200000]
 @pytest.mark.parametrize("nonzero,nshots", zip(NONZERO, NSHOTS))
-def test_measure_frequencies_sparse_probabilities(backend, nonzero, nshots):
+def test_measure_frequencies_sparse_probabilities(platform, nonzero, nshots):
     probs = np.zeros(8, dtype=np.float64)
     for i in nonzero:
         probs[i] = 1
