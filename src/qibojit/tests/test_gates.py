@@ -22,6 +22,13 @@ def random_state(nqubits, dtype="complex128"):
     return x / np.sqrt(np.sum(np.abs(x) ** 2))
 
 
+def random_unitary(nqubits, dtype="complex128"):
+    from scipy.linalg import expm
+    shape = 2 * (2 ** nqubits,)
+    m = random_complex(shape, dtype=dtype)
+    return expm(1j * (m + m.T.conj()))
+
+
 @pytest.mark.parametrize(("nqubits", "target", "controls"),
                          [(5, 4, []), (4, 2, []), (3, 0, []), (8, 5, []),
                           (3, 0, [1, 2]), (4, 3, [0, 1, 2]),
@@ -29,7 +36,7 @@ def random_state(nqubits, dtype="complex128"):
                           (6, 3, [0, 2, 4, 5])])
 def test_apply_gate(platform, nqubits, target, controls, dtype):
     state = random_state(nqubits, dtype=dtype)
-    matrix = random_complex((2, 2), dtype=dtype)
+    matrix = random_unitary(1, dtype=dtype)
 
     qibo.set_backend("numpy")
     gate = gates.Unitary(matrix, target).controlled_by(*controls)
@@ -103,7 +110,7 @@ def test_apply_zpow_gate(platform, nqubits, target, controls, dtype):
                           (6, [2, 5], [0, 1, 3, 4])])
 def test_apply_two_qubit_gate(platform, nqubits, targets, controls, dtype):
     state = random_state(nqubits, dtype=dtype)
-    matrix = random_complex((4, 4), dtype=dtype)
+    matrix = random_unitary(2, dtype=dtype)
 
     qibo.set_backend("numpy")
     gate = gates.Unitary(matrix, *targets).controlled_by(*controls)

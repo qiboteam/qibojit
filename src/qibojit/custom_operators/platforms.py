@@ -10,7 +10,7 @@ class AbstractPlatform(ABC):
         self.test_regressions = {}
 
     @abstractmethod
-    def cast(self, x, dtype=None): # pragma: no cover
+    def cast(self, x, dtype=None, order=None): # pragma: no cover
         raise NotImplementedError
 
     @abstractmethod
@@ -57,19 +57,19 @@ class NumbaPlatform(AbstractPlatform):
             5: self.gates.apply_five_qubit_gate_kernel
             }
 
-    def cast(self, x, dtype=None):
+    def cast(self, x, dtype=None, order='K'):
         if isinstance(x, self.np.ndarray):
             if dtype is None:
                 return x
             else:
-                return x.astype(dtype, copy=False)
+                return x.astype(dtype, copy=False, order=order)
         else:
             try:
-                x = self.np.array(x, dtype=dtype)
+                x = self.np.array(x, dtype=dtype, order=order)
             # only for CuPy arrays, as implicit conversion raises TypeError
             # and you need to cast manually using x.get()
             except TypeError: # pragma: no cover
-                x = self.np.array(x.get(), dtype=dtype, copy=False)
+                x = self.np.array(x.get(), dtype=dtype, copy=False, order=order)
             return x
 
     def one_qubit_base(self, state, nqubits, target, kernel, gate, qubits=None):
@@ -234,13 +234,13 @@ class CupyPlatform(AbstractPlatform): # pragma: no cover
             block_size = nstates
         return nblocks, block_size
 
-    def cast(self, x, dtype=None):
+    def cast(self, x, dtype=None, order='C'):
         if isinstance(x, self.cp.ndarray):
             if dtype is None:
                 return x
             else:
-                return x.astype(dtype, copy=False)
-        return self.cp.asarray(x, dtype=dtype)
+                return x.astype(dtype, copy=False, order=order)
+        return self.cp.asarray(x, dtype=dtype, order=order)
 
     def get_kernel_type(self, state):
         if state.dtype == self.cp.complex128:
@@ -640,7 +640,6 @@ class CuQuantumPlatform(CupyPlatform): # pragma: no cover
         return state
 
     def collapse_state(self, state, qubits, result, nqubits, normalize=True):
-
         handle = self.cusv.create()
         state = self.cast(state)
         results = bin(result).replace("0b", "")
