@@ -65,7 +65,7 @@ class NumbaPlatform(AbstractPlatform):
                 return x.astype(dtype, copy=False, order=order)
         else:
             try:
-                x = self.np.array(x, dtype=dtype)
+                x = self.np.array(x, dtype=dtype, order=order)
             # only for CuPy arrays, as implicit conversion raises TypeError
             # and you need to cast manually using x.get()
             except TypeError: # pragma: no cover
