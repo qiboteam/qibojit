@@ -9,9 +9,10 @@ class CupyCpuDevice:  # pragma: no cover
 
     def __init__(self, K):
         self.K = K
+        self.original_platform = None
 
     def __enter__(self, *args):
-        name = self.K.platform.name
+        name = self.K.get_platform()
         if name != "numba":
             self.original_platform = name
         self.K.set_platform("numba")
