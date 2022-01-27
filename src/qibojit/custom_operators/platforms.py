@@ -45,6 +45,12 @@ class AbstractPlatform(ABC):
 class NumbaPlatform(AbstractPlatform):
 
     def __init__(self):
+        # check if cache exists
+        from pathlib import Path
+        if list((Path(__file__).parent / "__pycache__").glob("*.nbi")) == []:
+            from qibo.config import log
+            log.info("Importing qibojit for the first time, compiling kernels, please wait.")
+
         import numpy as np
         from qibojit.custom_operators import gates, ops
         self.name = "numba"

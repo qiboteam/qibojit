@@ -25,15 +25,6 @@ this_directory = os.path.abspath(os.path.dirname(__file__))
 with open(os.path.join(this_directory, "README.md"), encoding="utf-8") as f:
     long_description = f.read()
 
-
-class CustomInstall(install):
-    def run(self):
-        install.run(self)
-        os.environ["CUDA_VISIBLE_DEVICES"] = ""
-        os.environ["HIP_VISIBLE_DEVICES"] = ""
-        from qibo import K
-
-
 setup(
     name=PACKAGE,
     version=get_version(),
@@ -45,9 +36,6 @@ setup(
     package_dir={"": "src"},
     package_data={"": ["*.cc"]},
     zip_safe=False,
-    cmdclass = {
-        "install": CustomInstall
-    },
     classifiers=[
         "Programming Language :: Python :: 3",
         "Topic :: Scientific/Engineering :: Physics",
