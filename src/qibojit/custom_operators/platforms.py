@@ -47,9 +47,10 @@ class NumbaPlatform(AbstractPlatform):
     def __init__(self):
         # check if cache exists
         from pathlib import Path
-        if list((Path(__file__).parent / "__pycache__").glob("*.nbi")) == []: # pragma: no cover
+        if not list((Path(__file__).parent / "__pycache__").glob("*.nbi")): # pragma: no cover
             from qibo.config import log
-            log.info("Importing qibojit for the first time, compiling kernels, please wait.")
+            log.info("Compiling kernels because qibojit is imported for the first time," \
+                     "please wait. Compilation happens only once after installing qibojit.")
 
         import numpy as np
         from qibojit.custom_operators import gates, ops
