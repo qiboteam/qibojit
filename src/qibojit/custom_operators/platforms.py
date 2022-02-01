@@ -407,6 +407,7 @@ class CuQuantumPlatform(CupyPlatform): # pragma: no cover
         self.cuquantum = cuquantum
         self.cusv = cusv
         self.name = "cuquantum"
+        self.supports_multigpu = False
 
     def get_cuda_type(self, dtype='complex64'):
         if dtype == 'complex128':
