@@ -8,6 +8,7 @@ class AbstractPlatform(ABC):
         self.gates = None
         self.ops = None
         self.test_regressions = {}
+        self.supports_multigpu = False
 
     @abstractmethod
     def cast(self, x, dtype=None, order=None): # pragma: no cover
@@ -54,6 +55,7 @@ class NumbaPlatform(AbstractPlatform):
 
         import numpy as np
         from qibojit.custom_operators import gates, ops
+        super().__init__()
         self.name = "numba"
         self.gates = gates
         self.ops = ops
@@ -162,9 +164,11 @@ class CupyPlatform(AbstractPlatform): # pragma: no cover
         except cp.cuda.runtime.CUDARuntimeError:
             raise ImportError("Could not detect cupy compatible devices.")
 
+        super().__init__()
         self.name = "cupy"
         self.np = np
         self.cp = cp
+        self.supports_multigpu = True
         self.is_hip = cupy_backends.cuda.api.runtime.is_hip
         self.KERNELS = ("apply_gate", "apply_x", "apply_y", "apply_z", "apply_z_pow",
                         "apply_two_qubit_gate", "apply_fsim", "apply_swap")

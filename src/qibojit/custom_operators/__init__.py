@@ -62,6 +62,7 @@ class JITCustomBackend(NumpyBackend, AbstractCustomOperators):
         if "NUMBA_NUM_THREADS" in os.environ: # pragma: no cover
             self.set_threads(int(os.environ.get("NUMBA_NUM_THREADS")))
 
+        self.platform = None
         self.cpu_devices = ["/CPU:0"]
         self.gpu_devices = [f"/GPU:{i}" for i in range(ngpu)]
         if self.gpu_devices: # pragma: no cover
@@ -71,11 +72,6 @@ class JITCustomBackend(NumpyBackend, AbstractCustomOperators):
             self.set_platform(os.environ.get("QIBOJIT_PLATFORM", "numba"))
             self.set_threads(self.nthreads)
         self.cupy_cpu_device = CupyCpuDevice(self)
-
-        # enable multi-GPU if no macos
-        import sys
-        if sys.platform != "darwin":
-            self.supports_multigpu = True
 
     def test_regressions(self, name): # pragma: no cover
         # Used for qibo tests only
@@ -118,6 +114,10 @@ class JITCustomBackend(NumpyBackend, AbstractCustomOperators):
         self.Tensor = xp.ndarray
         self.random = xp.random
         self.newaxis = xp.newaxis
+        # enable multi-GPU if no macos
+        import sys
+        if sys.platform != "darwin":
+            self.supports_multigpu = self.platform.supports_multigpu
         if "GPU" in self.default_device: # pragma: no cover
             with self.device(self.default_device):
                 self.matrices.allocate_matrices()
