@@ -15,6 +15,14 @@ class AbstractPlatform(ABC):
         raise NotImplementedError
 
     @abstractmethod
+    def to_numpy(self, x): # pragma: no cover
+        raise NotImplementedError
+
+    @abstractmethod
+    def issparse(self, x): # pragma: no cover
+        raise NotImplementedError
+
+    @abstractmethod
     def one_qubit_base(self, state, nqubits, target, kernel, gate, qubits=None): # pragma: no cover
         raise NotImplementedError
 
@@ -87,6 +95,9 @@ class NumbaPlatform(AbstractPlatform):
         if self.sparse.issparse(x):
             return x.toarray()
         return self.np.array(x, copy=False)
+
+    def issparse(self, x):
+        return self.sparse.issparse(x)
 
     def one_qubit_base(self, state, nqubits, target, kernel, gate, qubits=None):
         ncontrols = len(qubits) - 1 if qubits is not None else 0
@@ -276,6 +287,9 @@ class CupyPlatform(AbstractPlatform): # pragma: no cover
         elif self.npsparse.issparse(x):
             return x.toarray()
         return self.np.array(x, copy=False)
+
+    def issparse(self, x):
+        return self.sparse.issparse(x) or self.npsparse.issparse(x)
 
     def get_kernel_type(self, state):
         if state.dtype == self.cp.complex128:

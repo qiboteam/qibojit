@@ -150,6 +150,9 @@ class JITCustomBackend(NumpyBackend, AbstractCustomOperators):
             dtype = self.dtypes(dtype)
         return self.platform.cast(x, dtype=dtype)
 
+    def issparse(self, x):
+        return self.platform.issparse(x)
+
     def check_shape(self, shape):
         if self.platform.name in ("cupy", "cuquantum")  and isinstance(shape, self.Tensor): # pragma: no cover
             shape = shape.get()
