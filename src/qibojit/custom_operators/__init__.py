@@ -118,6 +118,7 @@ class JITCustomBackend(NumpyBackend, AbstractCustomOperators):
         self.Tensor = xp.ndarray
         self.random = xp.random
         self.newaxis = xp.newaxis
+        self.sparse = self.platform.sparse
         if "GPU" in self.default_device: # pragma: no cover
             with self.device(self.default_device):
                 self.matrices.allocate_matrices()

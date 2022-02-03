@@ -7,6 +7,7 @@ class AbstractPlatform(ABC):
         self.name = "abstract"
         self.gates = None
         self.ops = None
+        self.sparse = None
         self.test_regressions = {}
 
     @abstractmethod
@@ -63,13 +64,14 @@ class NumbaPlatform(AbstractPlatform):
             4: self.gates.apply_four_qubit_gate_kernel,
             5: self.gates.apply_five_qubit_gate_kernel
             }
+        from scipy import sparse
+        self.sparse = sparse
 
     def cast(self, x, dtype=None, order='K'):
+        if dtype is None:
+            dtype = x.dtype
         if isinstance(x, self.np.ndarray):
-            if dtype is None:
-                return x
-            else:
-                return x.astype(dtype, copy=False, order=order)
+            return x.astype(dtype, copy=False, order=order)
         else:
             try:
                 x = self.np.array(x, dtype=dtype, order=order)
@@ -168,6 +170,9 @@ class CupyPlatform(AbstractPlatform): # pragma: no cover
         self.is_hip = cupy_backends.cuda.api.runtime.is_hip
         self.KERNELS = ("apply_gate", "apply_x", "apply_y", "apply_z", "apply_z_pow",
                         "apply_two_qubit_gate", "apply_fsim", "apply_swap")
+        from scipy import sparse
+        self.npsparse = sparse
+        self.sparse = cp.sparse
         if self.is_hip:  # pragma: no cover
             self.test_regressions = {
                 "test_measurementresult_apply_bitflips": [
@@ -242,11 +247,15 @@ class CupyPlatform(AbstractPlatform): # pragma: no cover
         return nblocks, block_size
 
     def cast(self, x, dtype=None, order='C'):
+        if dtype is None:
+            dtype = x.dtype
         if isinstance(x, self.cp.ndarray):
-            if dtype is None:
-                return x
-            else:
-                return x.astype(dtype, copy=False, order=order)
+            return x.astype(dtype, copy=False, order=order)
+        elif self.sparse.issparse(x):
+            return x.__class__(x, dtype=dtype)
+        elif self.npsparse.issparse(x):
+            cls = getattr(self.sparse, x.__class__.__name__)
+            return cls(x, dtype=dtype)
         return self.cp.asarray(x, dtype=dtype, order=order)
 
     def get_kernel_type(self, state):
