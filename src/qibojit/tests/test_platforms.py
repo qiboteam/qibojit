@@ -35,9 +35,10 @@ def test_cast(platform, array_type):
 
 
 @pytest.mark.parametrize("array_type", [None, "float32", "float64"])
-def test_sparse_cast(platform, array_type):
+@pytest.mark.parametrize("format", ["coo", "csr", "csc", "dia"])
+def test_sparse_cast(platform, array_type, format):
     from scipy import sparse
-    sptarget = sparse.rand(512, 512, dtype=array_type)
+    sptarget = sparse.rand(512, 512, dtype=array_type, format=format)
     final = K.to_numpy(K.cast(sptarget))
     target = sptarget.toarray()
     K.assert_allclose(final, target)

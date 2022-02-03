@@ -73,7 +73,7 @@ class NumbaPlatform(AbstractPlatform):
         if isinstance(x, self.np.ndarray):
             return x.astype(dtype, copy=False, order=order)
         elif self.sparse.issparse(x):
-            return x.__class__(x, dtype=dtype)
+            return x.astype(dtype, copy=False)
         else:
             try:
                 x = self.np.array(x, dtype=dtype, order=order)
@@ -259,7 +259,10 @@ class CupyPlatform(AbstractPlatform): # pragma: no cover
         if isinstance(x, self.cp.ndarray):
             return x.astype(dtype, copy=False, order=order)
         elif self.sparse.issparse(x):
-            return x.__class__(x, dtype=dtype)
+            if dtype != x.dtype:
+                return x.astype(dtype)
+            else:
+                return x
         elif self.npsparse.issparse(x):
             cls = getattr(self.sparse, x.__class__.__name__)
             return cls(x, dtype=dtype)
