@@ -72,6 +72,8 @@ class NumbaPlatform(AbstractPlatform):
             dtype = x.dtype
         if isinstance(x, self.np.ndarray):
             return x.astype(dtype, copy=False, order=order)
+        elif self.sparse.issparse(x):
+            return x.__class__(x, dtype=dtype)
         else:
             try:
                 x = self.np.array(x, dtype=dtype, order=order)
@@ -80,6 +82,11 @@ class NumbaPlatform(AbstractPlatform):
             except TypeError: # pragma: no cover
                 x = self.np.array(x.get(), dtype=dtype, copy=False, order=order)
             return x
+
+    def to_numpy(self, x):
+        if self.sparse.issparse(x):
+            return x.toarray()
+        return self.np.array(x, copy=False)
 
     def one_qubit_base(self, state, nqubits, target, kernel, gate, qubits=None):
         ncontrols = len(qubits) - 1 if qubits is not None else 0
@@ -257,6 +264,15 @@ class CupyPlatform(AbstractPlatform): # pragma: no cover
             cls = getattr(self.sparse, x.__class__.__name__)
             return cls(x, dtype=dtype)
         return self.cp.asarray(x, dtype=dtype, order=order)
+
+    def to_numpy(self, x):
+        if isinstance(x, self.cp.ndarray):
+            return x.get()
+        elif self.sparse.issparse(x):
+            return x.toarray().get()
+        elif self.npsparse.issparse(x):
+            return x.toarray()
+        return self.np.array(x, copy=False)
 
     def get_kernel_type(self, state):
         if state.dtype == self.cp.complex128:

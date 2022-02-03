@@ -34,6 +34,19 @@ def test_cast(platform, array_type):
     K.assert_allclose(final, target)
 
 
+@pytest.mark.parametrize("array_type", [None, "float32", "float64"])
+def test_sparse_cast(platform, array_type):
+    from scipy import sparse
+    sptarget = sparse.rand(512, 512, dtype=array_type)
+    final = K.to_numpy(K.cast(sptarget))
+    target = sptarget.toarray()
+    K.assert_allclose(final, target)
+    if K.platform.name != "numba":  # pragma: no cover
+        sptarget = getattr(K.sparse, sptarget.__class__.__name__)(sptarget)
+        final = K.to_numpy(K.cast(sptarget))
+        K.assert_allclose(final, target)
+
+
 def test_to_numpy(platform):
     x = [0, 1, 2]
     target = K.to_numpy(K.cast(x))

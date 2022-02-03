@@ -143,9 +143,7 @@ class JITCustomBackend(NumpyBackend, AbstractCustomOperators):
     def to_numpy(self, x):
         if isinstance(x, self.np.ndarray):
             return x
-        elif self.platform.name in ("cupy", "cuquantum")  and isinstance(x, self.platform.cp.ndarray):  # pragma: no cover
-            return x.get()
-        return self.np.array(x)
+        return self.platform.to_numpy(x)
 
     def cast(self, x, dtype='DTYPECPX'):
         if isinstance(dtype, str):
