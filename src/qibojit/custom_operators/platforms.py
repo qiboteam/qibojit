@@ -426,7 +426,7 @@ class CuQuantumPlatform(CupyPlatform): # pragma: no cover
         target = self.np.asarray([target], dtype = self.np.int32)
         if qubits is not None:
             ncontrols = len(qubits) - 1
-            controls = self.np.asarray([i for i in qubits.get() if i != target], dtype = self.np.int32)
+            controls = self.np.array([i for i in qubits if i != target], dtype = self.np.int32)
         else:
             ncontrols = 0
             controls = self.np.empty(0)
@@ -493,7 +493,7 @@ class CuQuantumPlatform(CupyPlatform): # pragma: no cover
         target = self.np.asarray([target2, target1], dtype=self.np.int32)
         if qubits is not None:
             ncontrols = len(qubits) - 2
-            controls = self.np.asarray([i for i in qubits.get() if i not in [target1, target2]], dtype = self.np.int32)
+            controls = self.np.asarray([i for i in qubits if i not in [target1, target2]], dtype = self.np.int32)
         else:
             ncontrols = 0
             controls = self.np.empty(0)
@@ -597,7 +597,7 @@ class CuQuantumPlatform(CupyPlatform): # pragma: no cover
             qubits = self.cast(sorted(nqubits - q - 1 for q in targets), dtype = self.cp.int32)
         target = [nqubits - q - 1 for q in targets]
         target = self.np.asarray(target[::-1], dtype = self.np.int32)
-        controls = self.np.asarray([i for i in qubits.get() if i not in target], dtype = self.np.int32)
+        controls = self.np.asarray([i for i in qubits if i not in target], dtype = self.np.int32)
         ncontrols = len(controls)
         adjoint = 0
         gate = self.cast(gate)
@@ -657,7 +657,7 @@ class CuQuantumPlatform(CupyPlatform): # pragma: no cover
         results = bin(result).replace("0b", "")
         results = list(map(int,  '0'* (len(qubits) - len(results)) + results))[::-1]
         ntarget = 1
-        qubits = self.np.asarray(qubits.get(), dtype = self.np.int32)
+        qubits = self.np.asarray(qubits, dtype = self.np.int32)
         data_type, compute_type = self.get_cuda_type(state.dtype)
 
         for i  in range(len(results)):

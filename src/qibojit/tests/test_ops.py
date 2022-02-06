@@ -53,7 +53,7 @@ def test_collapse_state(platform, nqubits, targets, results, normalize, dtype):
         norm = (np.abs(target_state) ** 2).sum()
         target_state = target_state / np.sqrt(norm)
 
-    qubits = K.cast(sorted(nqubits - np.array(targets, dtype=np.int32) - 1),dtype=np.int32)
+    qubits = K.np.array(sorted(nqubits - t - 1 for t in targets), dtype=np.int32)
     b2d = 2 ** np.arange(len(results) - 1, -1, -1)
     result = int(np.array(results).dot(b2d))
     state = K.collapse_state(state, qubits, result, nqubits, normalize)
