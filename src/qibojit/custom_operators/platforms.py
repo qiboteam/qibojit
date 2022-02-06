@@ -426,7 +426,7 @@ class CuQuantumPlatform(CupyPlatform): # pragma: no cover
         target = self.np.asarray([target], dtype = self.np.int32)
         if qubits is not None:
             ncontrols = len(qubits) - 1
-            controls = self.np.array([i for i in qubits if i != target], dtype = self.np.int32)
+            controls = self.np.asarray([i for i in qubits if i != target], dtype = self.np.int32)
         else:
             ncontrols = 0
             controls = self.np.empty(0)
