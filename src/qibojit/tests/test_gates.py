@@ -9,7 +9,7 @@ ATOL = {"complex64": 1e-5, "complex128": 1e-10}
 def qubits_tensor(nqubits, targets, controls=[]):
     qubits = [nqubits - q - 1 for q in targets]
     qubits.extend(nqubits - q - 1 for q in controls)
-    return K.cast(sorted(qubits), dtype="int32")
+    return K.np.array(sorted(qubits), dtype="int32")
 
 
 def random_complex(shape, dtype="complex128"):
