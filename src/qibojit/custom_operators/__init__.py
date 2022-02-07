@@ -341,14 +341,6 @@ class JITCustomBackend(NumpyBackend, AbstractCustomOperators):
         state = self._constructed_platforms.get("numba").transpose_state(pieces, state, nqubits, order)
         return self.reshape(state, original_shape)
 
-    def assert_allclose(self, value, target, rtol=1e-7, atol=0.0):
-        if self.platform.name in ("cupy", "cuquantum"): # pragma: no cover
-            if isinstance(value, self.backend.ndarray):
-                value = value.get()
-            if isinstance(target, self.backend.ndarray):
-                target = target.get()
-        self.np.testing.assert_allclose(value, target, rtol=rtol, atol=atol)
-
     def apply_gate(self, state, gate, nqubits, targets, qubits=None):
         return self.platform.one_qubit_base(state, nqubits, *targets, "apply_gate", gate, qubits)
 
