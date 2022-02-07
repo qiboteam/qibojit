@@ -295,6 +295,23 @@ class CupyPlatform(AbstractPlatform): # pragma: no cover
     def issparse(self, x):
         return self.sparse.issparse(x) or self.npsparse.issparse(x)
 
+    def eigh(self, x, k=6):
+        if self.is_hip:
+            # FIXME: Fallback to numpy because eigh is not implemented in rocblas
+            if self.issparse(x) and k < x.shape[0]:
+                    from scipy.sparse.linalg import eigsh
+                    result = eigsh(x.get(), k=k)
+            else:
+                result = self.np.linalg.eigh(self.to_numpy(x))
+            return self.cast(result[0]), self.cast(result[1])
+        else:
+            if self.issparse(x):
+                if k < x.shape[0]:
+                    from cupy.sparse.linalg import eigsh
+                    return eigsh(x, k=k)
+                x = x.toarray()
+            return self.cp.linalg.eigh(x)
+
     def get_kernel_type(self, state):
         if state.dtype == self.cp.complex128:
             return "double"
