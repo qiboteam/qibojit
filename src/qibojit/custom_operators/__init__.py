@@ -252,7 +252,7 @@ class JITCustomBackend(NumpyBackend, AbstractCustomOperators):
         cache = self.GateCache()
         qubits = [gate.nqubits - q - 1 for q in gate.control_qubits]
         qubits.extend(gate.nqubits - q - 1 for q in gate.target_qubits)
-        cache.qubits_tensor = self.cast(sorted(qubits), dtype="int32")
+        cache.qubits_tensor = self.np.array(sorted(qubits), dtype="int32")
         if gate.density_matrix:
             cache.target_qubits_dm = [q + gate.nqubits for q in gate.target_qubits]
         return cache
