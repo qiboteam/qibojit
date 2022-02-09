@@ -315,7 +315,7 @@ class CupyPlatform(AbstractPlatform): # pragma: no cover
         else:
             if self.issparse(x):
                 if k < x.shape[0]:
-                    from cupy.sparse.linalg import eigsh
+                    from cupy.sparse.linalg import eigsh  # pylint: disable=import-error
                     return eigsh(x, k=k)
                 x = x.toarray()
             return self.cp.linalg.eigh(x)
