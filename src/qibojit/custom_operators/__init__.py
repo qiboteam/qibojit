@@ -178,18 +178,19 @@ class JITCustomBackend(NumpyBackend, AbstractCustomOperators):
             return self.backend.asarray(super().expm(x))
         return super().expm(x)
 
-    def eigh(self, x):
-        if self.platform.name == "cupy" and self.platform.is_hip: # pragma: no cover
-            # FIXME: Fallback to numpy because eigh is not implemented in rocblas
-            result = self.np.linalg.eigh(self.to_numpy(x))
-            return self.cast(result[0]), self.cast(result[1])
-        return super().eigh(x)
+    def eigh(self, x, k=6):
+        return self.platform.eigh(x, k)
 
-    def eigvalsh(self, x):
-        if self.platform.name == "cupy" and self.platform.is_hip: # pragma: no cover
+    def eigvalsh(self, x, k=6):
+        if self.issparse(x):
+            log.warning("Calculating sparse matrix eigenvectors because "
+                        "sparse modules do not provide ``eigvals`` method.")
+            return self.eigh(x, k=k)[0]
+        elif self.platform.name == "cupy" and self.platform.is_hip: # pragma: no cover
             # FIXME: Fallback to numpy because eigvalsh is not implemented in rocblas
             return self.cast(self.np.linalg.eigvalsh(self.to_numpy(x)))
-        return super().eigvalsh(x)
+        else:
+            return self.np.linalg.eigvalsh(x)
 
     def unique(self, x, return_counts=False):
         if self.platform.name in ("cupy", "cuquantum"):  # pragma: no cover
