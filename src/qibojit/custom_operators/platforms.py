@@ -101,6 +101,14 @@ class NumbaPlatform(AbstractPlatform):
     def issparse(self, x):
         return self.sparse.issparse(x)
 
+    def eigh(self, x, k=6):
+        if self.issparse(x):
+            if k < x.shape[0]:
+                from scipy.sparse.linalg import eigsh
+                return eigsh(x, k=k)
+            x = self.to_numpy(x)
+        return self.np.linalg.eigh(x)
+
     def one_qubit_base(self, state, nqubits, target, kernel, gate, qubits=None):
         ncontrols = len(qubits) - 1 if qubits is not None else 0
         m = nqubits - target - 1

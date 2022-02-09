@@ -179,9 +179,7 @@ class JITCustomBackend(NumpyBackend, AbstractCustomOperators):
         return super().expm(x)
 
     def eigh(self, x, k=6):
-        if self.platform.name in ("cupy", "cuquantum"): # pragma: no cover
-            return self.platform.eigh(x, k)
-        return super().eigh(x, k)
+        return self.platform.eigh(x, k)
 
     def eigvalsh(self, x, k=6):
         if self.issparse(x):
