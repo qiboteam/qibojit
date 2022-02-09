@@ -190,7 +190,7 @@ class JITCustomBackend(NumpyBackend, AbstractCustomOperators):
             # FIXME: Fallback to numpy because eigvalsh is not implemented in rocblas
             return self.cast(self.np.linalg.eigvalsh(self.to_numpy(x)))
         else:
-            return super().eigvalsh(x, k)
+            return self.np.linalg.eigvalsh(x)
 
     def unique(self, x, return_counts=False):
         if self.platform.name in ("cupy", "cuquantum"):  # pragma: no cover
