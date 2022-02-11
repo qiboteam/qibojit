@@ -412,6 +412,7 @@ class CuQuantumPlatform(CupyPlatform): # pragma: no cover
 
     def __del__(self):
         self.cusv.destroy(self.handle)
+        super().__del__()
 
     def get_cuda_type(self, dtype='complex64'):
         if dtype == 'complex128':
