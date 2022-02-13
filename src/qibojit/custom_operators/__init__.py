@@ -253,15 +253,38 @@ class JITCustomBackend(NumpyBackend, AbstractCustomOperators):
         cache.qubits_tensor = self.np.array(sorted(qubits), dtype="int32")
         if gate.density_matrix:
             cache.target_qubits_dm = [q + gate.nqubits for q in gate.target_qubits]
+
+        if self.get_platform() == "cuquantum":
+            gate_op = self.get_gate_op(gate).__name__
+            if gate_op in ("apply_x", "apply_y", "apply_z"):
+                matrix_name = gate_op.split("_")[-1].upper()
+                matrix = getattr(self.matrices, matrix_name)
+            elif gate_op == "apply_z_pow":
+                phase = gate.custom_op_matrix
+                matrix = self.platform.cp.zeros((2, 2), dtype=phase.dtype)
+                matrix[0, 0], matrix[1, 1] = 1, phase
+            elif gate_op == "apply_swap":
+                matrix = self.matrices.SWAP
+            elif gate_op == "apply_fsim":
+                copmatrix = gate.custom_op_matrix
+                matrix = self.platform.cp.zeros((4, 4),dtype=copmatrix.dtype)
+                matrix[0, 0], matrix[3,3] = 1, copmatrix[4]
+                matrix[1,1], matrix[1,2] = copmatrix[0], copmatrix[1]
+                matrix[2,1], matrix[2,2] = copmatrix[2], copmatrix[3]
+            else:
+                matrix = gate.custom_op_matrix
+            cache.matrix = self.cast(matrix)
+            cache = self.platform.calculate_gate_cache(cache, gate)
+
         return cache
 
     def _state_vector_call(self, gate, state):
         gate_op = self.get_gate_op(gate)
-        return gate_op(state, gate.nqubits, gate.target_qubits, gate.cache.qubits_tensor)
+        return gate_op(state, gate.nqubits, gate.target_qubits, gate.cache.qubits_tensor, gate.cache)
 
     def state_vector_matrix_call(self, gate, state):
         gate_op = self.get_gate_op(gate)
-        return gate_op(state, gate.custom_op_matrix, gate.nqubits, gate.target_qubits, gate.cache.qubits_tensor)
+        return gate_op(state, gate.custom_op_matrix, gate.nqubits, gate.target_qubits, gate.cache.qubits_tensor, gate.cache)
 
     def _density_matrix_call(self, gate, state):
         qubits = gate.cache.qubits_tensor + gate.nqubits
@@ -347,42 +370,42 @@ class JITCustomBackend(NumpyBackend, AbstractCustomOperators):
                 target = target.get()
         self.np.testing.assert_allclose(value, target, rtol=rtol, atol=atol)
 
-    def apply_gate(self, state, gate, nqubits, targets, qubits=None):
-        return self.platform.one_qubit_base(state, nqubits, *targets, "apply_gate", gate, qubits)
+    def apply_gate(self, state, gate, nqubits, targets, qubits=None, cache=None):
+        return self.platform.one_qubit_base(state, nqubits, *targets, "apply_gate", gate, qubits, cache)
 
-    def apply_x(self, state, nqubits, targets, qubits=None):
-        return self.platform.one_qubit_base(state, nqubits, *targets, "apply_x", self.matrices.X, qubits)
+    def apply_x(self, state, nqubits, targets, qubits=None, cache=None):
+        return self.platform.one_qubit_base(state, nqubits, *targets, "apply_x", self.matrices.X, qubits, cache)
 
-    def apply_y(self, state, nqubits, targets, qubits=None):
-        return self.platform.one_qubit_base(state, nqubits, *targets, "apply_y", self.matrices.Y, qubits)
+    def apply_y(self, state, nqubits, targets, qubits=None, cache=None):
+        return self.platform.one_qubit_base(state, nqubits, *targets, "apply_y", self.matrices.Y, qubits, cache)
 
-    def apply_z(self, state, nqubits, targets, qubits=None):
-        return self.platform.one_qubit_base(state, nqubits, *targets, "apply_z", self.matrices.Z, qubits)
+    def apply_z(self, state, nqubits, targets, qubits=None, cache=None):
+        return self.platform.one_qubit_base(state, nqubits, *targets, "apply_z", self.matrices.Z, qubits, cache)
 
-    def apply_z_pow(self, state, gate, nqubits, targets, qubits=None):
+    def apply_z_pow(self, state, gate, nqubits, targets, qubits=None, cache=None):
         if self.platform.name == "cuquantum": # pragma: no cover
             phase = gate
             gate = self.platform.cp.zeros((2, 2),dtype=state.dtype)
             gate[0, 0], gate[1, 1] = 1, phase
-        return self.platform.one_qubit_base(state, nqubits, *targets, "apply_z_pow", gate, qubits)
+        return self.platform.one_qubit_base(state, nqubits, *targets, "apply_z_pow", gate, qubits, cache)
 
-    def apply_two_qubit_gate(self, state, gate, nqubits, targets, qubits=None):
+    def apply_two_qubit_gate(self, state, gate, nqubits, targets, qubits=None, cache=None):
         return self.platform.two_qubit_base(state, nqubits, *targets, "apply_two_qubit_gate",
-                                            gate, qubits)
+                                            gate, qubits, cache)
 
-    def apply_swap(self, state, nqubits, targets, qubits=None):
-        return self.platform.two_qubit_base(state, nqubits, *targets, "apply_swap", self.matrices.SWAP, qubits)
+    def apply_swap(self, state, nqubits, targets, qubits=None, cache=None):
+        return self.platform.two_qubit_base(state, nqubits, *targets, "apply_swap", self.matrices.SWAP, qubits, cache)
 
-    def apply_fsim(self, state, gate, nqubits, targets, qubits=None):
+    def apply_fsim(self, state, gate, nqubits, targets, qubits=None, cache=None):
         if self.platform.name == "cuquantum": # pragma: no cover
             fsimgate = self.platform.cp.zeros((4, 4),dtype=state.dtype)
             fsimgate[0, 0], fsimgate[3,3] = 1, gate[4]
             fsimgate[1,1], fsimgate[1,2] = gate[0], gate[1]
             fsimgate[2,1], fsimgate[2,2] = gate[2], gate[3]
             gate = fsimgate
-        return self.platform.two_qubit_base(state, nqubits, *targets, "apply_fsim", gate, qubits)
+        return self.platform.two_qubit_base(state, nqubits, *targets, "apply_fsim", gate, qubits, cache)
 
-    def apply_multi_qubit_gate(self, state, gate, nqubits, targets, qubits=None):
+    def apply_multi_qubit_gate(self, state, gate, nqubits, targets, qubits=None, cache=None):
         return self.platform.multi_qubit_base(state, nqubits, targets, gate, qubits)
 
     def collapse_state(self, state, qubits, result, nqubits, normalize=True):

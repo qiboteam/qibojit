@@ -81,7 +81,7 @@ class NumbaPlatform(AbstractPlatform):
                 x = self.np.array(x.get(), dtype=dtype, copy=False, order=order)
             return x
 
-    def one_qubit_base(self, state, nqubits, target, kernel, gate, qubits=None):
+    def one_qubit_base(self, state, nqubits, target, kernel, gate, qubits=None, cache=None):
         ncontrols = len(qubits) - 1 if qubits is not None else 0
         m = nqubits - target - 1
         nstates = 1 << (nqubits - ncontrols - 1)
@@ -91,7 +91,7 @@ class NumbaPlatform(AbstractPlatform):
         kernel = getattr(self.gates, "{}_kernel".format(kernel))
         return kernel(state, gate, nstates, m)
 
-    def two_qubit_base(self, state, nqubits, target1, target2, kernel, gate, qubits=None):
+    def two_qubit_base(self, state, nqubits, target1, target2, kernel, gate, qubits=None, cache=None):
         ncontrols = len(qubits) - 2 if qubits is not None else 0
         if target1 > target2:
             swap_targets = True
@@ -260,7 +260,7 @@ class CupyPlatform(AbstractPlatform): # pragma: no cover
             return "float"
         raise TypeError("State of invalid type {}.".format(state.dtype))
 
-    def one_qubit_base(self, state, nqubits, target, kernel, gate, qubits=None):
+    def one_qubit_base(self, state, nqubits, target, kernel, gate, qubits=None, cache=None):
         ncontrols = len(qubits) - 1 if qubits is not None else 0
         m = nqubits - target - 1
         tk = 1 << m
@@ -283,7 +283,7 @@ class CupyPlatform(AbstractPlatform): # pragma: no cover
         self.cp.cuda.stream.get_current_stream().synchronize()
         return state
 
-    def two_qubit_base(self, state, nqubits, target1, target2, kernel, gate, qubits=None):
+    def two_qubit_base(self, state, nqubits, target1, target2, kernel, gate, qubits=None, cache=None):
         ncontrols = len(qubits) - 2 if qubits is not None else 0
         if target1 > target2:
             m1 = nqubits - target1 - 1
@@ -422,7 +422,39 @@ class CuQuantumPlatform(CupyPlatform): # pragma: no cover
         else:
             raise TypeError("Type can be either complex64 or complex128")
 
-    def one_qubit_base(self, state, nqubits, target, kernel, gate, qubits=None):
+    def calculate_gate_cache(self, cache, gate):
+        # calculate cuquantum workspace
+        cache.adjoint = 0
+        cache.data_type, cache.compute_type = self.get_cuda_type(cache.matrix.dtype)
+        if isinstance(cache.matrix, self.cp.ndarray):
+            cache.gate_ptr = cache.matrix.data.ptr
+        elif isinstance(gate, self.np.ndarray):
+            cache.gate_ptr = cache.matrix.ctypes.data
+        else:
+            raise ValueError
+        cache.workspace_size = self.cusv.apply_matrix_buffer_size(
+                                        self.handle,
+                                        cache.data_type,
+                                        gate.nqubits,
+                                        cache.gate_ptr,
+                                        cache.data_type,
+                                        self.cusv.MatrixLayout.ROW,
+                                        cache.adjoint,
+                                        len(gate.target_qubits),
+                                        len(gate.control_qubits),
+                                        cache.compute_type
+                                    )
+
+        # check the size of external workspace
+        if cache.workspace_size > 0:
+            workspace = self.cp.cuda.memory.alloc(cache.workspace_size)
+            cache.workspace_ptr = workspace.ptr
+        else:
+            cache.workspace_ptr = 0
+
+        return cache
+
+    def one_qubit_base(self, state, nqubits, target, kernel, gate, qubits=None, cache=None):
         ntarget = 1
         target = nqubits - target - 1
         target = self.np.asarray([target], dtype = self.np.int32)
@@ -432,59 +464,29 @@ class CuQuantumPlatform(CupyPlatform): # pragma: no cover
         else:
             ncontrols = 0
             controls = self.np.empty(0)
-        adjoint = 0
 
         state = self.cast(state)
-        gate = self.cast(gate)
-        assert state.dtype == gate.dtype
-        data_type, compute_type = self.get_cuda_type(state.dtype)
-        if isinstance(gate, self.cp.ndarray):
-            gate_ptr = gate.data.ptr
-        elif isinstance(gate, self.np.ndarray):
-            gate_ptr = gate.ctypes.data
-        else:
-            raise ValueError
-
-        workspaceSize = self.cusv.apply_matrix_buffer_size(self.handle,
-                                                           data_type,
-                                                           nqubits,
-                                                           gate_ptr,
-                                                           data_type,
-                                                           self.cusv.MatrixLayout.ROW,
-                                                           adjoint,
-                                                           ntarget,
-                                                           ncontrols,
-                                                           compute_type
-                                                           )
-
-        # check the size of external workspace
-        if workspaceSize > 0:
-            workspace = self.cp.cuda.memory.alloc(workspaceSize)
-            workspace_ptr = workspace.ptr
-        else:
-            workspace_ptr = 0
-
         self.cusv.apply_matrix(self.handle,
                                state.data.ptr,
-                               data_type,
+                               cache.data_type,
                                nqubits,
-                               gate_ptr,
-                               data_type,
+                               cache.gate_ptr,
+                               cache.data_type,
                                self.cusv.MatrixLayout.ROW,
-                               adjoint,
+                               cache.adjoint,
                                target.ctypes.data,
                                ntarget,
                                controls.ctypes.data,
                                ncontrols,
                                0,
-                               compute_type,
-                               workspace_ptr,
-                               workspaceSize
+                               cache.compute_type,
+                               cache.workspace_ptr,
+                               cache.workspace_size
                                )
 
         return state
 
-    def two_qubit_base(self, state, nqubits, target1, target2, kernel, gate, qubits=None):
+    def two_qubit_base(self, state, nqubits, target1, target2, kernel, gate, qubits=None, cache=None):
         ntarget = 2
         target1 = nqubits - target1 - 1
         target2 = nqubits - target2 - 1
@@ -496,91 +498,23 @@ class CuQuantumPlatform(CupyPlatform): # pragma: no cover
             ncontrols = 0
             controls = self.np.empty(0)
 
-        adjoint = 0
-
         state = self.cast(state)
-        gate = self.cast(gate)
-
-        assert state.dtype == gate.dtype
-        data_type, compute_type = self.get_cuda_type(state.dtype)
-
-        if kernel == 'apply_swap' and ncontrols == 0:
-            nBasisBits = 2
-            maskLen = 0
-            maskBitString = 0
-            maskOrdering = 0
-            basisBits = target
-            permutation  = self.np.asarray([0, 2, 1, 3], dtype=self.np.int64)
-            diagonals  = self.np.asarray([1, 1, 1, 1], dtype=state.dtype)
-
-            workspaceSize = self.cusv.apply_generalized_permutation_matrix_buffer_size(
-                self.handle,
-                data_type,
-                nqubits,
-                permutation.ctypes.data,
-                diagonals.ctypes.data,
-                data_type,
-                basisBits,
-                nBasisBits,
-                maskLen)
-
-            if workspaceSize > 0:
-                workspace = self.cp.cuda.memory.alloc(workspaceSize)
-                workspace_ptr = workspace.ptr
-            else:
-                workspace_ptr = 0
-
-            # apply matrix
-            self.cusv.apply_generalized_permutation_matrix(
-                self.handle, state.data.ptr, data_type, nqubits,
-                permutation.ctypes.data, diagonals.ctypes.data, data_type, adjoint,
-                basisBits, nBasisBits, maskBitString, maskOrdering, maskLen,
-                workspace_ptr, workspaceSize)
-
-            return state
-
-        if isinstance(gate, self.cp.ndarray):
-            gate_ptr = gate.data.ptr
-        elif isinstance(gate, self.np.ndarray):
-            gate_ptr = gate.ctypes.data
-        else:
-            raise ValueError
-
-        workspaceSize = self.cusv.apply_matrix_buffer_size(self.handle,
-                                                           data_type,
-                                                           nqubits,
-                                                           gate_ptr,
-                                                           data_type,
-                                                           self.cusv.MatrixLayout.ROW,
-                                                           adjoint,
-                                                           ntarget,
-                                                           ncontrols,
-                                                           compute_type
-                                                           )
-
-        # check the size of external workspace
-        if workspaceSize > 0:
-            workspace = self.cp.cuda.memory.alloc(workspaceSize)
-            workspace_ptr = workspace.ptr
-        else:
-            workspace_ptr = 0
-
         self.cusv.apply_matrix(self.handle,
                                state.data.ptr,
-                               data_type,
+                               cache.data_type,
                                nqubits,
-                               gate_ptr,
-                               data_type,
+                               cache.gate_ptr,
+                               cache.data_type,
                                self.cusv.MatrixLayout.ROW,
-                               adjoint,
+                               cache.adjoint,
                                target.ctypes.data,
                                ntarget,
                                controls.ctypes.data,
                                ncontrols,
                                0,
-                               compute_type,
-                               workspace_ptr,
-                               workspaceSize
+                               cache.compute_type,
+                               cache.workspace_ptr,
+                               cache.workspace_size
                                )
 
         return state
