@@ -85,17 +85,25 @@ def test_backend_eigh(platform, sparse_type):
     K.assert_allclose(K.abs(eigvecs1), np.abs(eigvecs2), atol=1e-10)
 
 
-def test_backend_eigvalsh(platform):
-    m = np.random.random((16, 16))
-    target = np.linalg.eigvalsh(m)
-    result = K.eigvalsh(K.cast(m))
-    K.assert_allclose(target, result)
+@pytest.mark.parametrize("sparse_type", [None, "coo", "csr", "csc", "dia"])
+def test_backend_eigvalsh(platform, sparse_type):
+    if sparse_type is None:
+        m = np.random.random((16, 16))
+        target = np.linalg.eigvalsh(m)
+        result = K.eigvalsh(K.cast(m))
+    else:
+        from scipy.sparse import rand
+        m = rand(16, 16, format=sparse_type)
+        m = m + m.T
+        result = K.eigvalsh(K.cast(m), k=16)
+        target, _ = K.eigh(K.cast(m.toarray()))
+    K.assert_allclose(target, result, atol=1e-10)
 
 
 @pytest.mark.parametrize("sparse_type", ["coo", "csr", "csc", "dia"])
 @pytest.mark.parametrize("k", [6, 10])
 def test_backend_eigh_sparse(platform, sparse_type, k):
-    if K.get_platform() != "numba":
+    if K.get_platform() != "numba":  # pragma: no cover
         pytest.skip("Skipping sparse eigenvalue test for GPU platforms "
                     "because it is unstable.")
     from scipy.sparse.linalg import eigsh
