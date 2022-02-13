@@ -383,10 +383,6 @@ class JITCustomBackend(NumpyBackend, AbstractCustomOperators):
         return self.platform.one_qubit_base(state, nqubits, *targets, "apply_z", self.matrices.Z, qubits, cache)
 
     def apply_z_pow(self, state, gate, nqubits, targets, qubits=None, cache=None):
-        if self.platform.name == "cuquantum": # pragma: no cover
-            phase = gate
-            gate = self.platform.cp.zeros((2, 2),dtype=state.dtype)
-            gate[0, 0], gate[1, 1] = 1, phase
         return self.platform.one_qubit_base(state, nqubits, *targets, "apply_z_pow", gate, qubits, cache)
 
     def apply_two_qubit_gate(self, state, gate, nqubits, targets, qubits=None, cache=None):
@@ -397,12 +393,6 @@ class JITCustomBackend(NumpyBackend, AbstractCustomOperators):
         return self.platform.two_qubit_base(state, nqubits, *targets, "apply_swap", self.matrices.SWAP, qubits, cache)
 
     def apply_fsim(self, state, gate, nqubits, targets, qubits=None, cache=None):
-        if self.platform.name == "cuquantum": # pragma: no cover
-            fsimgate = self.platform.cp.zeros((4, 4),dtype=state.dtype)
-            fsimgate[0, 0], fsimgate[3,3] = 1, gate[4]
-            fsimgate[1,1], fsimgate[1,2] = gate[0], gate[1]
-            fsimgate[2,1], fsimgate[2,2] = gate[2], gate[3]
-            gate = fsimgate
         return self.platform.two_qubit_base(state, nqubits, *targets, "apply_fsim", gate, qubits, cache)
 
     def apply_multi_qubit_gate(self, state, gate, nqubits, targets, qubits=None, cache=None):
