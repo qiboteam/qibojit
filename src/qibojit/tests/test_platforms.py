@@ -101,20 +101,17 @@ def test_backend_eigvalsh(platform, sparse_type):
 
 
 @pytest.mark.parametrize("sparse_type", ["coo", "csr", "csc", "dia"])
-@pytest.mark.parametrize("k", [6, 10])
+@pytest.mark.parametrize("k", [6, 8])
 def test_backend_eigh_sparse(platform, sparse_type, k):
-    if K.get_platform() != "numba":  # pragma: no cover
-        pytest.skip("Skipping sparse eigenvalue test for GPU platforms "
-                    "because it is unstable.")
     from scipy.sparse.linalg import eigsh
     from scipy import sparse
     from qibo import hamiltonians
     ham = hamiltonians.TFIM(6, h=1.0)
     m = getattr(sparse, f"{sparse_type}_matrix")(K.to_numpy(ham.matrix))
     eigvals1, eigvecs1 = K.eigh(K.cast(m), k)
-    eigvals2, eigvecs2 = eigsh(m, k)
-    eigvals1 = np.abs(K.to_numpy(eigvals1))
-    eigvals2 = np.abs(K.to_numpy(eigvals2))
+    eigvals2, eigvecs2 = eigsh(m, k, which='SA')
+    eigvals1 = K.to_numpy(eigvals1)
+    eigvals2 = K.to_numpy(eigvals2)
     K.assert_allclose(sorted(eigvals1), sorted(eigvals2))
 
 
