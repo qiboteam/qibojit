@@ -114,6 +114,7 @@ class JITCustomBackend(NumpyBackend, AbstractCustomOperators):
         self.Tensor = xp.ndarray
         self.random = xp.random
         self.newaxis = xp.newaxis
+        self.sparse = self.platform.sparse
         # enable multi-GPU if no macos
         import sys
         if sys.platform != "darwin":
@@ -142,14 +143,15 @@ class JITCustomBackend(NumpyBackend, AbstractCustomOperators):
     def to_numpy(self, x):
         if isinstance(x, self.np.ndarray):
             return x
-        elif self.platform.name in ("cupy", "cuquantum")  and isinstance(x, self.platform.cp.ndarray):  # pragma: no cover
-            return x.get()
-        return self.np.array(x)
+        return self.platform.to_numpy(x)
 
     def cast(self, x, dtype='DTYPECPX'):
         if isinstance(dtype, str):
             dtype = self.dtypes(dtype)
         return self.platform.cast(x, dtype=dtype)
+
+    def issparse(self, x):
+        return self.platform.issparse(x)
 
     def check_shape(self, shape):
         if self.platform.name in ("cupy", "cuquantum")  and isinstance(shape, self.Tensor): # pragma: no cover
@@ -176,18 +178,19 @@ class JITCustomBackend(NumpyBackend, AbstractCustomOperators):
             return self.backend.asarray(super().expm(x))
         return super().expm(x)
 
-    def eigh(self, x):
-        if self.platform.name == "cupy" and self.platform.is_hip: # pragma: no cover
-            # FIXME: Fallback to numpy because eigh is not implemented in rocblas
-            result = self.np.linalg.eigh(self.to_numpy(x))
-            return self.cast(result[0]), self.cast(result[1])
-        return super().eigh(x)
+    def eigh(self, x, k=6):
+        return self.platform.eigh(x, k)
 
-    def eigvalsh(self, x):
-        if self.platform.name == "cupy" and self.platform.is_hip: # pragma: no cover
+    def eigvalsh(self, x, k=6):
+        if self.issparse(x):
+            log.warning("Calculating sparse matrix eigenvectors because "
+                        "sparse modules do not provide ``eigvals`` method.")
+            return self.eigh(x, k=k)[0]
+        elif self.platform.name == "cupy" and self.platform.is_hip: # pragma: no cover
             # FIXME: Fallback to numpy because eigvalsh is not implemented in rocblas
             return self.cast(self.np.linalg.eigvalsh(self.to_numpy(x)))
-        return super().eigvalsh(x)
+        else:
+            return self.np.linalg.eigvalsh(x)
 
     def unique(self, x, return_counts=False):
         if self.platform.name in ("cupy", "cuquantum"):  # pragma: no cover
@@ -338,14 +341,6 @@ class JITCustomBackend(NumpyBackend, AbstractCustomOperators):
         # always fall back to numba CPU backend because for ops not implemented on GPU
         state = self._constructed_platforms.get("numba").transpose_state(pieces, state, nqubits, order)
         return self.reshape(state, original_shape)
-
-    def assert_allclose(self, value, target, rtol=1e-7, atol=0.0):
-        if self.platform.name in ("cupy", "cuquantum"): # pragma: no cover
-            if isinstance(value, self.backend.ndarray):
-                value = value.get()
-            if isinstance(target, self.backend.ndarray):
-                target = target.get()
-        self.np.testing.assert_allclose(value, target, rtol=rtol, atol=atol)
 
     def apply_gate(self, state, gate, nqubits, targets, qubits=None):
         return self.platform.one_qubit_base(state, nqubits, *targets, "apply_gate", gate, qubits)

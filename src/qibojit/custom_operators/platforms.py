@@ -7,11 +7,20 @@ class AbstractPlatform(ABC):
         self.name = "abstract"
         self.gates = None
         self.ops = None
+        self.sparse = None
         self.test_regressions = {}
         self.supports_multigpu = False
 
     @abstractmethod
     def cast(self, x, dtype=None, order=None): # pragma: no cover
+        raise NotImplementedError
+
+    @abstractmethod
+    def to_numpy(self, x): # pragma: no cover
+        raise NotImplementedError
+
+    @abstractmethod
+    def issparse(self, x): # pragma: no cover
         raise NotImplementedError
 
     @abstractmethod
@@ -65,13 +74,16 @@ class NumbaPlatform(AbstractPlatform):
             4: self.gates.apply_four_qubit_gate_kernel,
             5: self.gates.apply_five_qubit_gate_kernel
             }
+        from scipy import sparse
+        self.sparse = sparse
 
     def cast(self, x, dtype=None, order='K'):
+        if dtype is None:
+            dtype = x.dtype
         if isinstance(x, self.np.ndarray):
-            if dtype is None:
-                return x
-            else:
-                return x.astype(dtype, copy=False, order=order)
+            return x.astype(dtype, copy=False, order=order)
+        elif self.sparse.issparse(x):
+            return x.astype(dtype, copy=False)
         else:
             try:
                 x = self.np.array(x, dtype=dtype, order=order)
@@ -80,6 +92,22 @@ class NumbaPlatform(AbstractPlatform):
             except TypeError: # pragma: no cover
                 x = self.np.array(x.get(), dtype=dtype, copy=False, order=order)
             return x
+
+    def to_numpy(self, x):
+        if self.sparse.issparse(x):
+            return x.toarray()
+        return self.np.array(x, copy=False)
+
+    def issparse(self, x):
+        return self.sparse.issparse(x)
+
+    def eigh(self, x, k=6):
+        if self.issparse(x):
+            if k < x.shape[0]:
+                from scipy.sparse.linalg import eigsh
+                return eigsh(x, k=k, which='SA')
+            x = self.to_numpy(x)
+        return self.np.linalg.eigh(x)
 
     def one_qubit_base(self, state, nqubits, target, kernel, gate, qubits=None):
         ncontrols = len(qubits) - 1 if qubits is not None else 0
@@ -172,6 +200,9 @@ class CupyPlatform(AbstractPlatform): # pragma: no cover
         self.is_hip = cupy_backends.cuda.api.runtime.is_hip
         self.KERNELS = ("apply_gate", "apply_x", "apply_y", "apply_z", "apply_z_pow",
                         "apply_two_qubit_gate", "apply_fsim", "apply_swap")
+        from scipy import sparse
+        self.npsparse = sparse
+        self.sparse = cp.sparse
         if self.is_hip:  # pragma: no cover
             self.test_regressions = {
                 "test_measurementresult_apply_bitflips": [
@@ -246,12 +277,46 @@ class CupyPlatform(AbstractPlatform): # pragma: no cover
         return nblocks, block_size
 
     def cast(self, x, dtype=None, order='C'):
+        if dtype is None:
+            dtype = x.dtype
         if isinstance(x, self.cp.ndarray):
-            if dtype is None:
-                return x
+            return x.astype(dtype, copy=False, order=order)
+        elif self.sparse.issparse(x):
+            if dtype != x.dtype:
+                return x.astype(dtype)
             else:
-                return x.astype(dtype, copy=False, order=order)
+                return x
+        elif self.npsparse.issparse(x):
+            cls = getattr(self.sparse, x.__class__.__name__)
+            return cls(x, dtype=dtype)
         return self.cp.asarray(x, dtype=dtype, order=order)
+
+    def to_numpy(self, x):
+        if isinstance(x, self.cp.ndarray):
+            return x.get()
+        elif self.sparse.issparse(x):
+            return x.toarray().get()
+        elif self.npsparse.issparse(x):
+            return x.toarray()
+        return self.np.array(x, copy=False)
+
+    def issparse(self, x):
+        return self.sparse.issparse(x) or self.npsparse.issparse(x)
+
+    def eigh(self, x, k=6):
+        if self.issparse(x):
+            if k < x.shape[0]:
+                # Fallback to numpy because cupy's ``sparse.eigh`` does not support 'SA'
+                from scipy.sparse.linalg import eigsh  # pylint: disable=import-error
+                result = eigsh(x.get(), k=k, which='SA')
+                return self.cast(result[0]), self.cast(result[1])
+            x = x.toarray()
+        if self.is_hip:
+            # Fallback to numpy because eigh is not implemented in rocblas
+            result = self.np.linalg.eigh(self.to_numpy(x))
+            return self.cast(result[0]), self.cast(result[1])
+        else:
+            return self.cp.linalg.eigh(x)
 
     def get_kernel_type(self, state):
         if state.dtype == self.cp.complex128:
