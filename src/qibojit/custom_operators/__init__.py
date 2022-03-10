@@ -270,7 +270,7 @@ class JITCustomBackend(NumpyBackend, AbstractCustomOperators):
         qubits = gate.cache.qubits_tensor + gate.nqubits
         shape = state.shape
         gate_op = self.get_gate_op(gate)
-        state = gate_op(state.flatten(), 2 * gate.nqubits, gate.target_qubits, qubits)
+        state = gate_op(state.ravel(), 2 * gate.nqubits, gate.target_qubits, qubits)
         state = gate_op(state, 2 * gate.nqubits, gate.cache.target_qubits_dm, gate.cache.qubits_tensor)
         return self.reshape(state, shape)
 
@@ -278,7 +278,7 @@ class JITCustomBackend(NumpyBackend, AbstractCustomOperators):
         qubits = gate.cache.qubits_tensor + gate.nqubits
         shape = state.shape
         gate_op = self.get_gate_op(gate)
-        state = gate_op(state.flatten(), gate.custom_op_matrix, 2 * gate.nqubits, gate.target_qubits, qubits)
+        state = gate_op(state.ravel(), gate.custom_op_matrix, 2 * gate.nqubits, gate.target_qubits, qubits)
         adjmatrix = self.conj(gate.custom_op_matrix)
         state = gate_op(state, adjmatrix, 2 * gate.nqubits, gate.cache.target_qubits_dm, gate.cache.qubits_tensor)
         return self.reshape(state, shape)
@@ -287,14 +287,14 @@ class JITCustomBackend(NumpyBackend, AbstractCustomOperators):
         qubits = gate.cache.qubits_tensor + gate.nqubits
         shape = state.shape
         gate_op = self.get_gate_op(gate)
-        state = gate_op(state.flatten(), 2 * gate.nqubits, gate.target_qubits, qubits)
+        state = gate_op(state.ravel(), 2 * gate.nqubits, gate.target_qubits, qubits)
         return self.reshape(state, shape)
 
     def density_matrix_half_matrix_call(self, gate, state):
         qubits = gate.cache.qubits_tensor + gate.nqubits
         shape = state.shape
         gate_op = self.get_gate_op(gate)
-        state = gate_op(state.flatten(), gate.custom_op_matrix, 2 * gate.nqubits, gate.target_qubits, qubits)
+        state = gate_op(state.ravel(), gate.custom_op_matrix, 2 * gate.nqubits, gate.target_qubits, qubits)
         return self.reshape(state, shape)
 
     def _result_tensor(self, result):
@@ -309,7 +309,7 @@ class JITCustomBackend(NumpyBackend, AbstractCustomOperators):
         result = self._result_tensor(result)
         qubits = gate.cache.qubits_tensor + gate.nqubits
         shape = state.shape
-        state = self.collapse_state(state.flatten(), qubits, result, 2 * gate.nqubits, False)
+        state = self.collapse_state(state.ravel(), qubits, result, 2 * gate.nqubits, False)
         state = self.collapse_state(state, gate.cache.qubits_tensor, result, 2 * gate.nqubits, False)
         state = self.reshape(state, shape)
         return state / self.trace(state)
