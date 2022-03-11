@@ -86,6 +86,20 @@ def test_backend_eigh(platform, sparse_type):
 
 
 @pytest.mark.parametrize("sparse_type", [None, "coo", "csr", "csc", "dia"])
+def test_backend_expm(platform, sparse_type):
+    if sparse_type is None:
+        from scipy.linalg import expm
+        m = np.random.random((16, 16))
+    else:
+        from scipy.sparse import rand
+        from scipy.sparse.linalg import expm
+        m = rand(16, 16, format=sparse_type)
+    target = expm(m)
+    result = K.expm(K.cast(m))
+    K.assert_allclose(target, result, atol=1e-10)
+
+
+@pytest.mark.parametrize("sparse_type", [None, "coo", "csr", "csc", "dia"])
 def test_backend_eigvalsh(platform, sparse_type):
     if sparse_type is None:
         m = np.random.random((16, 16))
