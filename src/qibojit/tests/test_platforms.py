@@ -69,6 +69,16 @@ def test_basic_matrices(platform):
     K.assert_allclose(K.expm(m), expm(m))
 
 
+@pytest.mark.parametrize("sparse_type", ["coo", "csr", "csc", "dia"])
+def test_backend_expm_sparse(platform, sparse_type):
+    from scipy.linalg import expm
+    from scipy.sparse import rand
+    m = rand(16, 16, format=sparse_type)
+    target = expm(m.toarray())
+    result = K.to_numpy(K.expm(K.cast(m)))
+    K.assert_allclose(target, result, atol=1e-10)
+
+
 @pytest.mark.parametrize("sparse_type", [None, "coo", "csr", "csc", "dia"])
 def test_backend_eigh(platform, sparse_type):
     if sparse_type is None:

@@ -173,9 +173,9 @@ class JITCustomBackend(NumpyBackend, AbstractCustomOperators):
     def expm(self, x):
         if self.platform.name in ("cupy", "cuquantum"): # pragma: no cover
             # Fallback to numpy because cupy does not have expm
-            if isinstance(x, self.native_types):
+            if isinstance(x, self.native_types) or self.issparse(x):
                 x = x.get()
-            return self.backend.asarray(super().expm(x))
+            return self.cast(super().expm(x), dtype=x.dtype)
         return super().expm(x)
 
     def eigh(self, x, k=6):
