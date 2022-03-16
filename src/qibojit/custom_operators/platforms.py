@@ -473,11 +473,6 @@ class CuQuantumPlatform(CupyPlatform): # pragma: no cover
         self.cusv = cusv
         self.name = "cuquantum"
         self.supports_multigpu = False
-        self.handle = self.cusv.create()
-
-    def __del__(self):
-        self.cusv.destroy(self.handle)
-        super().__del__() # pylint: disable=E1101
 
     def get_cuda_type(self, dtype='complex64'):
         if dtype == 'complex128':
@@ -488,6 +483,9 @@ class CuQuantumPlatform(CupyPlatform): # pragma: no cover
             raise TypeError("Type can be either complex64 or complex128")
 
     def one_qubit_base(self, state, nqubits, target, kernel, gate, qubits=None):
+        # initialize cuStateVec library
+        handle = self.cusv.create()
+
         ntarget = 1
         target = nqubits - target - 1
         target = self.np.asarray([target], dtype = self.np.int32)
@@ -510,7 +508,7 @@ class CuQuantumPlatform(CupyPlatform): # pragma: no cover
         else:
             raise ValueError
 
-        workspaceSize = self.cusv.apply_matrix_buffer_size(self.handle,
+        workspaceSize = self.cusv.apply_matrix_buffer_size(handle,
                                                            data_type,
                                                            nqubits,
                                                            gate_ptr,
@@ -529,7 +527,7 @@ class CuQuantumPlatform(CupyPlatform): # pragma: no cover
         else:
             workspace_ptr = 0
 
-        self.cusv.apply_matrix(self.handle,
+        self.cusv.apply_matrix(handle,
                                state.data.ptr,
                                data_type,
                                nqubits,
@@ -547,9 +545,13 @@ class CuQuantumPlatform(CupyPlatform): # pragma: no cover
                                workspaceSize
                                )
 
+        self.cusv.destroy(handle)
         return state
 
     def two_qubit_base(self, state, nqubits, target1, target2, kernel, gate, qubits=None):
+        # initialize cuStateVec library
+        handle = self.cusv.create()
+
         ntarget = 2
         target1 = nqubits - target1 - 1
         target2 = nqubits - target2 - 1
@@ -579,7 +581,7 @@ class CuQuantumPlatform(CupyPlatform): # pragma: no cover
             diagonals  = self.np.asarray([1, 1, 1, 1], dtype=state.dtype)
 
             workspaceSize = self.cusv.apply_generalized_permutation_matrix_buffer_size(
-                self.handle,
+                handle,
                 data_type,
                 nqubits,
                 permutation.ctypes.data,
@@ -597,11 +599,12 @@ class CuQuantumPlatform(CupyPlatform): # pragma: no cover
 
             # apply matrix
             self.cusv.apply_generalized_permutation_matrix(
-                self.handle, state.data.ptr, data_type, nqubits,
+                handle, state.data.ptr, data_type, nqubits,
                 permutation.ctypes.data, diagonals.ctypes.data, data_type, adjoint,
                 basisBits, nBasisBits, maskBitString, maskOrdering, maskLen,
                 workspace_ptr, workspaceSize)
 
+            self.cusv.destroy(handle)
             return state
 
         if isinstance(gate, self.cp.ndarray):
@@ -611,7 +614,7 @@ class CuQuantumPlatform(CupyPlatform): # pragma: no cover
         else:
             raise ValueError
 
-        workspaceSize = self.cusv.apply_matrix_buffer_size(self.handle,
+        workspaceSize = self.cusv.apply_matrix_buffer_size(handle,
                                                            data_type,
                                                            nqubits,
                                                            gate_ptr,
@@ -630,7 +633,7 @@ class CuQuantumPlatform(CupyPlatform): # pragma: no cover
         else:
             workspace_ptr = 0
 
-        self.cusv.apply_matrix(self.handle,
+        self.cusv.apply_matrix(handle,
                                state.data.ptr,
                                data_type,
                                nqubits,
@@ -648,9 +651,11 @@ class CuQuantumPlatform(CupyPlatform): # pragma: no cover
                                workspaceSize
                                )
 
+        self.cusv.destroy(handle)
         return state
 
     def multi_qubit_base(self, state, nqubits, targets, gate, qubits=None):
+        handle = self.cusv.create()
         state = self.cast(state)
         ntarget = len(targets)
         if qubits is None:
@@ -671,7 +676,7 @@ class CuQuantumPlatform(CupyPlatform): # pragma: no cover
         else:
             raise ValueError
 
-        workspaceSize = self.cusv.apply_matrix_buffer_size(self.handle,
+        workspaceSize = self.cusv.apply_matrix_buffer_size(handle,
                                                            data_type,
                                                            nqubits,
                                                            gate_ptr,
@@ -690,7 +695,7 @@ class CuQuantumPlatform(CupyPlatform): # pragma: no cover
         else:
             workspace_ptr = 0
 
-        self.cusv.apply_matrix(self.handle,
+        self.cusv.apply_matrix(handle,
                                state.data.ptr,
                                data_type,
                                nqubits,
@@ -708,9 +713,11 @@ class CuQuantumPlatform(CupyPlatform): # pragma: no cover
                                workspaceSize
                                )
 
+        self.cusv.destroy(handle)
         return state
 
     def collapse_state(self, state, qubits, result, nqubits, normalize=True):
+        handle = self.cusv.create()
         state = self.cast(state)
         results = bin(result).replace("0b", "")
         results = list(map(int,  '0'* (len(qubits) - len(results)) + results))[::-1]
@@ -719,7 +726,7 @@ class CuQuantumPlatform(CupyPlatform): # pragma: no cover
         data_type, compute_type = self.get_cuda_type(state.dtype)
 
         for i  in range(len(results)):
-            self.cusv.collapse_on_z_basis(self.handle,
+            self.cusv.collapse_on_z_basis(handle,
                                           state.data.ptr,
                                           data_type,
                                           nqubits,
@@ -733,4 +740,5 @@ class CuQuantumPlatform(CupyPlatform): # pragma: no cover
             norm  = self.cp.sqrt(self.cp.sum(self.cp.square(self.cp.abs(state))))
             state = state / norm
 
+        self.cusv.destroy(handle)
         return state
