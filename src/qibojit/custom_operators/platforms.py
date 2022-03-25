@@ -510,7 +510,7 @@ class CuQuantumPlatform(CupyPlatform): # pragma: no cover
         else:
             raise ValueError
 
-        workspaceSize = self.cusv.apply_matrix_buffer_size(self.handle,
+        workspaceSize = self.cusv.apply_matrix_get_workspace_size(self.handle,
                                                            data_type,
                                                            nqubits,
                                                            gate_ptr,
@@ -578,7 +578,7 @@ class CuQuantumPlatform(CupyPlatform): # pragma: no cover
             permutation  = self.np.asarray([0, 2, 1, 3], dtype=self.np.int64)
             diagonals  = self.np.asarray([1, 1, 1, 1], dtype=state.dtype)
 
-            workspaceSize = self.cusv.apply_generalized_permutation_matrix_buffer_size(
+            workspaceSize = self.cusv.apply_generalized_permutation_matrix_get_workspace_size(
                 self.handle,
                 data_type,
                 nqubits,
@@ -611,7 +611,7 @@ class CuQuantumPlatform(CupyPlatform): # pragma: no cover
         else:
             raise ValueError
 
-        workspaceSize = self.cusv.apply_matrix_buffer_size(self.handle,
+        workspaceSize = self.cusv.apply_matrix_get_workspace_size(self.handle,
                                                            data_type,
                                                            nqubits,
                                                            gate_ptr,
@@ -671,7 +671,7 @@ class CuQuantumPlatform(CupyPlatform): # pragma: no cover
         else:
             raise ValueError
 
-        workspaceSize = self.cusv.apply_matrix_buffer_size(self.handle,
+        workspaceSize = self.cusv.apply_matrix_get_workspace_size(self.handle,
                                                            data_type,
                                                            nqubits,
                                                            gate_ptr,
