@@ -540,8 +540,8 @@ class CuQuantumPlatform(CupyPlatform): # pragma: no cover
                                target.ctypes.data,
                                ntarget,
                                controls.ctypes.data,
-                               ncontrols,
                                0,
+                               ncontrols,
                                compute_type,
                                workspace_ptr,
                                workspaceSize
@@ -641,8 +641,8 @@ class CuQuantumPlatform(CupyPlatform): # pragma: no cover
                                target.ctypes.data,
                                ntarget,
                                controls.ctypes.data,
-                               ncontrols,
                                0,
+                               ncontrols,
                                compute_type,
                                workspace_ptr,
                                workspaceSize
@@ -701,8 +701,8 @@ class CuQuantumPlatform(CupyPlatform): # pragma: no cover
                                target.ctypes.data,
                                ntarget,
                                controls.ctypes.data,
-                               ncontrols,
                                0,
+                               ncontrols,
                                compute_type,
                                workspace_ptr,
                                workspaceSize
