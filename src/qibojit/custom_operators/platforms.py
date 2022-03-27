@@ -570,11 +570,6 @@ class CuQuantumPlatform(CupyPlatform): # pragma: no cover
         data_type, compute_type = self.get_cuda_type(state.dtype)
 
         if kernel == 'apply_swap' and ncontrols == 0:
-            nBasisBits = 2
-            maskLen = 0
-            maskBitString = 0
-            maskOrdering = 0
-            basisBits = target
             permutation  = self.np.asarray([0, 2, 1, 3], dtype=self.np.int64)
             diagonals  = self.np.asarray([1, 1, 1, 1], dtype=state.dtype)
 
@@ -585,9 +580,9 @@ class CuQuantumPlatform(CupyPlatform): # pragma: no cover
                 permutation.ctypes.data,
                 diagonals.ctypes.data,
                 data_type,
-                basisBits,
-                nBasisBits,
-                maskLen)
+                target,
+                ntarget,
+                ncontrols)
 
             if workspaceSize > 0:
                 workspace = self.cp.cuda.memory.alloc(workspaceSize)
@@ -599,7 +594,7 @@ class CuQuantumPlatform(CupyPlatform): # pragma: no cover
             self.cusv.apply_generalized_permutation_matrix(
                 self.handle, state.data.ptr, data_type, nqubits,
                 permutation.ctypes.data, diagonals.ctypes.data, data_type, adjoint,
-                basisBits, nBasisBits, maskBitString, maskOrdering, maskLen,
+                target, ntarget, 0, 0, ncontrols,
                 workspace_ptr, workspaceSize)
 
             return state
