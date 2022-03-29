@@ -569,34 +569,17 @@ class CuQuantumPlatform(CupyPlatform): # pragma: no cover
         assert state.dtype == gate.dtype
         data_type, compute_type = self.get_cuda_type(state.dtype)
 
-        if kernel == 'apply_swap' and ncontrols == 0:
-            permutation  = self.np.asarray([0, 2, 1, 3], dtype=self.np.int64)
-            diagonals  = self.np.asarray([1, 1, 1, 1], dtype=state.dtype)
+        if kernel == 'apply_swap':
+            nBitSwaps = 1
+            bitSwaps = [(target1, target2)]
+            maskLen = ncontrols
+            maskBitString = self.np.ones(ncontrols)
+            maskOrdering = controls
 
-            workspaceSize = self.cusv.apply_generalized_permutation_matrix_get_workspace_size(
-                self.handle,
-                data_type,
-                nqubits,
-                permutation.ctypes.data,
-                diagonals.ctypes.data,
-                data_type,
-                target,
-                ntarget,
-                ncontrols)
-
-            if workspaceSize > 0:
-                workspace = self.cp.cuda.memory.alloc(workspaceSize)
-                workspace_ptr = workspace.ptr
-            else:
-                workspace_ptr = 0
-
-            # apply matrix
-            self.cusv.apply_generalized_permutation_matrix(
-                self.handle, state.data.ptr, data_type, nqubits,
-                permutation.ctypes.data, diagonals.ctypes.data, data_type, adjoint,
-                target, ntarget, 0, 0, ncontrols,
-                workspace_ptr, workspaceSize)
-
+            self.cusv.swap_index_bits(
+                                      self.handle, state.data.ptr, data_type, nqubits,
+                                      bitSwaps, nBitSwaps,
+                                      maskBitString, maskOrdering, maskLen)
             return state
 
         if isinstance(gate, self.cp.ndarray):
