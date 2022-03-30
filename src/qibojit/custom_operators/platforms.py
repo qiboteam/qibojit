@@ -334,7 +334,7 @@ class CupyPlatform(AbstractPlatform): # pragma: no cover
         if kernel in ("apply_x", "apply_y", "apply_z"):
             args = (state, tk, m)
         else:
-            args = (state, tk, m, self.cast(gate, dtype=state.dtype).ravel())
+            args = (state, tk, m, self.cast(gate, dtype=state.dtype).flatten())
 
         ktype = self.get_kernel_type(state)
         if ncontrols:
@@ -366,7 +366,7 @@ class CupyPlatform(AbstractPlatform): # pragma: no cover
         if kernel == "apply_swap":
             args = (state, tk1, tk2, m1, m2, uk1, uk2)
         else:
-            args = (state, tk1, tk2, m1, m2, uk1, uk2, self.cast(gate).ravel())
+            args = (state, tk1, tk2, m1, m2, uk1, uk2, self.cast(gate).flatten())
             assert state.dtype == args[-1].dtype
 
         ktype = self.get_kernel_type(state)
@@ -384,7 +384,7 @@ class CupyPlatform(AbstractPlatform): # pragma: no cover
     def multi_qubit_base(self, state, nqubits, targets, gate, qubits=None):
         assert gate is not None
         state = self.cast(state)
-        gate = self.cast(gate.ravel())
+        gate = self.cast(gate.flatten())
         assert state.dtype == gate.dtype
 
         ntargets = len(targets)
