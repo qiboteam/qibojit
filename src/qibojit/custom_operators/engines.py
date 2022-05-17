@@ -1,5 +1,6 @@
 import numpy as np
-from qibo.engines.numpy import Matrices
+from qibo.engines.abstract import Simulator
+from qibo.engines.matrices import Matrices
 
 
 class NumbaMatrices(Matrices):
@@ -24,7 +25,7 @@ class NumbaMatrices(Matrices):
         return self.X()
 
 
-class NumbaEngine:
+class NumbaEngine(Simulator):
 
     def __init__(self, dtype="complex128"):
         from qibojit.custom_operators import gates, ops
@@ -132,17 +133,3 @@ class NumbaEngine:
             return self.ops.initial_density_matrix(state)
         state = np.empty((size,), dtype=self.dtype)
         return self.ops.initial_state_vector(state)
-
-    def execute_circuit(self, circuit, initial_state=None, nshots=None):
-        # TODO: Implement shots
-        # TODO: Implement repeated execution
-        # TODO: Implement callbacks
-        # TODO: Implement density matrices
-        nqubits = circuit.nqubits
-        if initial_state is None:
-            state = self.zero_state(nqubits)
-        for gate in circuit.queue:
-            state = self.apply_gate(gate, state, nqubits)
-        # TODO: Consider implementing a final state setter in circuits?
-        circuit._final_state = state
-        return state
