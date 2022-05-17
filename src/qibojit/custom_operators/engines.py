@@ -29,6 +29,7 @@ class NumbaEngine(Simulator):
 
     def __init__(self, dtype="complex128"):
         from qibojit.custom_operators import gates, ops
+        self.name = "qibojit (numba)"
         self.dtype = dtype
         self.matrices = CustomMatrices(dtype)
         self.gates = gates
@@ -144,6 +145,7 @@ class CupyEngine(Simulator):
         import os
         import cupy as cp  # pylint: disable=import-error
         import cupy_backends  # pylint: disable=import-error
+        self.name = "qibojit (cupy)"
         self.dtype = dtype
         if dtype == "complex128":
             self.kernel_type = "double"
