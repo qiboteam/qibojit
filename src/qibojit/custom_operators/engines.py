@@ -25,6 +25,34 @@ class CustomMatrices(Matrices):
         return self.X()
 
 
+GATE_OPS = {
+    "X": "apply_x",
+    "CNOT": "apply_x",
+    "TOFFOLI": "apply_x",
+    "Y": "apply_y",
+    "Z": "apply_z",
+    "CZ": "apply_z",
+    "U1": "apply_z_pow",
+    "CU1": "apply_z_pow",
+    "SWAP": "apply_swap",
+    "fSim": "apply_fsim",
+    "GeneralizedfSim": "apply_fsim"
+}
+
+def get_op(gate):
+    op = GATE_OPS.get(gate.__class__.__name__)
+    if op is None:
+        ntargets = len(gate.target_qubits)
+        if ntargets == 1:
+            return "apply_gate"
+        elif ntargets == 2:
+            return "apply_two_qubit_gate_kernel"
+        else:
+            return "apply_multi_qubit_gate"
+    else:
+        return op
+
+
 class NumbaEngine(Simulator):
 
     def __init__(self, dtype="complex128"):
@@ -38,36 +66,10 @@ class NumbaEngine(Simulator):
             3: self.gates.apply_three_qubit_gate_kernel,
             4: self.gates.apply_four_qubit_gate_kernel,
             5: self.gates.apply_five_qubit_gate_kernel
-            }
-        self._gate_ops = {
-            "X": "apply_x",
-            "CNOT": "apply_x",
-            "TOFFOLI": "apply_x",
-            "Y": "apply_y",
-            "Z": "apply_z",
-            "CZ": "apply_z",
-            "U1": "apply_z_pow",
-            "CU1": "apply_z_pow",
-            "SWAP": "apply_swap",
-            "fSim": "apply_fsim",
-            "GeneralizedfSim": "apply_fsim"
         }
 
     def asmatrix(self, gate):
         return getattr(self.matrices, gate.__class__.__name__)(*gate.parameters)
-
-    def getop(self, gate):
-        op = self._gate_ops.get(gate.__class__.__name__)
-        if op is None:
-            ntargets = len(gate.target_qubits)
-            if ntargets == 1:
-                return "apply_gate"
-            elif ntargets == 2:
-                return "apply_two_qubit_gate_kernel"
-            else:
-                return "apply_multi_qubit_gate"
-        else:
-            return op
 
     def one_qubit_base(self, state, nqubits, target, kernel, gate, qubits):
         ncontrols = len(qubits) - 1 if qubits is not None else 0
@@ -115,7 +117,7 @@ class NumbaEngine(Simulator):
 
     def apply_gate(self, gate, state, nqubits):
         # TODO: Implement density matrices (most likely in another method)
-        op = self.getop(gate)
+        op = get_op(gate)
         matrix = self.asmatrix(gate)
         qubits = self._create_qubits_tensor(gate, nqubits)
         targets = gate.target_qubits
@@ -154,19 +156,6 @@ class CupyEngine(Simulator):
         else:
             raise TypeError("State of invalid type {}.".format(state.dtype))
         self.matrices = CustomMatrices(dtype)
-        self._gate_ops = {
-            "X": "apply_x",
-            "CNOT": "apply_x",
-            "TOFFOLI": "apply_x",
-            "Y": "apply_y",
-            "Z": "apply_z",
-            "CZ": "apply_z",
-            "U1": "apply_z_pow",
-            "CU1": "apply_z_pow",
-            "SWAP": "apply_swap",
-            "fSim": "apply_fsim",
-            "GeneralizedfSim": "apply_fsim"
-        }
         try:
             if not cp.cuda.runtime.getDeviceCount(): # pragma: no cover
                 raise RuntimeError("Cannot use cupy backend if GPU is not available.")
@@ -208,19 +197,6 @@ class CupyEngine(Simulator):
     def asmatrix(self, gate):
         matrix = getattr(self.matrices, gate.__class__.__name__)(*gate.parameters)
         return self.cp.asarray(matrix)
-
-    def getop(self, gate):
-        op = self._gate_ops.get(gate.__class__.__name__)
-        if op is None:
-            ntargets = len(gate.target_qubits)
-            if ntargets == 1:
-                return "apply_gate"
-            elif ntargets == 2:
-                return "apply_two_qubit_gate_kernel"
-            else:
-                return "apply_multi_qubit_gate"
-        else:
-            return op
 
     def calculate_blocks(self, nstates, block_size=DEFAULT_BLOCK_SIZE):
         """Compute the number of blocks and of threads per block.
@@ -315,7 +291,7 @@ class CupyEngine(Simulator):
 
     def apply_gate(self, gate, state, nqubits):
         # TODO: Implement density matrices (most likely in another method)
-        op = self.getop(gate)
+        op = get_op(gate)
         matrix = self.asmatrix(gate)
         qubits = self._create_qubits_tensor(gate, nqubits)
         targets = gate.target_qubits
