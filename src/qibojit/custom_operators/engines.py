@@ -1,4 +1,5 @@
 import numpy as np
+from functools import lru_cache
 from qibo.engines.abstract import Simulator
 from qibojit.custom_operators.matrices import CustomMatrices
 
@@ -47,6 +48,7 @@ class NumbaEngine(Simulator):
             5: self.gates.apply_five_qubit_gate_kernel
         }
 
+    @lru_cache
     def asmatrix(self, gate):
         return getattr(self.matrices, gate.__class__.__name__)(*gate.parameters)
 
@@ -88,18 +90,19 @@ class NumbaEngine(Simulator):
             kernel = self.multi_qubit_kernels.get(len(targets))
         return kernel(state, gate, qubits, nstates, targets)
 
-    def _create_qubits_tensor(self, gate, nqubits):
+    @lru_cache
+    def _create_qubits_tensor(self, targets, controls, nqubits):
         # TODO: Treat density matrices
-        qubits = [nqubits - q - 1 for q in gate.control_qubits]
-        qubits.extend(nqubits - q - 1 for q in gate.target_qubits)
+        qubits = [nqubits - q - 1 for q in controls]
+        qubits.extend(nqubits - q - 1 for q in targets)
         return np.array(sorted(qubits), dtype="int32")
 
     def apply_gate(self, gate, state, nqubits):
         # TODO: Implement density matrices (most likely in another method)
         op = get_op(gate)
-        matrix = self.asmatrix(gate)
-        qubits = self._create_qubits_tensor(gate, nqubits)
         targets = gate.target_qubits
+        matrix = self.asmatrix(gate)
+        qubits = self._create_qubits_tensor(targets, gate.control_qubits, nqubits)
         if len(targets) == 1:
             return self.one_qubit_base(state, nqubits, *targets, op, matrix, qubits)
         elif len(targets) == 2:
