@@ -103,7 +103,7 @@ class NumbaEngine(Simulator):
         if len(targets) == 1:
             return self.one_qubit_base(state, nqubits, *targets, op, matrix, qubits)
         elif len(targets) == 2:
-            return self.one_qubit_base(state, nqubits, *targets, op, matrix, qubits)
+            return self.two_qubit_base(state, nqubits, *targets, op, matrix, qubits)
         else:
             return self.multi_qubit_base(state, nqubits, targets, op, matrix, qubits)
 

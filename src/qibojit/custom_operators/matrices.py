@@ -7,7 +7,8 @@ class CustomMatrices(Matrices):
     # not correspond to the mathematical representation of each gate
 
     def U1(self, theta):
-        return np.array([np.exp(1j * theta)], dtype=self.dtype)
+        dtype = getattr(np, self.dtype)
+        return dtype(np.exp(1j * theta))
 
     def CNOT(self):
         return self.X()
