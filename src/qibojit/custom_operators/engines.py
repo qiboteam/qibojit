@@ -1,28 +1,6 @@
 import numpy as np
 from qibo.engines.abstract import Simulator
-from qibo.engines.matrices import Matrices
-
-
-class CustomMatrices(Matrices):
-    # These matrices are used by the custom operators and may 
-    # not correspond to the mathematical representation of each gate
-
-    def __init__(self, dtype):
-        self.dtype = dtype
-
-    def U1(self, theta):
-        return np.array([np.exp(1j * theta)], dtype=self.dtype)
-
-    def CNOT(self):
-        return self.X()
-
-    def CZ(self):
-        return self.Z()
-
-    # TODO: Implement fSim
-
-    def TOFFOLI(self):
-        return self.X()
+from qibojit.custom_operators.matrices import CustomMatrices
 
 
 GATE_OPS = {
@@ -59,6 +37,7 @@ class NumbaEngine(Simulator):
         from qibojit.custom_operators import gates, ops
         self.name = "qibojit (numba)"
         self.dtype = dtype
+        self.device = "/CPU:0"
         self.matrices = CustomMatrices(dtype)
         self.gates = gates
         self.ops = ops
@@ -100,9 +79,9 @@ class NumbaEngine(Simulator):
 
     def multi_qubit_base(self, state, nqubits, targets, gate, qubits):
         if qubits is None:
-            qubits = self.np.array(sorted(nqubits - q - 1 for q in targets), dtype="int32")
+            qubits = np.array(sorted(nqubits - q - 1 for q in targets), dtype="int32")
         nstates = 1 << (nqubits - len(qubits))
-        targets = self.np.array([1 << (nqubits - t - 1) for t in targets[::-1]], dtype="int64")
+        targets = np.array([1 << (nqubits - t - 1) for t in targets[::-1]], dtype="int64")
         if len(targets) > 5:
             kernel = self.gates.apply_multi_qubit_gate_kernel
         else:
@@ -149,6 +128,7 @@ class CupyEngine(Simulator):
         import cupy_backends  # pylint: disable=import-error
         self.name = "qibojit (cupy)"
         self.dtype = dtype
+        self.device = "/GPU:0"
         if dtype == "complex128":
             self.kernel_type = "double"
         elif dtype == "complex64":
