@@ -50,7 +50,11 @@ class NumbaEngine(Simulator):
 
     @lru_cache
     def asmatrix(self, gate):
-        return getattr(self.matrices, gate.__class__.__name__)(*gate.parameters)
+        name = gate.__class__.__name__
+        if gate.parameters:
+            return getattr(self.matrices, name)(*gate.parameters)
+        else:
+            return getattr(self.matrices, name)
 
     def one_qubit_base(self, state, nqubits, target, kernel, gate, qubits):
         ncontrols = len(qubits) - 1 if qubits is not None else 0
@@ -178,7 +182,11 @@ class CupyEngine(Simulator):
                 self.gates[f"{name}_{ktype}_{ntargets}"] = gate
 
     def asmatrix(self, gate):
-        matrix = getattr(self.matrices, gate.__class__.__name__)(*gate.parameters)
+        name = gate.__class__.__name__
+        if gate.parameters:
+            matrix = getattr(self.matrices, name)(*gate.parameters)
+        else:
+            matrix = getattr(self.matrices, name)
         return self.cp.asarray(matrix)
 
     def calculate_blocks(self, nstates, block_size=DEFAULT_BLOCK_SIZE):
