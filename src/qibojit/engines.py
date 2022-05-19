@@ -1,4 +1,5 @@
 import numpy as np
+from qibo.config import raise_error
 from qibo.engines.abstract import Simulator
 from qibojit.matrices import CustomMatrices
 
@@ -33,12 +34,13 @@ def get_op(gate):
 
 class NumbaEngine(Simulator):
 
-    def __init__(self, dtype="complex128"):
+    def __init__(self):
+        super().__init__()
+        import psutil
         from qibojit.custom_operators import gates, ops
         self.name = "qibojit"
         self.platform = "numba"
         self.device = "/CPU:0"
-        self.dtype = dtype
         self.matrices = CustomMatrices(self.dtype)
         self.gates = gates
         self.ops = ops
@@ -47,6 +49,12 @@ class NumbaEngine(Simulator):
             4: self.gates.apply_four_qubit_gate_kernel,
             5: self.gates.apply_five_qubit_gate_kernel
         }
+        self.set_threads(psutil.cpu_count(logical=False))
+
+    def set_threads(self, nthreads):
+        import numba
+        numba.set_num_threads(nthreads)
+        self.nthreads = nthreads
 
     def one_qubit_base(self, state, nqubits, target, kernel, gate, qubits):
         ncontrols = len(qubits) - 1 if qubits is not None else 0
@@ -180,6 +188,9 @@ class CupyEngine(Simulator):
             raise_error(ValueError, f"Device {device} is not available for {self} backend.")
         # TODO: Raise error if GPU is not available
         self.device = device
+
+    def set_threads(self, nthreads):
+        raise_error(RuntimeError, f"{self} does not thread setting.")
 
     def asmatrix(self, gate):
         matrix = super().asmatrix(gate)
