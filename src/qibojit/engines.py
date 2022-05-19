@@ -1,6 +1,6 @@
 import numpy as np
 from qibo.engines.abstract import Simulator
-from qibojit.custom_operators.matrices import CustomMatrices
+from qibojit.matrices import CustomMatrices
 
 
 GATE_OPS = {
@@ -35,10 +35,11 @@ class NumbaEngine(Simulator):
 
     def __init__(self, dtype="complex128"):
         from qibojit.custom_operators import gates, ops
-        self.name = "qibojit (numba)"
-        self.dtype = dtype
+        self.name = "qibojit"
+        self.platform = "numba"
         self.device = "/CPU:0"
-        self.matrices = CustomMatrices(dtype)
+        self.dtype = dtype
+        self.matrices = CustomMatrices(self.dtype)
         self.gates = gates
         self.ops = ops
         self.multi_qubit_kernels = {
@@ -46,9 +47,6 @@ class NumbaEngine(Simulator):
             4: self.gates.apply_four_qubit_gate_kernel,
             5: self.gates.apply_five_qubit_gate_kernel
         }
-
-    def asmatrix(self, gate):
-        return getattr(self.matrices, gate.__class__.__name__)(*gate.parameters)
 
     def one_qubit_base(self, state, nqubits, target, kernel, gate, qubits):
         ncontrols = len(qubits) - 1 if qubits is not None else 0
@@ -122,20 +120,16 @@ class CupyEngine(Simulator):
     DEFAULT_BLOCK_SIZE = 1024
     MAX_NUM_TARGETS = 7
 
-    def __init__(self, dtype="complex128"):
+    def __init__(self):
+        super().__init__()
         import os
         import cupy as cp  # pylint: disable=import-error
         import cupy_backends  # pylint: disable=import-error
-        self.name = "qibojit (cupy)"
-        self.dtype = dtype
+        self.name = "qibojit"
+        self.platform = "cupy"
         self.device = "/GPU:0"
-        if dtype == "complex128":
-            self.kernel_type = "double"
-        elif dtype == "complex64":
-            self.kernel_type = "float"
-        else:
-            raise TypeError("State of invalid type {}.".format(state.dtype))
-        self.matrices = CustomMatrices(dtype)
+        self.kernel_type = "double"
+        self.matrices = CustomMatrices(self.dtype)
         try:
             if not cp.cuda.runtime.getDeviceCount(): # pragma: no cover
                 raise RuntimeError("Cannot use cupy backend if GPU is not available.")
@@ -174,8 +168,21 @@ class CupyEngine(Simulator):
                 gate = cp.RawKernel(code, name, ("--std=c++11",))
                 self.gates[f"{name}_{ktype}_{ntargets}"] = gate
 
+    def set_precision(self, precision):
+        super().set_precision(precision)
+        if self.dtype == "complex128":
+            self.kernel_type = "double"
+        elif self.dtype == "complex64":
+            self.kernel_type = "float"
+
+    def set_device(self, device):
+        if "GPU" not in device:
+            raise_error(ValueError, f"Device {device} is not available for {self} backend.")
+        # TODO: Raise error if GPU is not available
+        self.device = device
+
     def asmatrix(self, gate):
-        matrix = getattr(self.matrices, gate.__class__.__name__)(*gate.parameters)
+        matrix = super().asmatrix(gate)
         return self.cp.asarray(matrix)
 
     def calculate_blocks(self, nstates, block_size=DEFAULT_BLOCK_SIZE):

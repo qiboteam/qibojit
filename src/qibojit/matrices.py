@@ -1,4 +1,5 @@
 import numpy as np
+from functools import cached_property
 from qibo.engines.matrices import Matrices
 
 
@@ -10,11 +11,13 @@ class CustomMatrices(Matrices):
         dtype = getattr(np, self.dtype)
         return dtype(np.exp(1j * theta))
 
+    @cached_property
     def CNOT(self):
-        return self.X()
+        return self.X
 
+    @cached_property
     def CZ(self):
-        return self.Z()
+        return self.Z
 
     def CRX(self, theta):
         return self.RX(theta)
@@ -44,5 +47,6 @@ class CustomMatrices(Matrices):
         phase = np.exp(-1j * phi)
         return np.array([u[0, 0], u[0, 1], u[1, 0], u[1, 1], phase], dtype=self.dtype)
 
+    @cached_property
     def TOFFOLI(self):
-        return self.X()
+        return self.X
