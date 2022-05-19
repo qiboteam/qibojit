@@ -48,6 +48,12 @@ class NumbaEngine(Simulator):
             5: self.gates.apply_five_qubit_gate_kernel
         }
 
+        # using physical cores by default        
+        import numba
+        import psutil
+        nthreads = psutil.cpu_count(logical=False)
+        numba.set_num_threads(nthreads)
+
     @lru_cache
     def asmatrix(self, gate):
         name = gate.__class__.__name__
