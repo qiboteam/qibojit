@@ -1,6 +1,7 @@
 import numpy as np
 from qibo.config import raise_error
-from qibo.engines.abstract import Simulator
+from qibo.gates.abstract import SpecialGate, ParametrizedGate
+from qibo.engines.numpy import NumpyEngine
 from qibojit.matrices import CustomMatrices
 
 
@@ -25,14 +26,12 @@ def get_op(gate):
         if ntargets == 1:
             return "apply_gate"
         elif ntargets == 2:
-            return "apply_two_qubit_gate_kernel"
-        else:
-            return "apply_multi_qubit_gate"
+            return "apply_two_qubit_gate"
     else:
         return op
 
 
-class NumbaEngine(Simulator):
+class NumbaEngine(NumpyEngine):
 
     def __init__(self):
         super().__init__()
@@ -41,7 +40,7 @@ class NumbaEngine(Simulator):
         self.name = "qibojit"
         self.platform = "numba"
         self.device = "/CPU:0"
-        self.matrices = CustomMatrices(self.dtype)
+        self.custom_matrices = CustomMatrices(self.dtype)
         self.gates = gates
         self.ops = ops
         self.multi_qubit_kernels = {
@@ -55,6 +54,24 @@ class NumbaEngine(Simulator):
         import numba
         numba.set_num_threads(nthreads)
         self.nthreads = nthreads
+
+    #def cast(self, x): Inherited from ``NumpyEngine``
+
+    #def to_numpy(self, x): Inherited from ``NumpyEngine``
+
+    def zero_state(self, nqubits):
+        size = 2 ** nqubits
+        state = np.empty((size,), dtype=self.dtype)
+        return self.ops.initial_state_vector(state)
+
+    def zero_density_matrix(self, nqubits):
+        size = 2 ** nqubits
+        state = np.empty((size, size), dtype=self.dtype)
+        return self.ops.initial_density_matrix(state)
+
+    #def asmatrix_special(self, gate): Inherited from ``NumpyEngine``
+
+    #def control_matrix(self, gate): Inherited from ``NumpyEngine``
 
     def one_qubit_base(self, state, nqubits, target, kernel, gate, qubits):
         ncontrols = len(qubits) - 1 if qubits is not None else 0
@@ -94,36 +111,64 @@ class NumbaEngine(Simulator):
             kernel = self.multi_qubit_kernels.get(len(targets))
         return kernel(state, gate, qubits, nstates, targets)
 
-    def _create_qubits_tensor(self, gate, nqubits):
+    @staticmethod
+    def _create_qubits_tensor(gate, nqubits):
         # TODO: Treat density matrices
         qubits = [nqubits - q - 1 for q in gate.control_qubits]
         qubits.extend(nqubits - q - 1 for q in gate.target_qubits)
         return np.array(sorted(qubits), dtype="int32")
 
+    def _as_custom_matrix(self, gate):
+        name = gate.__class__.__name__
+        if isinstance(gate, ParametrizedGate):
+            return getattr(self.custom_matrices, name)(*gate.parameters)
+        elif isinstance(gate, SpecialGate):
+            return self.asmatrix_special(gate)
+        else:
+            return getattr(self.custom_matrices, name)
+
     def apply_gate(self, gate, state, nqubits):
-        # TODO: Implement density matrices (most likely in another method)
-        op = get_op(gate)
-        matrix = self.asmatrix(gate)
+        matrix = self._as_custom_matrix(gate)
         qubits = self._create_qubits_tensor(gate, nqubits)
         targets = gate.target_qubits
         if len(targets) == 1:
+            op = get_op(gate)
             return self.one_qubit_base(state, nqubits, *targets, op, matrix, qubits)
         elif len(targets) == 2:
+            op = get_op(gate)
             return self.two_qubit_base(state, nqubits, *targets, op, matrix, qubits)
         else:
-            return self.multi_qubit_base(state, nqubits, targets, op, matrix, qubits)
+            return self.multi_qubit_base(state, nqubits, targets, matrix, qubits)
 
-    def zero_state(self, nqubits, is_matrix=False):
-        """Generate |000...0> state as an array."""
-        size = 2 ** nqubits
-        if is_matrix:
-            state = np.empty((size, size), dtype=self.dtype)
-            return self.ops.initial_density_matrix(state)
-        state = np.empty((size,), dtype=self.dtype)
-        return self.ops.initial_state_vector(state)
+    def apply_gate_density_matrix(self, gate, state, nqubits):
+        op = get_op(gate)
+        matrix = self._as_custom_matrix(gate)
+        qubits = self._create_qubits_tensor(gate, nqubits)
+        qubits_dm = qubits + nqubits
+        targets = gate.target_qubits
+        targets_dm = tuple(q + nqubits for q in targets)
+
+        shape = state.shape
+        if len(targets) == 1:
+            state = self.one_qubit_base(state.ravel(), 2 * nqubits, *targets, op, matrix, qubits_dm)
+            state = self.one_qubit_base(state, 2 * nqubits, *targets_dm, op, np.conj(matrix), qubits)
+        elif len(targets) == 2:
+            state = self.two_qubit_base(state.ravel(), 2 * nqubits, *targets, op, matrix, qubits_dm)
+            state = self.two_qubit_base(state, 2 * nqubits, *targets_dm, op, np.conj(matrix), qubits)
+        else:
+            state = self.multi_qubit_base(state.ravel(), 2 * nqubits, *targets, op, matrix, qubits_dm)
+            state = self.multi_qubit_base(state, 2 * nqubits, *targets_dm, op, np.conj(matrix), qubits)
+        return np.reshape(state, shape)
+
+    #def apply_channel(self, gate): Inherited from ``NumpyEngine``
+
+    #def apply_channel_density_matrix(self, gate): Inherited from ``NumpyEngine``
+    # TODO: This should be fixed to use inverse gate?
+
+    #def assert_allclose(self, value, target, rtol=1e-7, atol=0.0): Inherited from ``NumpyEngine``
 
 
-class CupyEngine(Simulator):
+class CupyEngine(NumpyEngine):
 
     DEFAULT_BLOCK_SIZE = 1024
     MAX_NUM_TARGETS = 7
