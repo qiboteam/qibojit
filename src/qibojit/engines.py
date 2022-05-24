@@ -140,9 +140,14 @@ class NumbaEngine(NumpyEngine):
         else:
             return self.multi_qubit_base(state, nqubits, targets, matrix, qubits)
 
-    def apply_gate_density_matrix(self, gate, state, nqubits):
-        op = get_op(gate)
+    def apply_gate_density_matrix(self, gate, state, nqubits, inverse=False):
+        if gate.__class__.__name__ == "Y":
+            return self._apply_ygate_density_matrix(gate, state, nqubits)
         matrix = self._as_custom_matrix(gate)
+        if inverse:
+            # used to reset the state when applying channels
+            # see :meth:`qibojit.engines.NumbaEngine.apply_channel_density_matrix` below
+            matrix = np.linalg.inv(matrix)
         qubits = self._create_qubits_tensor(gate, nqubits)
         qubits_dm = qubits + nqubits
         targets = gate.target_qubits
@@ -150,20 +155,42 @@ class NumbaEngine(NumpyEngine):
 
         shape = state.shape
         if len(targets) == 1:
+            op = get_op(gate)
             state = self.one_qubit_base(state.ravel(), 2 * nqubits, *targets, op, matrix, qubits_dm)
             state = self.one_qubit_base(state, 2 * nqubits, *targets_dm, op, np.conj(matrix), qubits)
         elif len(targets) == 2:
+            op = get_op(gate)
             state = self.two_qubit_base(state.ravel(), 2 * nqubits, *targets, op, matrix, qubits_dm)
             state = self.two_qubit_base(state, 2 * nqubits, *targets_dm, op, np.conj(matrix), qubits)
         else:
-            state = self.multi_qubit_base(state.ravel(), 2 * nqubits, *targets, op, matrix, qubits_dm)
-            state = self.multi_qubit_base(state, 2 * nqubits, *targets_dm, op, np.conj(matrix), qubits)
+            state = self.multi_qubit_base(state.ravel(), 2 * nqubits, targets, matrix, qubits_dm)
+            state = self.multi_qubit_base(state, 2 * nqubits, targets_dm, np.conj(matrix), qubits)
+        return np.reshape(state, shape)
+
+    def _apply_ygate_density_matrix(self, gate, state, nqubits):
+        matrix = self._as_custom_matrix(gate)
+        qubits = self._create_qubits_tensor(gate, nqubits)
+        qubits_dm = qubits + nqubits
+        targets = gate.target_qubits
+        targets_dm = tuple(q + nqubits for q in targets)
+        op = get_op(gate)
+        shape = state.shape
+        state = self.one_qubit_base(state.ravel(), 2 * nqubits, *targets, op, matrix, qubits_dm)
+        # force using ``apply_gate`` kernel so that conjugate is properly applied
+        state = self.one_qubit_base(state, 2 * nqubits, *targets_dm, "apply_gate", np.conj(matrix), qubits)
         return np.reshape(state, shape)
 
     #def apply_channel(self, gate): Inherited from ``NumpyEngine``
 
-    #def apply_channel_density_matrix(self, gate): Inherited from ``NumpyEngine``
-    # TODO: This should be fixed to use inverse gate?
+    def apply_channel_density_matrix(self, channel, state, nqubits):
+        # TODO: This should be fixed to use inverse gate?
+        new_state = (1 - channel.coefficient_sum) * state
+        for coeff, gate in zip(channel.coefficients, channel.gates):
+            state = self.apply_gate_density_matrix(gate, state, nqubits)
+            new_state += coeff * state
+            # reset the state
+            state = self.apply_gate_density_matrix(gate, state, nqubits, inverse=True)
+        return new_state
 
     #def assert_allclose(self, value, target, rtol=1e-7, atol=0.0): Inherited from ``NumpyEngine``
 
