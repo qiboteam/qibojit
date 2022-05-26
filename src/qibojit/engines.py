@@ -120,6 +120,7 @@ class NumbaEngine(NumpyEngine):
         matrix = self._as_custom_matrix(gate)
         qubits = self._create_qubits_tensor(gate, nqubits)
         targets = gate.target_qubits
+        state = self.cast(state)
         if len(targets) == 1:
             op = GATE_OPS.get(gate.__class__.__name__, "apply_gate")
             return self.one_qubit_base(state, nqubits, *targets, op, matrix, qubits)
@@ -133,16 +134,19 @@ class NumbaEngine(NumpyEngine):
         name = gate.__class__.__name__
         if name == "Y":
             return self._apply_ygate_density_matrix(gate, state, nqubits)
-        matrix = self._as_custom_matrix(gate)
         if inverse:
             # used to reset the state when applying channels
             # see :meth:`qibojit.engines.NumbaEngine.apply_channel_density_matrix` below
-            matrix = np.linalg.inv(matrix)
+            matrix = np.linalg.inv(self.asmatrix(gate))
+            matrix = self.cast(matrix)
+        else:
+            matrix = self._as_custom_matrix(gate)
         qubits = self._create_qubits_tensor(gate, nqubits)
         qubits_dm = qubits + nqubits
         targets = gate.target_qubits
         targets_dm = tuple(q + nqubits for q in targets)
 
+        state = self.cast(state)
         shape = state.shape
         if len(targets) == 1:
             op = GATE_OPS.get(name, "apply_gate")
@@ -163,6 +167,7 @@ class NumbaEngine(NumpyEngine):
         qubits_dm = qubits + nqubits
         targets = gate.target_qubits
         targets_dm = tuple(q + nqubits for q in targets)
+        state = self.cast(state)
         shape = state.shape
         state = self.one_qubit_base(state.ravel(), 2 * nqubits, *targets, "apply_y", matrix, qubits_dm)
         # force using ``apply_gate`` kernel so that conjugate is properly applied
@@ -172,7 +177,7 @@ class NumbaEngine(NumpyEngine):
     #def apply_channel(self, gate): Inherited from ``NumpyEngine``
 
     def apply_channel_density_matrix(self, channel, state, nqubits):
-        # TODO: This should be fixed to use inverse gate?
+        state = self.cast(state)
         new_state = (1 - channel.coefficient_sum) * state
         for coeff, gate in zip(channel.coefficients, channel.gates):
             state = self.apply_gate_density_matrix(gate, state, nqubits)
@@ -184,13 +189,13 @@ class NumbaEngine(NumpyEngine):
     #def assert_allclose(self, value, target, rtol=1e-7, atol=0.0): Inherited from ``NumpyEngine``
 
 
-class CupyEngine(NumpyEngine):
+class CupyEngine(NumbaEngine):
 
     DEFAULT_BLOCK_SIZE = 1024
     MAX_NUM_TARGETS = 7
 
     def __init__(self):
-        super().__init__()
+        NumpyEngine.__init__(self)
         import os
         import cupy as cp  # pylint: disable=import-error
         import cupy_backends  # pylint: disable=import-error
@@ -198,7 +203,7 @@ class CupyEngine(NumpyEngine):
         self.platform = "cupy"
         self.device = "/GPU:0"
         self.kernel_type = "double"
-        self.matrices = CustomMatrices(self.dtype)
+        self.custom_matrices = CustomMatrices(self.dtype)
         try:
             if not cp.cuda.runtime.getDeviceCount(): # pragma: no cover
                 raise RuntimeError("Cannot use cupy backend if GPU is not available.")
@@ -253,9 +258,33 @@ class CupyEngine(NumpyEngine):
     def set_threads(self, nthreads):
         raise_error(RuntimeError, f"{self} does not thread setting.")
 
-    def asmatrix(self, gate):
-        matrix = super().asmatrix(gate)
-        return self.cp.asarray(matrix)
+    def cast(self, x):
+        return self.cp.asarray(x, dtype=self.dtype)
+
+    def to_numpy(self, x):
+        if isinstance(x, self.cp.ndarray):
+            return x.get()
+        return x
+
+    def zero_state(self, nqubits):
+        n = 1 << nqubits
+        kernel = self.gates.get(f"initial_state_kernel_{self.kernel_type}")
+        state = self.cp.zeros(n, dtype=self.dtype)
+        kernel((1,), (1,), [state])
+        self.cp.cuda.stream.get_current_stream().synchronize()
+        return state
+
+    def zero_density_matrix(self, nqubits):
+        n = 1 << nqubits
+        kernel = self.gates.get(f"initial_state_kernel_{self.kernel_type}")
+        state = self.cp.zeros(n * n, dtype=self.dtype)
+        kernel((1,), (1,), [state])
+        self.cp.cuda.stream.get_current_stream().synchronize()
+        return state.reshape((n, n))
+
+    #def asmatrix_special(self, gate): Inherited from ``NumpyEngine``
+
+    #def control_matrix(self, gate): Inherited from ``NumpyEngine``
 
     def calculate_blocks(self, nstates, block_size=DEFAULT_BLOCK_SIZE):
         """Compute the number of blocks and of threads per block.
@@ -343,35 +372,21 @@ class CupyEngine(NumpyEngine):
         return state
 
     def _create_qubits_tensor(self, gate, nqubits):
-        # TODO: Treat density matrices
-        qubits = [nqubits - q - 1 for q in gate.control_qubits]
-        qubits.extend(nqubits - q - 1 for q in gate.target_qubits)
-        return self.cp.asarray(sorted(qubits), dtype=self.cp.int32)
+        qubits = super()._create_qubits_tensor(gate, nqubits)
+        return self.cp.asarray(qubits, dtype=self.cp.int32)
 
-    def apply_gate(self, gate, state, nqubits):
-        # TODO: Implement density matrices (most likely in another method)
-        matrix = self.asmatrix(gate)
-        qubits = self._create_qubits_tensor(gate, nqubits)
-        targets = gate.target_qubits
-        if len(targets) == 1:
-            op = GATE_OPS.get(gate.__class__.__name__, "apply_gate")
-            return self.one_qubit_base(state, nqubits, *targets, op, matrix, qubits)
-        elif len(targets) == 2:
-            op = GATE_OPS.get(gate.__class__.__name__, "apply_two_qubit_gate")
-            return self.one_qubit_base(state, nqubits, *targets, op, matrix, qubits)
-        else:
-            return self.multi_qubit_base(state, nqubits, targets, matrix, qubits)
+    def _as_custom_matrix(self, gate):
+        matrix = super()._as_custom_matrix(gate)
+        return self.cp.asarray(matrix.ravel())
 
-    def zero_state(self, nqubits, is_matrix=False):
-        n = 1 << nqubits
-        kernel = self.gates.get(f"initial_state_kernel_{self.kernel_type}")
-        if is_matrix:
-            state = self.cp.zeros(n * n, dtype=self.dtype)
-            kernel((1,), (1,), [state])
-            self.cp.cuda.stream.get_current_stream().synchronize()
-            state = state.reshape((n, n))
-        else:
-            state = self.cp.zeros(n, dtype=self.dtype)
-            kernel((1,), (1,), [state])
-            self.cp.cuda.stream.get_current_stream().synchronize()
-        return state
+    #def apply_gate(self, gate, state, nqubits): Inherited from ``NumbaEngine``
+    
+    #def apply_gate_density_matrix(self, gate, state, nqubits, inverse=False): Inherited from ``NumbaEngine``
+    
+    #def _apply_ygate_density_matrix(self, gate, state, nqubits): Inherited from ``NumbaEngine``
+
+    #def apply_channel(self, gate): Inherited from ``NumbaEngine``
+
+    #def apply_channel_density_matrix(self, channel, state, nqubits): Inherited from ``NumbaEngine``
+
+    #def assert_allclose(self, value, target, rtol=1e-7, atol=0.0): Inherited from ``NumpyEngine``
