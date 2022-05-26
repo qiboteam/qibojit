@@ -19,17 +19,6 @@ GATE_OPS = {
     "GeneralizedfSim": "apply_fsim"
 }
 
-def get_op(gate):
-    op = GATE_OPS.get(gate.__class__.__name__)
-    if op is None:
-        ntargets = len(gate.target_qubits)
-        if ntargets == 1:
-            return "apply_gate"
-        elif ntargets == 2:
-            return "apply_two_qubit_gate"
-    else:
-        return op
-
 
 class NumbaEngine(NumpyEngine):
 
@@ -132,16 +121,17 @@ class NumbaEngine(NumpyEngine):
         qubits = self._create_qubits_tensor(gate, nqubits)
         targets = gate.target_qubits
         if len(targets) == 1:
-            op = get_op(gate)
+            op = GATE_OPS.get(gate.__class__.__name__, "apply_gate")
             return self.one_qubit_base(state, nqubits, *targets, op, matrix, qubits)
         elif len(targets) == 2:
-            op = get_op(gate)
+            op = GATE_OPS.get(gate.__class__.__name__, "apply_two_qubit_gate")
             return self.two_qubit_base(state, nqubits, *targets, op, matrix, qubits)
         else:
             return self.multi_qubit_base(state, nqubits, targets, matrix, qubits)
 
     def apply_gate_density_matrix(self, gate, state, nqubits, inverse=False):
-        if gate.__class__.__name__ == "Y":
+        name = gate.__class__.__name__
+        if name == "Y":
             return self._apply_ygate_density_matrix(gate, state, nqubits)
         matrix = self._as_custom_matrix(gate)
         if inverse:
@@ -155,11 +145,11 @@ class NumbaEngine(NumpyEngine):
 
         shape = state.shape
         if len(targets) == 1:
-            op = get_op(gate)
+            op = GATE_OPS.get(name, "apply_gate")
             state = self.one_qubit_base(state.ravel(), 2 * nqubits, *targets, op, matrix, qubits_dm)
             state = self.one_qubit_base(state, 2 * nqubits, *targets_dm, op, np.conj(matrix), qubits)
         elif len(targets) == 2:
-            op = get_op(gate)
+            op = GATE_OPS.get(name, "apply_two_qubit_gate")
             state = self.two_qubit_base(state.ravel(), 2 * nqubits, *targets, op, matrix, qubits_dm)
             state = self.two_qubit_base(state, 2 * nqubits, *targets_dm, op, np.conj(matrix), qubits)
         else:
@@ -173,9 +163,8 @@ class NumbaEngine(NumpyEngine):
         qubits_dm = qubits + nqubits
         targets = gate.target_qubits
         targets_dm = tuple(q + nqubits for q in targets)
-        op = get_op(gate)
         shape = state.shape
-        state = self.one_qubit_base(state.ravel(), 2 * nqubits, *targets, op, matrix, qubits_dm)
+        state = self.one_qubit_base(state.ravel(), 2 * nqubits, *targets, "apply_y", matrix, qubits_dm)
         # force using ``apply_gate`` kernel so that conjugate is properly applied
         state = self.one_qubit_base(state, 2 * nqubits, *targets_dm, "apply_gate", np.conj(matrix), qubits)
         return np.reshape(state, shape)
@@ -361,16 +350,17 @@ class CupyEngine(NumpyEngine):
 
     def apply_gate(self, gate, state, nqubits):
         # TODO: Implement density matrices (most likely in another method)
-        op = get_op(gate)
         matrix = self.asmatrix(gate)
         qubits = self._create_qubits_tensor(gate, nqubits)
         targets = gate.target_qubits
         if len(targets) == 1:
+            op = GATE_OPS.get(gate.__class__.__name__, "apply_gate")
             return self.one_qubit_base(state, nqubits, *targets, op, matrix, qubits)
         elif len(targets) == 2:
+            op = GATE_OPS.get(gate.__class__.__name__, "apply_two_qubit_gate")
             return self.one_qubit_base(state, nqubits, *targets, op, matrix, qubits)
         else:
-            return self.multi_qubit_base(state, nqubits, targets, op, matrix, qubits)
+            return self.multi_qubit_base(state, nqubits, targets, matrix, qubits)
 
     def zero_state(self, nqubits, is_matrix=False):
         n = 1 << nqubits
