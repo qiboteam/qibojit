@@ -32,6 +32,7 @@ class NumbaEngine(NumpyEngine):
         self.custom_matrices = CustomMatrices(self.dtype)
         self.gates = gates
         self.ops = ops
+        self.measure_frequencies_op = ops.measure_frequencies
         self.multi_qubit_kernels = {
             3: self.gates.apply_three_qubit_gate_kernel,
             4: self.gates.apply_four_qubit_gate_kernel,
@@ -204,10 +205,9 @@ class NumbaEngine(NumpyEngine):
         nqubits = int(np.log2(tuple(probabilities.shape)[0]))
         frequencies = np.zeros(2 ** nqubits, dtype="int64")
         # always fall back to numba CPU backend because for ops not implemented on GPU
-        frequencies = self.ops.measure_frequencies(
+        frequencies = self.measure_frequencies_op(
             frequencies, probabilities, nshots, nqubits, seed, self.nthreads)
         return collections.Counter({i: f for i, f in enumerate(frequencies) if f > 0})
-
 
     #def calculate_frequencies(self, samples): Inherited from ``NumpyEngine``
 
@@ -266,6 +266,10 @@ class CupyEngine(NumbaEngine):
                 code = code.replace("MAX_BLOCK_SIZE", str(self.DEFAULT_BLOCK_SIZE))
                 gate = cp.RawKernel(code, name, ("--std=c++11",))
                 self.gates[f"{name}_{ktype}_{ntargets}"] = gate
+
+        # load numba op for measuring frequencies
+        from qibojit.custom_operators.ops import measure_frequencies
+        self.measure_frequencies_op = measure_frequencies
 
     def set_precision(self, precision):
         super().set_precision(precision)
@@ -413,5 +417,32 @@ class CupyEngine(NumbaEngine):
     #def apply_channel(self, gate): Inherited from ``NumbaEngine``
 
     #def apply_channel_density_matrix(self, channel, state, nqubits): Inherited from ``NumbaEngine``
+
+    def calculate_probabilities(self, result, qubits):
+        try:
+            probs = super().calculate_probabilities(result, qubits)
+        except MemoryError:
+            # fall back to CPU
+            _temp = result.execution_result
+            result.execution_result = self.to_numpy(_temp)
+            probs = super().calculate_probabilities(result, qubits)
+            result.execution_result = _temp
+        return probs
+
+    def sample_shots(self, probabilities, nshots):
+        # Sample shots on CPU
+        probabilities = self.to_numpy(probabilities)
+        return super().sample_shots(probabilities, nshots)
+
+    #def samples_to_binary(self, samples, nqubits): Inherited from ``NumpyEngine``
+
+    #def samples_to_decimal(self, samples, nqubits): Inherited from ``NumpyEngine``
+
+    def sample_frequencies(self, probabilities, nshots):
+        # Sample frequencies on CPU
+        probabilities = self.to_numpy(probabilities)
+        return super().sample_frequencies(probabilities, nshots)
+
+    #def calculate_frequencies(self, samples): Inherited from ``NumpyEngine``
 
     #def assert_allclose(self, value, target, rtol=1e-7, atol=0.0): Inherited from ``NumpyEngine``
