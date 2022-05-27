@@ -186,6 +186,31 @@ class NumbaEngine(NumpyEngine):
             state = self.apply_gate_density_matrix(gate, state, nqubits, inverse=True)
         return new_state
 
+    #def calculate_probabilities(self, result, qubits): Inherited from ``NumpyEngine``
+
+    #def sample_shots(self, probabilities, nshots): Inherited from ``NumpyEngine``
+
+    #def samples_to_binary(self, samples, nqubits): Inherited from ``NumpyEngine``
+
+    #def samples_to_decimal(self, samples, nqubits): Inherited from ``NumpyEngine``
+
+    def sample_frequencies(self, probabilities, nshots):
+        from qibo.config import SHOT_METROPOLIS_THRESHOLD
+        if nshots < SHOT_METROPOLIS_THRESHOLD:
+            return super().sample_frequencies(probabilities, nshots)
+
+        import collections
+        seed = np.random.randint(0, int(1e8), dtype="int64")
+        nqubits = int(np.log2(tuple(probabilities.shape)[0]))
+        frequencies = np.zeros(2 ** nqubits, dtype="int64")
+        # always fall back to numba CPU backend because for ops not implemented on GPU
+        frequencies = self.ops.measure_frequencies(
+            frequencies, probabilities, nshots, nqubits, seed, self.nthreads)
+        return collections.Counter({i: f for i, f in enumerate(frequencies) if f > 0})
+
+
+    #def calculate_frequencies(self, samples): Inherited from ``NumpyEngine``
+
     #def assert_allclose(self, value, target, rtol=1e-7, atol=0.0): Inherited from ``NumpyEngine``
 
 
