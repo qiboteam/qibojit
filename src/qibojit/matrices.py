@@ -1,6 +1,6 @@
 import numpy as np
 from functools import cached_property
-from qibo.engines.matrices import Matrices
+from qibo.backends.matrices import Matrices
 
 
 class CustomMatrices(Matrices):

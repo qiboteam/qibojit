@@ -1,7 +1,7 @@
 import numpy as np
 from qibo.config import raise_error
 from qibo.gates.abstract import SpecialGate, ParametrizedGate
-from qibo.engines.numpy import NumpyEngine
+from qibo.backends.numpy import NumpyBackend
 from qibojit.matrices import CustomMatrices
 
 
@@ -20,7 +20,7 @@ GATE_OPS = {
 }
 
 
-class NumbaEngine(NumpyEngine):
+class NumbaBackend(NumpyBackend):
 
     def __init__(self):
         super().__init__()
@@ -45,9 +45,9 @@ class NumbaEngine(NumpyEngine):
         numba.set_num_threads(nthreads)
         self.nthreads = nthreads
 
-    #def cast(self, x): Inherited from ``NumpyEngine``
+    #def cast(self, x): Inherited from ``NumpyBackend``
 
-    #def to_numpy(self, x): Inherited from ``NumpyEngine``
+    #def to_numpy(self, x): Inherited from ``NumpyBackend``
 
     def zero_state(self, nqubits):
         size = 2 ** nqubits
@@ -59,9 +59,9 @@ class NumbaEngine(NumpyEngine):
         state = np.empty((size, size), dtype=self.dtype)
         return self.ops.initial_density_matrix(state)
 
-    #def asmatrix_special(self, gate): Inherited from ``NumpyEngine``
+    #def asmatrix_special(self, gate): Inherited from ``NumpyBackend``
 
-    #def control_matrix(self, gate): Inherited from ``NumpyEngine``
+    #def control_matrix(self, gate): Inherited from ``NumpyBackend``
 
     def one_qubit_base(self, state, nqubits, target, kernel, gate, qubits):
         ncontrols = len(qubits) - 1 if qubits is not None else 0
@@ -137,7 +137,7 @@ class NumbaEngine(NumpyEngine):
             return self._apply_ygate_density_matrix(gate, state, nqubits)
         if inverse:
             # used to reset the state when applying channels
-            # see :meth:`qibojit.engines.NumbaEngine.apply_channel_density_matrix` below
+            # see :meth:`qibojit.backend.NumpyBackend.apply_channel_density_matrix` below
             matrix = np.linalg.inv(self.asmatrix(gate))
             matrix = self.cast(matrix)
         else:
@@ -175,7 +175,7 @@ class NumbaEngine(NumpyEngine):
         state = self.one_qubit_base(state, 2 * nqubits, *targets_dm, "apply_gate", np.conj(matrix), qubits)
         return np.reshape(state, shape)
 
-    #def apply_channel(self, gate): Inherited from ``NumpyEngine``
+    #def apply_channel(self, gate): Inherited from ``NumpyBackend``
 
     def apply_channel_density_matrix(self, channel, state, nqubits):
         state = self.cast(state)
@@ -187,13 +187,13 @@ class NumbaEngine(NumpyEngine):
             state = self.apply_gate_density_matrix(gate, state, nqubits, inverse=True)
         return new_state
 
-    #def calculate_probabilities(self, result, qubits): Inherited from ``NumpyEngine``
+    #def calculate_probabilities(self, result, qubits): Inherited from ``NumpyBackend``
 
-    #def sample_shots(self, probabilities, nshots): Inherited from ``NumpyEngine``
+    #def sample_shots(self, probabilities, nshots): Inherited from ``NumpyBackend``
 
-    #def samples_to_binary(self, samples, nqubits): Inherited from ``NumpyEngine``
+    #def samples_to_binary(self, samples, nqubits): Inherited from ``NumpyBackend``
 
-    #def samples_to_decimal(self, samples, nqubits): Inherited from ``NumpyEngine``
+    #def samples_to_decimal(self, samples, nqubits): Inherited from ``NumpyBackend``
 
     def sample_frequencies(self, probabilities, nshots):
         from qibo.config import SHOT_METROPOLIS_THRESHOLD
@@ -209,18 +209,18 @@ class NumbaEngine(NumpyEngine):
             frequencies, probabilities, nshots, nqubits, seed, self.nthreads)
         return collections.Counter({i: f for i, f in enumerate(frequencies) if f > 0})
 
-    #def calculate_frequencies(self, samples): Inherited from ``NumpyEngine``
+    #def calculate_frequencies(self, samples): Inherited from ``NumpyBackend``
 
-    #def assert_allclose(self, value, target, rtol=1e-7, atol=0.0): Inherited from ``NumpyEngine``
+    #def assert_allclose(self, value, target, rtol=1e-7, atol=0.0): Inherited from ``NumpyBackend``
 
 
-class CupyEngine(NumbaEngine):
+class CupyBackend(NumpyBackend):
 
     DEFAULT_BLOCK_SIZE = 1024
     MAX_NUM_TARGETS = 7
 
     def __init__(self):
-        NumpyEngine.__init__(self)
+        NumpyBackend.__init__(self)
         import os
         import cupy as cp  # pylint: disable=import-error
         import cupy_backends  # pylint: disable=import-error
@@ -308,9 +308,9 @@ class CupyEngine(NumbaEngine):
         self.cp.cuda.stream.get_current_stream().synchronize()
         return state.reshape((n, n))
 
-    #def asmatrix_special(self, gate): Inherited from ``NumpyEngine``
+    #def asmatrix_special(self, gate): Inherited from ``NumpyBackend``
 
-    #def control_matrix(self, gate): Inherited from ``NumpyEngine``
+    #def control_matrix(self, gate): Inherited from ``NumpyBackend``
 
     def calculate_blocks(self, nstates, block_size=DEFAULT_BLOCK_SIZE):
         """Compute the number of blocks and of threads per block.
@@ -405,15 +405,15 @@ class CupyEngine(NumbaEngine):
         matrix = super()._as_custom_matrix(gate)
         return self.cp.asarray(matrix.ravel())
 
-    #def apply_gate(self, gate, state, nqubits): Inherited from ``NumbaEngine``
+    #def apply_gate(self, gate, state, nqubits): Inherited from ``NumbaBackend``
     
-    #def apply_gate_density_matrix(self, gate, state, nqubits, inverse=False): Inherited from ``NumbaEngine``
+    #def apply_gate_density_matrix(self, gate, state, nqubits, inverse=False): Inherited from ``NumbaBackend``
     
-    #def _apply_ygate_density_matrix(self, gate, state, nqubits): Inherited from ``NumbaEngine``
+    #def _apply_ygate_density_matrix(self, gate, state, nqubits): Inherited from ``NumbaBackend``
 
-    #def apply_channel(self, gate): Inherited from ``NumbaEngine``
+    #def apply_channel(self, gate): Inherited from ``NumbaBackend``
 
-    #def apply_channel_density_matrix(self, channel, state, nqubits): Inherited from ``NumbaEngine``
+    #def apply_channel_density_matrix(self, channel, state, nqubits): Inherited from ``NumbaBackend``
 
     def calculate_probabilities(self, result, qubits):
         try:
@@ -431,15 +431,15 @@ class CupyEngine(NumbaEngine):
         probabilities = self.to_numpy(probabilities)
         return super().sample_shots(probabilities, nshots)
 
-    #def samples_to_binary(self, samples, nqubits): Inherited from ``NumpyEngine``
+    #def samples_to_binary(self, samples, nqubits): Inherited from ``NumpyBackend``
 
-    #def samples_to_decimal(self, samples, nqubits): Inherited from ``NumpyEngine``
+    #def samples_to_decimal(self, samples, nqubits): Inherited from ``NumpyBackend``
 
     def sample_frequencies(self, probabilities, nshots):
         # Sample frequencies on CPU
         probabilities = self.to_numpy(probabilities)
         return super().sample_frequencies(probabilities, nshots)
 
-    #def calculate_frequencies(self, samples): Inherited from ``NumpyEngine``
+    #def calculate_frequencies(self, samples): Inherited from ``NumpyBackend``
 
-    #def assert_allclose(self, value, target, rtol=1e-7, atol=0.0): Inherited from ``NumpyEngine``
+    #def assert_allclose(self, value, target, rtol=1e-7, atol=0.0): Inherited from ``NumpyBackend``
