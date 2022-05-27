@@ -284,9 +284,6 @@ class CupyEngine(NumbaEngine):
         # TODO: Raise error if GPU is not available
         self.device = device
 
-    def set_threads(self, nthreads):
-        raise_error(RuntimeError, f"{self} does not thread setting.")
-
     def cast(self, x):
         return self.cp.asarray(x, dtype=self.dtype)
 
