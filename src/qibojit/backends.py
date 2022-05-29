@@ -45,7 +45,7 @@ class NumbaBackend(NumpyBackend):
         numba.set_num_threads(nthreads)
         self.nthreads = nthreads
 
-    #def cast(self, x): Inherited from ``NumpyBackend``
+    #def cast(self, x, dtype=None, copy=False): Inherited from ``NumpyBackend``
 
     #def to_numpy(self, x): Inherited from ``NumpyBackend``
 
@@ -191,6 +191,8 @@ class NumbaBackend(NumpyBackend):
 
     #def sample_shots(self, probabilities, nshots): Inherited from ``NumpyBackend``
 
+    #def aggregate_shots(self, shots): Inherited from ``NumpyBackend``
+
     #def samples_to_binary(self, samples, nqubits): Inherited from ``NumpyBackend``
 
     #def samples_to_decimal(self, samples, nqubits): Inherited from ``NumpyBackend``
@@ -284,8 +286,13 @@ class CupyBackend(NumpyBackend):
         # TODO: Raise error if GPU is not available
         self.device = device
 
-    def cast(self, x):
-        return self.cp.asarray(x, dtype=self.dtype)
+    def cast(self, x, dtype=None, copy=False):
+        if dtype is None:
+            dtype = self.dtype
+        if copy:
+            return self.cp.copy(self.cp.asarray(x, dtype=self.dtype))
+        else:
+            return self.cp.asarray(x, dtype=self.dtype)
 
     def to_numpy(self, x):
         if isinstance(x, self.cp.ndarray):
@@ -430,6 +437,8 @@ class CupyBackend(NumpyBackend):
         # Sample shots on CPU
         probabilities = self.to_numpy(probabilities)
         return super().sample_shots(probabilities, nshots)
+
+    #def aggregate_shots(self, shots): Inherited from ``NumpyBackend``
 
     #def samples_to_binary(self, samples, nqubits): Inherited from ``NumpyBackend``
 
