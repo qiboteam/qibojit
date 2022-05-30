@@ -187,7 +187,7 @@ class NumbaBackend(NumpyBackend):
             state = self.apply_gate_density_matrix(gate, state, nqubits, inverse=True)
         return new_state
 
-    #def calculate_probabilities(self, result, qubits): Inherited from ``NumpyBackend``
+    #def calculate_probabilities(self, state, qubits, nqubits): Inherited from ``NumpyBackend``
 
     #def sample_shots(self, probabilities, nshots): Inherited from ``NumpyBackend``
 
@@ -422,15 +422,12 @@ class CupyBackend(NumpyBackend):
 
     #def apply_channel_density_matrix(self, channel, state, nqubits): Inherited from ``NumbaBackend``
 
-    def calculate_probabilities(self, result, qubits):
+    def calculate_probabilities(self, state, qubits, nqubits):
         try:
-            probs = super().calculate_probabilities(result, qubits)
+            probs = super().calculate_probabilities(state, qubits, nqubits)
         except MemoryError:
             # fall back to CPU
-            _temp = result.execution_result
-            result.execution_result = self.to_numpy(_temp)
-            probs = super().calculate_probabilities(result, qubits)
-            result.execution_result = _temp
+            probs = super().calculate_probabilities(self.to_numpy(state), qubits, nqubits)
         return probs
 
     def sample_shots(self, probabilities, nshots):
