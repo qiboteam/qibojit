@@ -1,6 +1,7 @@
 import numpy as np
 from qibo.config import raise_error
-from qibo.gates.abstract import SpecialGate, ParametrizedGate
+from qibo.gates.abstract import ParametrizedGate
+from qibo.gates.special import FusedGate
 from qibo.backends.numpy import NumpyBackend
 from qibojit.matrices import CustomMatrices
 
@@ -112,8 +113,8 @@ class NumbaBackend(NumpyBackend):
         name = gate.__class__.__name__
         if isinstance(gate, ParametrizedGate):
             return getattr(self.custom_matrices, name)(*gate.parameters)
-        elif isinstance(gate, SpecialGate):
-            return self.asmatrix_special(gate)
+        elif isinstance(gate, FusedGate):
+            return self.asmatrix_fused(gate)
         else:
             return getattr(self.custom_matrices, name)
 
@@ -138,7 +139,7 @@ class NumbaBackend(NumpyBackend):
         if inverse:
             # used to reset the state when applying channels
             # see :meth:`qibojit.backend.NumpyBackend.apply_channel_density_matrix` below
-            matrix = np.linalg.inv(self.asmatrix(gate))
+            matrix = np.linalg.inv(gate.asmatrix(self))
             matrix = self.cast(matrix)
         else:
             matrix = self._as_custom_matrix(gate)
@@ -421,6 +422,18 @@ class CupyBackend(NumpyBackend):
     #def apply_channel(self, gate): Inherited from ``NumbaBackend``
 
     #def apply_channel_density_matrix(self, channel, state, nqubits): Inherited from ``NumbaBackend``
+
+    #def collapse_state(self, gate, state, nqubits):
+    # TODO: Implement this
+
+    #def collapse_density_matrix(self, gate, state, nqubits):
+    # TODO: Implement this
+
+    #def reset_error_density_matrix(self, gate, state, nqubits): Inherited from ``NumpyBackend``
+
+    #def calculate_symbolic(self, state, nqubits, decimals=5, cutoff=1e-10, max_terms=20): Inherited from ``NumpyBackend``
+
+    #def calculate_symbolic_density_matrix(self, state, nqubits, decimals=5, cutoff=1e-10, max_terms=20): Inherited from ``NumpyBackend``
 
     def calculate_probabilities(self, state, qubits, nqubits):
         try:
