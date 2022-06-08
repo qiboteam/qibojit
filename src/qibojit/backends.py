@@ -545,7 +545,7 @@ class CupyBackend(NumpyBackend):
 
     def calculate_matrix_product(self, hamiltonian, o):
         if isinstance(o, hamiltonian.__class__):
-            new_matrix = self.cp.dot(hamiltonian.matrix, o.matrix)
+            new_matrix = hamiltonian.matrix.dot(o.matrix)
             return hamiltonian.__class__(hamiltonian.nqubits, new_matrix)
 
         if isinstance(o, self.tensor_types):
