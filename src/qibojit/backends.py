@@ -537,7 +537,7 @@ class CupyBackend(NumpyBackend):
                 from scipy.sparse.linalg import expm
             else:
                 from scipy.linalg import expm
-            return expm(-1j * a * matrix.get())
+            return self.cast(expm(-1j * a * matrix.get()))
         else:
             expd = self.cp.diag(self.cp.exp(-1j * a * eigenvalues))
             ud = self.cp.transpose(self.cp.conj(eigenvectors))
