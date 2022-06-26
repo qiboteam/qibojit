@@ -313,12 +313,10 @@ class CupyBackend(NumbaBackend):
         elif self.npsparse.issparse(x):
             cls = getattr(self.sparse, x.__class__.__name__)
             return cls(x, dtype=dtype)
-        elif isinstance(x, self.cp.ndarray):
-            if copy:
-                self.cp.copy(self.cp.asarray(x, dtype=dtype))
-            else:
-                self.cp.asarray(x, dtype=dtype)
-        return self.cp.asarray(x, dtype=dtype)
+        elif isinstance(x, self.cp.ndarray) and copy:
+            return self.cp.copy(self.cp.asarray(x, dtype=dtype))
+        else:
+            return self.cp.asarray(x, dtype=dtype)
 
     def to_numpy(self, x):
         if isinstance(x, self.cp.ndarray):
@@ -463,7 +461,7 @@ class CupyBackend(NumbaBackend):
 
     #def reset_error_density_matrix(self, gate, state, nqubits): Inherited from ``NumpyBackend``
 
-    def execute_distributed_circuit(self, circuit, initial_state=None, nshots=None):
+    def execute_distributed_circuit(self, circuit, initial_state=None, nshots=None, return_array=False):
         import joblib
         from qibo.states import CircuitResult
         
@@ -481,7 +479,10 @@ class CupyBackend(NumbaBackend):
                 pieces.extend(np.zeros(2 ** circuit.nlocal, dtype=self.dtype) for _ in range(circuit.ndevices - 1))
             elif isinstance(initial_state, CircuitResult):
                 # TODO: Implement this
-                raise_error(NotImplementedError)
+                if isinstance(initial_state.execution_result, list):
+                    pieces = initial_state.execution_result
+                else:
+                    pieces = ops.to_pieces(initial_state.state())
             elif isinstance(initial_state, self.tensor_types):
                 pieces = ops.to_pieces(initial_state)
             else:
@@ -509,8 +510,11 @@ class CupyBackend(NumbaBackend):
             for gate in special_gates: # pragma: no cover
                 pieces = ops.apply_special_gate(pieces, gate)
 
-            circuit._final_state = CircuitResult(self, circuit, pieces, nshots)
-            return circuit._final_state
+            if return_array:
+                return ops.to_tensor(pieces)
+            else:
+                circuit._final_state = CircuitResult(self, circuit, pieces, nshots)
+                return circuit._final_state
         
         except self.oom_error:
             raise_error(RuntimeError, "State does not fit in memory during distributed "
