@@ -1,227 +1,11 @@
 import numpy as np
 from qibo.config import raise_error, log
-from qibo.gates.abstract import ParametrizedGate
-from qibo.gates.special import FusedGate
 from qibo.backends.numpy import NumpyBackend
-from qibojit.matrices import CustomMatrices
+from qibojit.backends.cpu import NumbaBackend
+from qibojit.backends.matrices import CustomMatrices
 
 
-GATE_OPS = {
-    "X": "apply_x",
-    "CNOT": "apply_x",
-    "TOFFOLI": "apply_x",
-    "Y": "apply_y",
-    "Z": "apply_z",
-    "CZ": "apply_z",
-    "U1": "apply_z_pow",
-    "CU1": "apply_z_pow",
-    "SWAP": "apply_swap",
-    "fSim": "apply_fsim",
-    "GeneralizedfSim": "apply_fsim"
-}
-
-
-class NumbaBackend(NumpyBackend):
-
-    def __init__(self):
-        super().__init__()
-        import psutil
-        from qibojit.custom_operators import gates, ops
-        self.name = "qibojit"
-        self.platform = "numba"
-        self.numeric_types = (int, float, complex, np.int32,
-                              np.int64, np.float32, np.float64,
-                              np.complex64, np.complex128)
-        self.tensor_types = (np.ndarray,)
-        self.device = "/CPU:0"
-        self.custom_matrices = CustomMatrices(self.dtype)
-        self.gates = gates
-        self.ops = ops
-        self.measure_frequencies_op = ops.measure_frequencies
-        self.multi_qubit_kernels = {
-            3: self.gates.apply_three_qubit_gate_kernel,
-            4: self.gates.apply_four_qubit_gate_kernel,
-            5: self.gates.apply_five_qubit_gate_kernel
-        }
-        self.set_threads(psutil.cpu_count(logical=False))
-
-    def set_threads(self, nthreads):
-        import numba
-        numba.set_num_threads(nthreads)
-        self.nthreads = nthreads
-
-    #def cast(self, x, dtype=None, copy=False): Inherited from ``NumpyBackend``
-
-    #def to_numpy(self, x): Inherited from ``NumpyBackend``
-
-    def zero_state(self, nqubits):
-        size = 2 ** nqubits
-        state = np.empty((size,), dtype=self.dtype)
-        return self.ops.initial_state_vector(state)
-
-    def zero_density_matrix(self, nqubits):
-        size = 2 ** nqubits
-        state = np.empty((size, size), dtype=self.dtype)
-        return self.ops.initial_density_matrix(state)
-
-    #def asmatrix_special(self, gate): Inherited from ``NumpyBackend``
-
-    #def control_matrix(self, gate): Inherited from ``NumpyBackend``
-
-    def one_qubit_base(self, state, nqubits, target, kernel, gate, qubits):
-        ncontrols = len(qubits) - 1 if qubits is not None else 0
-        m = nqubits - target - 1
-        nstates = 1 << (nqubits - ncontrols - 1)
-        if ncontrols:
-            kernel = getattr(self.gates, "multicontrol_{}_kernel".format(kernel))
-            return kernel(state, gate, qubits, nstates, m)
-        kernel = getattr(self.gates, "{}_kernel".format(kernel))
-        return kernel(state, gate, nstates, m)
-
-    def two_qubit_base(self, state, nqubits, target1, target2, kernel, gate, qubits):
-        ncontrols = len(qubits) - 2 if qubits is not None else 0
-        if target1 > target2:
-            swap_targets = True
-            m1 = nqubits - target1 - 1
-            m2 = nqubits - target2 - 1
-        else:
-            swap_targets = False
-            m1 = nqubits - target2 - 1
-            m2 = nqubits - target1 - 1
-        nstates = 1 << (nqubits - 2 - ncontrols)
-        if ncontrols:
-            kernel = getattr(self.gates, "multicontrol_{}_kernel".format(kernel))
-            return kernel(state, gate, qubits, nstates, m1, m2, swap_targets)
-        kernel = getattr(self.gates, "{}_kernel".format(kernel))
-        return kernel(state, gate, nstates, m1, m2, swap_targets)
-
-    def multi_qubit_base(self, state, nqubits, targets, gate, qubits):
-        if qubits is None:
-            qubits = np.array(sorted(nqubits - q - 1 for q in targets), dtype="int32")
-        nstates = 1 << (nqubits - len(qubits))
-        targets = np.array([1 << (nqubits - t - 1) for t in targets[::-1]], dtype="int64")
-        if len(targets) > 5:
-            kernel = self.gates.apply_multi_qubit_gate_kernel
-        else:
-            kernel = self.multi_qubit_kernels.get(len(targets))
-        return kernel(state, gate, qubits, nstates, targets)
-
-    @staticmethod
-    def _create_qubits_tensor(gate, nqubits):
-        # TODO: Treat density matrices
-        qubits = [nqubits - q - 1 for q in gate.control_qubits]
-        qubits.extend(nqubits - q - 1 for q in gate.target_qubits)
-        return np.array(sorted(qubits), dtype="int32")
-
-    def _as_custom_matrix(self, gate):
-        name = gate.__class__.__name__
-        if isinstance(gate, ParametrizedGate):
-            return getattr(self.custom_matrices, name)(*gate.parameters)
-        elif isinstance(gate, FusedGate):
-            return self.asmatrix_fused(gate)
-        else:
-            return getattr(self.custom_matrices, name)
-
-    def apply_gate(self, gate, state, nqubits):
-        matrix = self._as_custom_matrix(gate)
-        qubits = self._create_qubits_tensor(gate, nqubits)
-        targets = gate.target_qubits
-        state = self.cast(state)
-        if len(targets) == 1:
-            op = GATE_OPS.get(gate.__class__.__name__, "apply_gate")
-            return self.one_qubit_base(state, nqubits, *targets, op, matrix, qubits)
-        elif len(targets) == 2:
-            op = GATE_OPS.get(gate.__class__.__name__, "apply_two_qubit_gate")
-            return self.two_qubit_base(state, nqubits, *targets, op, matrix, qubits)
-        else:
-            return self.multi_qubit_base(state, nqubits, targets, matrix, qubits)
-
-    def apply_gate_density_matrix(self, gate, state, nqubits, inverse=False):
-        name = gate.__class__.__name__
-        if name == "Y":
-            return self._apply_ygate_density_matrix(gate, state, nqubits)
-        if inverse:
-            # used to reset the state when applying channels
-            # see :meth:`qibojit.backend.NumpyBackend.apply_channel_density_matrix` below
-            matrix = np.linalg.inv(gate.asmatrix(self))
-            matrix = self.cast(matrix)
-        else:
-            matrix = self._as_custom_matrix(gate)
-        qubits = self._create_qubits_tensor(gate, nqubits)
-        qubits_dm = qubits + nqubits
-        targets = gate.target_qubits
-        targets_dm = tuple(q + nqubits for q in targets)
-
-        state = self.cast(state)
-        shape = state.shape
-        if len(targets) == 1:
-            op = GATE_OPS.get(name, "apply_gate")
-            state = self.one_qubit_base(state.ravel(), 2 * nqubits, *targets, op, matrix, qubits_dm)
-            state = self.one_qubit_base(state, 2 * nqubits, *targets_dm, op, np.conj(matrix), qubits)
-        elif len(targets) == 2:
-            op = GATE_OPS.get(name, "apply_two_qubit_gate")
-            state = self.two_qubit_base(state.ravel(), 2 * nqubits, *targets, op, matrix, qubits_dm)
-            state = self.two_qubit_base(state, 2 * nqubits, *targets_dm, op, np.conj(matrix), qubits)
-        else:
-            state = self.multi_qubit_base(state.ravel(), 2 * nqubits, targets, matrix, qubits_dm)
-            state = self.multi_qubit_base(state, 2 * nqubits, targets_dm, np.conj(matrix), qubits)
-        return np.reshape(state, shape)
-
-    def _apply_ygate_density_matrix(self, gate, state, nqubits):
-        matrix = self._as_custom_matrix(gate)
-        qubits = self._create_qubits_tensor(gate, nqubits)
-        qubits_dm = qubits + nqubits
-        targets = gate.target_qubits
-        targets_dm = tuple(q + nqubits for q in targets)
-        state = self.cast(state)
-        shape = state.shape
-        state = self.one_qubit_base(state.ravel(), 2 * nqubits, *targets, "apply_y", matrix, qubits_dm)
-        # force using ``apply_gate`` kernel so that conjugate is properly applied
-        state = self.one_qubit_base(state, 2 * nqubits, *targets_dm, "apply_gate", np.conj(matrix), qubits)
-        return np.reshape(state, shape)
-
-    #def apply_channel(self, gate): Inherited from ``NumpyBackend``
-
-    def apply_channel_density_matrix(self, channel, state, nqubits):
-        state = self.cast(state)
-        new_state = (1 - channel.coefficient_sum) * state
-        for coeff, gate in zip(channel.coefficients, channel.gates):
-            state = self.apply_gate_density_matrix(gate, state, nqubits)
-            new_state += coeff * state
-            # reset the state
-            state = self.apply_gate_density_matrix(gate, state, nqubits, inverse=True)
-        return new_state
-
-    #def calculate_probabilities(self, state, qubits, nqubits): Inherited from ``NumpyBackend``
-
-    #def sample_shots(self, probabilities, nshots): Inherited from ``NumpyBackend``
-
-    #def aggregate_shots(self, shots): Inherited from ``NumpyBackend``
-
-    #def samples_to_binary(self, samples, nqubits): Inherited from ``NumpyBackend``
-
-    #def samples_to_decimal(self, samples, nqubits): Inherited from ``NumpyBackend``
-
-    def sample_frequencies(self, probabilities, nshots):
-        from qibo.config import SHOT_METROPOLIS_THRESHOLD
-        if nshots < SHOT_METROPOLIS_THRESHOLD:
-            return super().sample_frequencies(probabilities, nshots)
-
-        import collections
-        seed = np.random.randint(0, int(1e8), dtype="int64")
-        nqubits = int(np.log2(tuple(probabilities.shape)[0]))
-        frequencies = np.zeros(2 ** nqubits, dtype="int64")
-        # always fall back to numba CPU backend because for ops not implemented on GPU
-        frequencies = self.measure_frequencies_op(
-            frequencies, probabilities, nshots, nqubits, seed, self.nthreads)
-        return collections.Counter({i: f for i, f in enumerate(frequencies) if f > 0})
-
-    #def calculate_frequencies(self, samples): Inherited from ``NumpyBackend``
-
-    #def assert_allclose(self, value, target, rtol=1e-7, atol=0.0): Inherited from ``NumpyBackend``
-
-
-class CupyBackend(NumpyBackend):
+class CupyBackend(NumbaBackend):
 
     DEFAULT_BLOCK_SIZE = 1024
     MAX_NUM_TARGETS = 7
@@ -233,6 +17,7 @@ class CupyBackend(NumpyBackend):
         import cupy_backends  # pylint: disable=import-error
         self.name = "qibojit"
         self.platform = "cupy"
+        self.supports_multigpu = True
         self.numeric_types = (int, float, complex, cp.int32,
                               cp.int64, cp.float32, cp.float64,
                               cp.complex64, cp.complex128)
@@ -285,6 +70,9 @@ class CupyBackend(NumpyBackend):
         from qibojit.custom_operators.ops import measure_frequencies
         self.measure_frequencies_op = measure_frequencies
 
+        # number of available GPUs (for multigpu)
+        self.ngpus = cp.cuda.runtime.getDeviceCount()
+
     def set_precision(self, precision):
         super().set_precision(precision)
         if self.dtype == "complex128":
@@ -309,12 +97,10 @@ class CupyBackend(NumpyBackend):
         elif self.npsparse.issparse(x):
             cls = getattr(self.sparse, x.__class__.__name__)
             return cls(x, dtype=dtype)
-        elif isinstance(x, self.cp.ndarray):
-            if copy:
-                self.cp.copy(self.cp.asarray(x, dtype=dtype))
-            else:
-                self.cp.asarray(x, dtype=dtype)
-        return self.cp.asarray(x, dtype=dtype)
+        elif isinstance(x, self.cp.ndarray) and copy:
+            return self.cp.copy(self.cp.asarray(x, dtype=dtype))
+        else:
+            return self.cp.asarray(x, dtype=dtype)
 
     def to_numpy(self, x):
         if isinstance(x, self.cp.ndarray):
@@ -459,6 +245,71 @@ class CupyBackend(NumpyBackend):
 
     #def reset_error_density_matrix(self, gate, state, nqubits): Inherited from ``NumpyBackend``
 
+    def execute_distributed_circuit(self, circuit, initial_state=None, nshots=None, return_array=False):
+        import joblib
+        from qibo.states import CircuitResult
+        
+        if not circuit.queues.queues:
+            circuit.queues.set(circuit.queue)
+
+        try:
+            cpu_backend = NumbaBackend()
+            cpu_backend.set_precision(self.precision)
+            ops = MultiGpuOps(self, cpu_backend, circuit)
+            
+            if initial_state is None:
+                # Generate pieces for |000...0> state
+                pieces = [cpu_backend.zero_state(circuit.nlocal)]
+                pieces.extend(np.zeros(2 ** circuit.nlocal, dtype=self.dtype) for _ in range(circuit.ndevices - 1))
+            elif isinstance(initial_state, CircuitResult):
+                # TODO: Implement this
+                if isinstance(initial_state.execution_result, list):
+                    pieces = initial_state.execution_result
+                else:
+                    pieces = ops.to_pieces(initial_state.state())
+            elif isinstance(initial_state, self.tensor_types):
+                pieces = ops.to_pieces(initial_state)
+            else:
+                raise_error(TypeError, "Initial state type {} is not supported by "
+                                       "distributed circuits.".format(type(initial_state)))
+
+            special_gates = iter(circuit.queues.special_queue)
+            for i, queues in enumerate(circuit.queues.queues):
+                if queues: # standard gate
+                    config = circuit.queues.device_to_ids.items()
+                    pool = joblib.Parallel(n_jobs=circuit.ndevices, prefer="threads")
+                    pool(joblib.delayed(ops.apply_gates)(pieces, queues, ids, device) for device, ids in config)
+
+                else: # special gate
+                    gate = next(special_gates)
+                    if isinstance(gate, tuple): # SWAP global-local qubit
+                        global_qubit, local_qubit = gate
+                        pieces = ops.swap(pieces, global_qubit, local_qubit)
+                    else:
+                        pieces = ops.apply_special_gate(pieces, gate)
+            
+            for gate in special_gates: # pragma: no cover
+                pieces = ops.apply_special_gate(pieces, gate)
+
+            if return_array:
+                return ops.to_tensor(pieces)
+            else:
+                circuit._final_state = CircuitResult(self, circuit, pieces, nshots)
+                return circuit._final_state
+        
+        except self.oom_error:
+            raise_error(RuntimeError, "State does not fit in memory during distributed "
+                                      "execution. Please create a new circuit with "
+                                      "different device configuration and try again.")
+
+    def get_state_tensor(self, result):
+        if isinstance(result.execution_result, list):
+            # transform distributed state pieces to tensor
+            ops = MultiGpuOps(self, NumbaBackend(), result.circuit)
+            return ops.to_tensor(result.execution_result)
+        else:
+            return super().get_state_tensor(result)
+
     #def calculate_symbolic(self, state, nqubits, decimals=5, cutoff=1e-10, max_terms=20): Inherited from ``NumpyBackend``
 
     #def calculate_symbolic_density_matrix(self, state, nqubits, decimals=5, cutoff=1e-10, max_terms=20): Inherited from ``NumpyBackend``
@@ -561,3 +412,92 @@ class CupyBackend(NumpyBackend):
 
         raise_error(NotImplementedError, "Hamiltonian matmul to {} not "
                                          "implemented.".format(type(o)))
+
+
+class MultiGpuOps:
+
+    def __init__(self, backend, cpu_backend, circuit):
+        self.backend = backend
+        self.circuit = circuit
+        self.cpu_ops = cpu_backend.ops
+    
+    def transpose_state(self, pieces, state, nqubits, order):
+        original_shape = state.shape
+        state = state.ravel()
+        # always fall back to numba CPU backend because for ops not implemented on GPU
+        state = self.cpu_ops.transpose_state(tuple(pieces), state, nqubits, order)
+        return np.reshape(state, original_shape)
+
+    def to_pieces(self, state):
+        nqubits = self.circuit.nqubits
+        qubits = self.circuit.queues.qubits
+        shape = (self.circuit.ndevices, 2 ** self.circuit.nlocal)
+        state = np.reshape(self.backend.to_numpy(state), shape)
+        pieces = [state[i] for i in range(self.circuit.ndevices)]
+        new_tensor = np.zeros(shape, dtype=state.dtype)
+        new_tensor = self.transpose_state(pieces, new_tensor, nqubits, qubits.transpose_order)
+        for i in range(self.circuit.ndevices):
+            pieces[i] = new_tensor[i]
+        return pieces
+
+    def to_tensor(self, pieces):
+        nqubits = self.circuit.nqubits
+        qubits = self.circuit.queues.qubits
+        if qubits.list == list(range(self.circuit.nglobal)):
+            tensor = np.concatenate([x[np.newaxis] for x in pieces], axis=0)
+            tensor = np.reshape(tensor, (2 ** nqubits,))
+        elif qubits.list == list(range(self.circuit.nlocal, self.circuit.nqubits)):
+            tensor = np.concatenate([x[:, np.newaxis] for x in pieces], axis=1)
+            tensor = np.reshape(tensor, (2 ** nqubits,))
+        else: # fall back to the transpose op
+            tensor = np.zeros(2 ** nqubits, dtype=self.backend.dtype)
+            tensor = self.transpose_state(pieces, tensor, nqubits, qubits.reverse_transpose_order)
+        return tensor
+
+    def apply_gates(self, pieces, queues, ids, device):
+        """Method that is parallelized using ``joblib``."""
+        for i in ids:
+            device_id = int(device.split(":")[-1]) % self.backend.ngpus
+            with self.backend.cp.cuda.Device(device_id):
+                piece = self.backend.cast(pieces[i])
+                for gate in queues[i]:
+                    piece = self.backend.apply_gate(gate, piece, self.circuit.nlocal)
+            pieces[i] = self.backend.to_numpy(piece)
+            del(piece)
+
+    def apply_special_gate(self, pieces, gate):
+        """Executes special gates on CPU.
+
+        Currently special gates are ``Flatten`` or ``CallbackGate``.
+        This method calculates the full state vector because special gates
+        are not implemented for state pieces.
+        """
+        from qibo.gates import CallbackGate
+        # Reverse all global SWAPs that happened so far
+        pieces = self.revert_swaps(pieces, reversed(gate.swap_reset))
+        state = self.to_tensor(pieces)
+        if isinstance(gate, CallbackGate):
+            gate.apply(self.backend, state, self.circuit.nqubits)
+        else:
+            state = gate.apply(self.backend, state, self.circuit.nqubits)
+            pieces = self.to_pieces(state)
+        # Redo all global SWAPs that happened so far
+        pieces = self.revert_swaps(pieces, gate.swap_reset)
+        return pieces
+
+    def swap(self, pieces, global_qubit, local_qubit):
+        m = self.circuit.queues.qubits.reduced_global.get(global_qubit)
+        m = self.circuit.nglobal - m - 1
+        t = 1 << m
+        for g in range(self.circuit.ndevices // 2):
+            i = ((g >> m) << (m + 1)) + (g & (t - 1))
+            local_eff = self.circuit.queues.qubits.reduced_local.get(local_qubit)
+            self.cpu_ops.swap_pieces(pieces[i], pieces[i + t], local_eff, self.circuit.nlocal)
+        return pieces
+
+    def revert_swaps(self, pieces, swap_pairs):
+        for q1, q2 in swap_pairs:
+            if q1 not in self.circuit.queues.qubits.set:
+                q1, q2 = q2, q1
+            pieces = self.swap(pieces, q1, q2)
+        return pieces
