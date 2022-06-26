@@ -492,12 +492,9 @@ class CupyBackend(NumbaBackend):
             special_gates = iter(circuit.queues.special_queue)
             for i, queues in enumerate(circuit.queues.queues):
                 if queues: # standard gate
-                    pieces = ops.joblib_execute(pieces, queues)
-                    #config = circuit.queues.device_to_ids.items()
-                    #for device, ids in config:
-                    #    pieces = ops.apply_gate(pieces, queues, ids, device)
-                    #pool = joblib.Parallel(n_jobs=len(circuit.accelerators), prefer="threads")
-                    #pool(joblib.delayed(ops.apply_gate)(pieces, queues, ids, device) for device, ids in config)
+                    config = circuit.queues.device_to_ids.items()
+                    pool = joblib.Parallel(n_jobs=circuit.ndevices, prefer="threads")
+                    pool(joblib.delayed(ops.apply_gates)(pieces, queues, ids, device) for device, ids in config)
 
                 else: # special gate
                     gate = next(special_gates)
@@ -673,7 +670,7 @@ class MultiGpuOps:
             tensor = self.transpose_state(pieces, tensor, nqubits, qubits.reverse_transpose_order)
         return tensor
 
-    def apply_gate_failing(self, pieces, queues, ids, device):
+    def apply_gates(self, pieces, queues, ids, device):
         """Method that is parallelized using ``joblib``."""
         for i in ids:
             device_id = int(device.split(":")[-1]) % self.backend.ngpus
@@ -683,31 +680,6 @@ class MultiGpuOps:
                     piece = self.backend.apply_gate(gate, piece, self.circuit.nlocal)
             pieces[i] = self.backend.to_numpy(piece)
             del(piece)
-        return pieces
-
-    def apply_gates(self, state, gates, device):
-        device_id = int(device.split(":")[-1]) % self.backend.ngpus
-        with self.backend.cp.cuda.Device(device_id):
-            state = self.backend.cast(state)
-            for gate in gates:
-                state = self.backend.apply_gate(gate, state, self.circuit.nlocal)
-        return state
-
-    def joblib_execute(self, pieces, queues):
-        def device_job(ids, device):
-            for i in ids:
-                piece = self.apply_gates(pieces[i], queues[i], device)
-                pieces[i] = self.backend.to_numpy(piece)
-                del(piece)
-
-        for device, ids in self.circuit.queues.device_to_ids.items():
-            device_job(ids, device)
-       
-        #pool = joblib.Parallel(n_jobs=len(self.calc_devices),
-        #                       prefer="threads")
-        #pool(joblib.delayed(device_job)(ids, device)
-        #     for device, ids in self.queues.device_to_ids.items())
-        return pieces
 
     def apply_special_gate(self, pieces, gate):
         """Executes special gates on CPU.
