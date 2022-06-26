@@ -1,5 +1,5 @@
 import numpy as np
-from qibo.config import raise_error
+from qibo.config import raise_error, log
 from qibo.gates.abstract import ParametrizedGate
 from qibo.gates.special import FusedGate
 from qibo.backends.numpy import NumpyBackend
@@ -29,6 +29,10 @@ class NumbaBackend(NumpyBackend):
         from qibojit.custom_operators import gates, ops
         self.name = "qibojit"
         self.platform = "numba"
+        self.numeric_types = (int, float, complex, np.int32,
+                              np.int64, np.float32, np.float64,
+                              np.complex64, np.complex128)
+        self.tensor_types = (np.ndarray,)
         self.device = "/CPU:0"
         self.custom_matrices = CustomMatrices(self.dtype)
         self.gates = gates
@@ -229,6 +233,13 @@ class CupyBackend(NumpyBackend):
         import cupy_backends  # pylint: disable=import-error
         self.name = "qibojit"
         self.platform = "cupy"
+        self.numeric_types = (int, float, complex, cp.int32,
+                              cp.int64, cp.float32, cp.float64,
+                              cp.complex64, cp.complex128)
+        self.tensor_types = (np.ndarray, cp.ndarray)
+        from scipy import sparse
+        self.npsparse = sparse
+        self.sparse = cp.sparse
         self.device = "/GPU:0"
         self.kernel_type = "double"
         self.custom_matrices = CustomMatrices(self.dtype)
@@ -290,15 +301,32 @@ class CupyBackend(NumpyBackend):
     def cast(self, x, dtype=None, copy=False):
         if dtype is None:
             dtype = self.dtype
-        if copy:
-            return self.cp.copy(self.cp.asarray(x, dtype=self.dtype))
-        else:
-            return self.cp.asarray(x, dtype=self.dtype)
+        if self.sparse.issparse(x):
+            if dtype != x.dtype:
+                return x.astype(dtype)
+            else:
+                return x
+        elif self.npsparse.issparse(x):
+            cls = getattr(self.sparse, x.__class__.__name__)
+            return cls(x, dtype=dtype)
+        elif isinstance(x, self.cp.ndarray):
+            if copy:
+                self.cp.copy(self.cp.asarray(x, dtype=dtype))
+            else:
+                self.cp.asarray(x, dtype=dtype)
+        return self.cp.asarray(x, dtype=dtype)
 
     def to_numpy(self, x):
         if isinstance(x, self.cp.ndarray):
             return x.get()
-        return x
+        elif self.sparse.issparse(x):
+            return x.toarray().get()
+        elif self.npsparse.issparse(x):
+            return x.toarray()
+        return np.array(x, copy=False)
+
+    def issparse(self, x):
+        return self.sparse.issparse(x) or self.npsparse.issparse(x)
 
     def zero_state(self, nqubits):
         n = 1 << nqubits
@@ -462,3 +490,74 @@ class CupyBackend(NumpyBackend):
     #def calculate_frequencies(self, samples): Inherited from ``NumpyBackend``
 
     #def assert_allclose(self, value, target, rtol=1e-7, atol=0.0): Inherited from ``NumpyBackend``
+
+    def calculate_expectation_state(self, matrix, state, normalize):
+        state = self.cast(state)
+        statec = self.cp.conj(state)
+        hstate = matrix @ state
+        ev = self.cp.real(self.cp.sum(statec * hstate))
+        if normalize:
+            norm = self.cp.sum(self.cp.square(self.cp.abs(state)))
+            ev = ev / norm
+        return ev
+
+    def calculate_expectation_density_matrix(self, matrix, state, normalize):
+        state = self.cast(state)
+        ev = self.cp.real(self.cp.trace(matrix @ state))
+        if normalize:
+            norm = self.cp.real(self.cp.trace(state))
+            ev = ev / norm
+        return ev
+
+    def calculate_eigenvalues(self, matrix, k=6):
+        if self.issparse(matrix):
+            log.warning("Calculating sparse matrix eigenvectors because "
+                        "sparse modules do not provide ``eigvals`` method.")
+            return self.calculate_eigenvectors(matrix, k=k)[0]
+        return self.cp.linalg.eigvalsh(matrix)
+
+    def calculate_eigenvectors(self, matrix, k=6):
+        if self.issparse(matrix):
+            if k < matrix.shape[0]:
+                # Fallback to numpy because cupy's ``sparse.eigh`` does not support 'SA'
+                from scipy.sparse.linalg import eigsh  # pylint: disable=import-error
+                result = eigsh(matrix.get(), k=k, which='SA')
+                return self.cast(result[0]), self.cast(result[1])
+            matrix = matrix.toarray()
+        if self.is_hip:
+            # Fallback to numpy because eigh is not implemented in rocblas
+            result = self.np.linalg.eigh(self.to_numpy(matrix))
+            return self.cast(result[0]), self.cast(result[1])
+        else:
+            return self.cp.linalg.eigh(matrix)
+
+    def calculate_matrix_exp(self, a, matrix, eigenvectors=None, eigenvalues=None):
+        if eigenvectors is None or self.issparse(matrix):
+            if self.issparse(matrix):
+                from scipy.sparse.linalg import expm
+            else:
+                from scipy.linalg import expm
+            return self.cast(expm(-1j * a * matrix.get()))
+        else:
+            expd = self.cp.diag(self.cp.exp(-1j * a * eigenvalues))
+            ud = self.cp.transpose(self.cp.conj(eigenvectors))
+            return self.cp.matmul(eigenvectors, self.cp.matmul(expd, ud))
+
+    def calculate_matrix_product(self, hamiltonian, o):
+        if isinstance(o, hamiltonian.__class__):
+            new_matrix = hamiltonian.matrix.dot(o.matrix)
+            return hamiltonian.__class__(hamiltonian.nqubits, new_matrix)
+
+        if isinstance(o, self.tensor_types):
+            rank = len(tuple(o.shape))
+            o = self.cast(o)
+            if rank == 1: # vector
+                return hamiltonian.matrix.dot(o[:, np.newaxis])[:, 0]
+            elif rank == 2: # matrix
+                return hamiltonian.matrix.dot(o)
+            else:
+                raise_error(ValueError, "Cannot multiply Hamiltonian with "
+                                        "rank-{} tensor.".format(rank))
+
+        raise_error(NotImplementedError, "Hamiltonian matmul to {} not "
+                                         "implemented.".format(type(o)))
