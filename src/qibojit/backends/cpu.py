@@ -45,6 +45,12 @@ class NumbaBackend(NumpyBackend):
         }
         self.set_threads(psutil.cpu_count(logical=False))
 
+    def set_precision(self, precision):
+        if precision != self.precision:
+            super().set_precision(precision)
+            if self.custom_matrices:
+                self.custom_matrices = CustomMatrices(self.dtype)
+
     def set_threads(self, nthreads):
         import numba
         numba.set_num_threads(nthreads)
