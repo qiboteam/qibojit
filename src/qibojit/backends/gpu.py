@@ -237,11 +237,24 @@ class CupyBackend(NumbaBackend):
 
     #def apply_channel_density_matrix(self, channel, state, nqubits): Inherited from ``NumbaBackend``
 
-    #def collapse_state(self, gate, state, nqubits):
-    # TODO: Implement this
+    def collapse_state(self, state, qubits, shot, nqubits, normalize=True):
+        ntargets = len(qubits)
+        nstates = 1 << (nqubits - ntargets)
+        nblocks, block_size = self.calculate_blocks(nstates)
 
-    #def collapse_density_matrix(self, gate, state, nqubits):
-    # TODO: Implement this
+        state = self.cast(state)
+        qubits = self.cast([nqubits - q - 1 for q in reversed(qubits)], dtype=self.cp.int32)
+        args = [state, qubits, int(shot), ntargets]
+        kernel = self.gates.get(f"collapse_state_kernel_{self.kernel_type}")
+        kernel((nblocks,), (block_size,), args)
+        self.cp.cuda.stream.get_current_stream().synchronize()
+
+        if normalize:
+            norm = self.cp.sqrt(self.cp.sum(self.cp.square(self.cp.abs(state))))
+            state = state / norm
+        return state
+
+    #def collapse_density_matrix(self, state, qubits, shot, nqubits, normalize=True): Inherited from ``NumbaBackend``
 
     #def reset_error_density_matrix(self, gate, state, nqubits): Inherited from ``NumpyBackend``
 

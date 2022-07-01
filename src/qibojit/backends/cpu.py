@@ -200,7 +200,7 @@ class NumbaBackend(NumpyBackend):
 
     def collapse_state(self, state, qubits, shot, nqubits, normalize=True):
         state = self.cast(state)
-        qubits = self.cast([nqubits - q - 1 for q in qubits], dtype="int32")
+        qubits = self.cast([nqubits - q - 1 for q in reversed(qubits)], dtype="int32")
         if normalize:
             return self.ops.collapse_state_normalized(state, qubits, int(shot), nqubits)
         else:
@@ -209,21 +209,13 @@ class NumbaBackend(NumpyBackend):
     def collapse_density_matrix(self, state, qubits, shot, nqubits, normalize=True):
         state = self.cast(state)
         shape = state.shape
-        binshot = list(self.samples_to_binary(shot, len(qubits))[0])
-        order = list(qubits) + [q + nqubits for q in qubits]
-        order.extend(q for q in range(nqubits) if q not in qubits)
-        order.extend(q + nqubits for q in range(nqubits) if q not in qubits)
-        state = self.np.reshape(state, 2 * nqubits * (2,))
-        state = self.np.transpose(state, order)
-        subshape = 2 * (2 ** len(qubits),) + 2 * (nqubits - len(qubits)) * (2,)
-        state = self.np.reshape(state, subshape)[int(shot), int(shot)]
-        n = 2 ** (len(state.shape) // 2)
+        dm_qubits = [q + nqubits for q in qubits]
+        state = self.collapse_state(state.ravel(), dm_qubits, shot, 2 * nqubits, False)
+        state = self.collapse_state(state, qubits, shot, 2 * nqubits, False)
+        state = self.np.reshape(state, shape)
         if normalize:
-            norm = self.np.trace(self.np.reshape(state, (n, n)))
-            state = state / norm
-        qubits = qubits + [q + nqubits for q in qubits]
-        state = self._append_zeros(state, qubits, 2 * binshot)
-        return self.np.reshape(state, shape)
+            state = state / self.np.trace(state)
+        return state
 
     #def calculate_probabilities(self, state, qubits, nqubits): Inherited from ``NumpyBackend``
 
