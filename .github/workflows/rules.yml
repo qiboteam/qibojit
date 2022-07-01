@@ -21,7 +21,7 @@ jobs:
         python -m pip install --upgrade pip
         pip install pylint
         pip install pytest-cov
-        pip install git+https://github.com/qiboteam/qibo
+        pip install git+https://github.com/qiboteam/qibo@abstrevol
         pip install .
     - name: Test with pylint
       run: |
