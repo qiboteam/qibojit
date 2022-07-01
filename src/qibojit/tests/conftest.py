@@ -1,7 +1,7 @@
 import pytest
 from qibojit.backends import NumbaBackend, CupyBackend
 
-AVAILABLE_BACKENDS = ["numba"]#, "cupy"]
+AVAILABLE_BACKENDS = ["numba", "cupy"]
 
 
 @pytest.fixture

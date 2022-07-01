@@ -35,6 +35,8 @@ def test_one_qubit_base(backend, nqubits, target, use_qubits, dtype):
     set_precision(dtype, backend, tbackend)
     target_state = tbackend.apply_gate(gate, np.copy(state), nqubits)
     qubits = qubits_tensor(nqubits, [target]) if use_qubits else None
+    state = backend.cast(state)
+    matrix = backend.cast(matrix)
     state = backend.one_qubit_base(state, nqubits, target, "apply_gate", matrix, qubits)
     backend.assert_allclose(state, target_state, atol=ATOL.get(dtype))
 
@@ -98,6 +100,8 @@ def test_apply_two_qubit_base(backend, nqubits, targets, use_qubits, dtype):
     set_precision(dtype, backend, tbackend)
     target_state = tbackend.apply_gate(gate, np.copy(state), nqubits)
     qubits = qubits_tensor(nqubits, targets) if use_qubits else None
+    state = backend.cast(state)
+    matrix = backend.cast(matrix)
     state = backend.two_qubit_base(state, nqubits, targets[0], targets[1], "apply_two_qubit_gate", matrix, qubits)
     backend.assert_allclose(state, target_state, atol=ATOL.get(dtype))
 

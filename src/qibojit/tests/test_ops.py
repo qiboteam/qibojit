@@ -80,7 +80,7 @@ CONFIG = ((n, generate_transpose_qubits(n))
 @pytest.mark.parametrize("nqubits,qubits", CONFIG)
 @pytest.mark.parametrize("ndevices", [2, 4, 8])
 def test_transpose_state(backend, nqubits, qubits, ndevices, dtype):
-    if backend.platform != "numba":
+    if backend.platform != "numba": # pragma: no cover
         pytest.skip(f"``transpose_state`` op is not available for {backend.platform} platform.")
     qubit_order = list(qubits)
     state = random_state(nqubits, dtype)
@@ -96,7 +96,7 @@ def test_transpose_state(backend, nqubits, qubits, ndevices, dtype):
 CONFIG = ((n, np.random.randint(1, n)) for _ in range(10) for n in range(4, 11))
 @pytest.mark.parametrize("nqubits,local", CONFIG)
 def test_swap_pieces_zero_global(backend, nqubits, local, dtype):
-    if backend.platform != "numba":
+    if backend.platform != "numba": # pragma: no cover
         pytest.skip(f"``swap_pieces`` op is not available for {backend.platform} platform.")
 
     from qibo import gates
@@ -119,7 +119,7 @@ CONFIG = ((n, np.random.randint(0, n), np.random.randint(0, n))
           for _ in range(10) for n in range(5, 11))
 @pytest.mark.parametrize("nqubits,qlocal,qglobal", CONFIG)
 def test_swap_pieces(backend, nqubits, qlocal, qglobal, dtype):
-    if backend.platform != "numba":
+    if backend.platform != "numba": # pragma: no cover
         pytest.skip(f"``swap_pieces`` op is not available for {backend.platform} platform.")
 
     from qibo import gates

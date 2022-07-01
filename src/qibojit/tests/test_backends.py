@@ -3,8 +3,12 @@ import numpy as np
 
 
 def test_device_setter(backend):
-    backend.set_device("/CPU:0")
-    assert backend.device == "/CPU:0"
+    if backend.platform == "numba":
+        device = "/CPU:0"
+    else:
+        device = "/GPU:0"
+    backend.set_device(device)
+    assert backend.device == device
 
 
 def test_thread_setter(backend):

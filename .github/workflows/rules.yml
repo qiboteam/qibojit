@@ -16,6 +16,7 @@ jobs:
       uses: actions/setup-python@v2
       with:
         python-version: ${{ matrix.python-version }}
+    # Use ``abstrevol`` branch of qibo temporarily
     - name: Install package
       run: |
         python -m pip install --upgrade pip
