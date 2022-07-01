@@ -123,7 +123,8 @@ class NumbaBackend(NumpyBackend):
         name = gate.__class__.__name__
         if isinstance(gate, ParametrizedGate):
             return getattr(self.custom_matrices, name)(*gate.parameters)
-        elif isinstance(gate, FusedGate):
+        elif isinstance(gate, FusedGate): # pragma: no cover
+            # fusion is tested in qibo tests
             return self.asmatrix_fused(gate)
         else:
             return getattr(self.custom_matrices, name)

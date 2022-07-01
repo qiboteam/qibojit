@@ -187,7 +187,4 @@ def test_measure_frequencies_sparse_probabilities(backend, nonzero, nshots):
     frequencies = backend.sample_frequencies(probs, nshots)
     assert sum(frequencies.values()) == nshots
     for i, freq in frequencies.items():
-        if i in nonzero:
-            assert freq != 0
-        else:
-            assert freq == 0
+        assert freq != 0
