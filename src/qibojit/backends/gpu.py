@@ -5,7 +5,8 @@ from qibojit.backends.cpu import NumbaBackend
 from qibojit.backends.matrices import CustomMatrices
 
 
-class CupyBackend(NumbaBackend):
+class CupyBackend(NumbaBackend): # pragma: no cover
+    # CI does not have GPUs
 
     DEFAULT_BLOCK_SIZE = 1024
     MAX_NUM_TARGETS = 7
@@ -203,6 +204,8 @@ class CupyBackend(NumbaBackend):
 
     def multi_qubit_base(self, state, nqubits, targets, gate, qubits):
         assert gate is not None
+        if qubits is None:
+            qubits = self.cast(sorted(nqubits - q - 1 for q in targets), dtype=self.cp.int32)
         ntargets = len(targets)
         if ntargets > self.MAX_NUM_TARGETS:
             raise ValueError(f"Number of target qubits must be <= {self.MAX_NUM_TARGETS}"
@@ -427,7 +430,8 @@ class CupyBackend(NumbaBackend):
                                          "implemented.".format(type(o)))
 
 
-class MultiGpuOps:
+class MultiGpuOps: # pragma: no cover
+    # CI does not have GPUs
 
     def __init__(self, backend, cpu_backend, circuit):
         self.backend = backend

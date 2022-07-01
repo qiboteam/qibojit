@@ -170,7 +170,27 @@ def test_apply_multiqubit_gate(backend, nqubits, targets, controls, dtype):
     backend.assert_allclose(state, target_state, atol=ATOL.get(dtype))
 
 
-@pytest.mark.parametrize("gatename", ["H", "X", "Z"])
+@pytest.mark.parametrize(("nqubits", "targets"), [(5, [2, 3, 4]), (4, [2, 0, 1])])
+@pytest.mark.parametrize("use_qubits", [False, True])
+def test_apply_multi_qubit_base(backend, nqubits, targets, use_qubits, dtype):
+    state = random_state(nqubits, dtype=dtype)
+    matrix = random_complex((8, 8), dtype=dtype)
+    gate = gates.Unitary(matrix, *targets)
+    
+    tbackend = NumpyBackend()
+    set_precision(dtype, backend, tbackend)
+    target_state = tbackend.apply_gate(gate, np.copy(state), nqubits)
+    if use_qubits:
+        qubits = backend.cast(qubits_tensor(nqubits, targets), dtype="int32")
+    else:
+        qubits = None
+    state = backend.cast(state)
+    matrix = backend.cast(matrix)
+    state = backend.multi_qubit_base(state, nqubits, targets, matrix, qubits)
+    backend.assert_allclose(state, target_state, atol=ATOL.get(dtype))
+
+
+@pytest.mark.parametrize("gatename", ["H", "X", "Y", "Z"])
 @pytest.mark.parametrize("density_matrix", [False, True])
 def test_gates_on_circuit(backend, gatename, density_matrix):
     from qibo.models import Circuit
@@ -182,6 +202,32 @@ def test_gates_on_circuit(backend, gatename, density_matrix):
 
     c = Circuit(1, density_matrix=density_matrix)
     c.add(getattr(gates, gatename)(0))
+    
+    tbackend = NumpyBackend()
+    target_state = tbackend.execute_circuit(c, np.copy(state))
+    final_state = backend.execute_circuit(c, np.copy(state))
+    backend.assert_allclose(final_state, target_state)
+
+
+@pytest.mark.parametrize("gatename,params", 
+                         [("CRX", {"theta": 0.1}),
+                          ("CRY", {"theta": 0.1}),
+                          ("CRZ", {"theta": 0.1}),
+                          ("CU1", {"theta": 0.1}),
+                          ("CU2", {"phi": 0.1, "lam": 0.2}),
+                          ("CU3", {"theta": 0.1, "phi": 0.2, "lam": 0.3}),
+                          ("fSim", {"theta": 0.1, "phi": 0.2})])
+@pytest.mark.parametrize("density_matrix", [False, True])
+def test_parametrized_gates_on_circuit(backend, gatename, params, density_matrix):
+    from qibo.models import Circuit
+    if density_matrix:
+        state = random_complex((4, 4))
+        state = state + np.conj(state.T)
+    else:
+        state = random_state(2)
+
+    c = Circuit(2, density_matrix=density_matrix)
+    c.add(getattr(gates, gatename)(0, 1, **params))
     
     tbackend = NumpyBackend()
     target_state = tbackend.execute_circuit(c, np.copy(state))

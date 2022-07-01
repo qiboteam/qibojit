@@ -5,7 +5,8 @@ import numpy as np
 def test_device_setter(backend):
     if backend.platform == "numba":
         device = "/CPU:0"
-    else:
+    else: # pragma: no cover
+        # CI does not have GPUs
         device = "/GPU:0"
     backend.set_device(device)
     assert backend.device == device
