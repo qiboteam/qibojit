@@ -135,6 +135,7 @@ def test_apply_fsim(backend, nqubits, targets, controls, dtype):
     backend.assert_allclose(state, target_state, atol=ATOL.get(dtype))
 
 
+# TODO: Re-enable tests
 @pytest.mark.parametrize(("nqubits", "targets", "controls"),
                          [(3, [0, 1, 2], []), (4, [2, 1, 3], []),
                           (5, [0, 2, 3], []), (8, [2, 6, 3], []),
