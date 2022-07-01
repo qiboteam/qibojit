@@ -21,7 +21,7 @@ def test_zero_state(backend, dtype, is_matrix):
                          [(2, [0], [1]), (2, [1], [0]), (3, [1], [1]),
                           (4, [1, 3], [1, 0]), (5, [1, 2, 4], [0, 1, 1]),
                           (15, [4, 7], [0, 0]), (16, [8, 12, 15], [1, 0, 1])])
-@pytest.mark.parametrize("normalize", [False, True])
+@pytest.mark.parametrize("normalize", [True, False])
 def test_collapse_state(backend, nqubits, targets, results, normalize, dtype):
     atol = 1e-7 if dtype == "complex64" else 1e-14
     state = random_state(nqubits, dtype)
@@ -29,7 +29,7 @@ def test_collapse_state(backend, nqubits, targets, results, normalize, dtype):
     for t, r in zip(targets, results):
         slicer[t] = r
     slicer = tuple(slicer)
-    initial_state = np.reshape(state, nqubits * (2,))
+    initial_state = np.reshape(np.copy(state), nqubits * (2,))
     target_state = np.zeros_like(initial_state)
     target_state[slicer] = initial_state[slicer]
     target_state = target_state.flatten()
@@ -43,7 +43,6 @@ def test_collapse_state(backend, nqubits, targets, results, normalize, dtype):
     backend.assert_allclose(state, target_state, atol=atol)
 
 
-#@pytest.mark.parametrize("gatename", ["H", "X", "Z"])
 @pytest.mark.parametrize("density_matrix", [False, True])
 def test_collapse_call(backend, density_matrix):
     from qibo.backends import NumpyBackend
