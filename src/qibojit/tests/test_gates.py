@@ -186,16 +186,7 @@ def test_apply_multiqubit_gate(backend, nqubits, targets, controls, density_matr
                           (22, [0, 4, 20, 5, 17], [10, 3]),
                           (22, [10, 20, 4, 3, 16, 5], [12, 19, 15])])
 def test_apply_multiqubit_gate_large(backend, nqubits, targets, controls, dtype):
-    state = random_state(nqubits, dtype=dtype)
-    rank = 2 ** len(targets)
-    matrix = random_complex((rank, rank), dtype=dtype)
-    gate = gates.Unitary(matrix, *targets).controlled_by(*controls)
-    
-    tbackend = NumpyBackend()
-    set_precision(dtype, backend, tbackend)
-    target_state = tbackend.apply_gate(gate, np.copy(state), nqubits)
-    state = backend.apply_gate(gate, np.copy(state), nqubits)
-    backend.assert_allclose(state, target_state, atol=ATOL.get(dtype))
+    test_apply_multiqubit_gate(backend, nqubits, targets, controls, False, dtype)
 
 
 @pytest.mark.parametrize(("nqubits", "targets"), [(5, [2, 3, 4]), (4, [2, 0, 1])])
