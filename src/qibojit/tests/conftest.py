@@ -1,15 +1,24 @@
 import pytest
 from qibojit.backends import NumbaBackend, CupyBackend
 
-AVAILABLE_BACKENDS = ["numba", "cupy"]
+BACKENDS = {
+    "numba": NumbaBackend,
+    "cupy": CupyBackend
+}
+
+# ignore backends that are not available in the current testing environment
+AVAILABLE_BACKENDS = []
+for backend_name in BACKENDS.keys():
+    try:
+        BACKENDS.get(backend_name)()
+        AVAILABLE_BACKENDS.append(backend_name)
+    except (ModuleNotFoundError, ImportError):
+        pass
 
 
 @pytest.fixture
 def backend(backend_name):
-    if backend_name == "numba":
-        yield NumbaBackend()
-    elif backend_name == "cupy":
-        yield CupyBackend()
+    yield BACKENDS.get(backend_name)()
 
 
 def pytest_generate_tests(metafunc):
