@@ -17,7 +17,6 @@ def test_zero_state(backend, dtype, is_matrix):
     backend.assert_allclose(final_state, target_state)
 
 
-@pytest.mark.skip
 @pytest.mark.parametrize("nqubits,targets,results",
                          [(2, [0], [1]), (2, [1], [0]), (3, [1], [1]),
                           (4, [1, 3], [1, 0]), (5, [1, 2, 4], [0, 1, 1]),
@@ -38,40 +37,35 @@ def test_collapse_state(backend, nqubits, targets, results, normalize, dtype):
         norm = (np.abs(target_state) ** 2).sum()
         target_state = target_state / np.sqrt(norm)
 
-    qubits = np.array(sorted(nqubits - t - 1 for t in targets), dtype=np.int32)
     b2d = 2 ** np.arange(len(results) - 1, -1, -1)
-    result = int(np.array(results).dot(b2d))
-    state = backend.collapse_state(state, qubits, result, nqubits, normalize)
+    result = np.array([np.array(results).dot(b2d)])
+    state = backend.collapse_state(state, sorted(targets), result, nqubits, normalize)
     backend.assert_allclose(state, target_state, atol=atol)
 
 
-@pytest.mark.skip
-@pytest.mark.parametrize("gatename", ["H", "X", "Z"])
+#@pytest.mark.parametrize("gatename", ["H", "X", "Z"])
 @pytest.mark.parametrize("density_matrix", [False, True])
-def test_collapse_call(backend, gatename, density_matrix):
+def test_collapse_call(backend, density_matrix):
+    from qibo.backends import NumpyBackend
     from qibo import gates
     if density_matrix:
         state = random_complex((8, 8))
         state = state + np.conj(state.T)
+        state = state / np.trace(state)
     else:
         state = random_state(3)
 
-    result = [0, 0]
-    gate = gates.M(0, 1)
-    gate.nqubits = 3
+    tbackend = NumpyBackend()
+    gate = gates.M(0, 1, collapse=True)
+    np.random.seed(123)
     if density_matrix:
-        gate.density_matrix = density_matrix
-        target_state = backend.density_matrix_collapse(gate, np.copy(state), result)
+        target_state = gate.apply_density_matrix(tbackend, np.copy(state), 3)
+        np.random.seed(123)
+        final_state = gate.apply_density_matrix(backend, np.copy(state), 3)
     else:
-        target_state = backend.state_vector_collapse(gate, np.copy(state), result)
-
-    gate = gates.M(0, 1)
-    gate.nqubits = 3
-    if density_matrix:
-        gate.density_matrix = density_matrix
-        final_state = backend.density_matrix_collapse(gate, np.copy(state), result)
-    else:
-        final_state = backend.state_vector_collapse(gate, np.copy(state), result)
+        target_state = gate.apply(tbackend, np.copy(state), 3)
+        np.random.seed(123)
+        final_state = gate.apply(backend, np.copy(state), 3)        
     backend.assert_allclose(final_state, target_state)
 
 
