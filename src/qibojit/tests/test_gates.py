@@ -103,7 +103,7 @@ def test_apply_two_qubit_base(backend, nqubits, targets, use_qubits, dtype):
     state = random_state(nqubits, dtype=dtype)
     matrix = random_complex((4, 4), dtype=dtype)
     gate = gates.Unitary(matrix, *targets)
-    
+
     tbackend = NumpyBackend()
     set_precision(dtype, backend, tbackend)
     target_state = tbackend.apply_gate(gate, np.copy(state), nqubits)
@@ -164,7 +164,7 @@ def test_apply_multiqubit_gate(backend, nqubits, targets, controls, density_matr
     rank = 2 ** len(targets)
     matrix = random_complex((rank, rank), dtype=dtype)
     gate = gates.Unitary(matrix, *targets).controlled_by(*controls)
-    
+
     tbackend = NumpyBackend()
     set_precision(dtype, backend, tbackend)
     if density_matrix:
@@ -195,7 +195,7 @@ def test_apply_multi_qubit_base(backend, nqubits, targets, use_qubits, dtype):
     state = random_state(nqubits, dtype=dtype)
     matrix = random_complex((8, 8), dtype=dtype)
     gate = gates.Unitary(matrix, *targets)
-    
+
     tbackend = NumpyBackend()
     set_precision(dtype, backend, tbackend)
     target_state = tbackend.apply_gate(gate, np.copy(state), nqubits)
@@ -220,14 +220,14 @@ def test_gates_on_circuit(backend, gatename, density_matrix):
 
     c = Circuit(1, density_matrix=density_matrix)
     c.add(getattr(gates, gatename)(0))
-    
+
     tbackend = NumpyBackend()
     target_state = tbackend.execute_circuit(c, np.copy(state))
     final_state = backend.execute_circuit(c, np.copy(state))
     backend.assert_allclose(final_state, target_state)
 
 
-@pytest.mark.parametrize("gatename,params", 
+@pytest.mark.parametrize("gatename,params",
                          [("CRX", {"theta": 0.1}),
                           ("CRY", {"theta": 0.1}),
                           ("CRZ", {"theta": 0.1}),
@@ -245,7 +245,7 @@ def test_parametrized_gates_on_circuit(backend, gatename, params, density_matrix
 
     c = Circuit(2, density_matrix=density_matrix)
     c.add(getattr(gates, gatename)(0, 1, **params))
-    
+
     tbackend = NumpyBackend()
     target_state = tbackend.execute_circuit(c, np.copy(state))
     final_state = backend.execute_circuit(c, np.copy(state))
@@ -256,7 +256,7 @@ def test_parametrized_gates_on_circuit(backend, gatename, params, density_matrix
 def test_density_matrix_half_calls(backend, gatename):
     state = random_density_matrix(3)
     gate = getattr(gates, gatename)(1)
-    
+
     tbackend = NumpyBackend()
     target_state = tbackend.apply_gate_half_density_matrix(gate, np.copy(state), 3)
     final_state = backend.apply_gate_half_density_matrix(gate, np.copy(state), 3)

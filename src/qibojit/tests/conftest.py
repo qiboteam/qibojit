@@ -1,9 +1,10 @@
 import pytest
-from qibojit.backends import NumbaBackend, CupyBackend
+from qibojit.backends import NumbaBackend, CupyBackend, CuQuantumBackend
 
 BACKENDS = {
     "numba": NumbaBackend,
-    "cupy": CupyBackend
+    "cupy": CupyBackend,
+    "cuquantum": CuQuantumBackend
 }
 
 # ignore backends that are not available in the current testing environment
