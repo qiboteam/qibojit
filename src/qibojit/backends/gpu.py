@@ -131,6 +131,16 @@ class CupyBackend(NumbaBackend): # pragma: no cover
         self.cp.cuda.stream.get_current_stream().synchronize()
         return state.reshape((n, n))
 
+    def plus_state(self, nqubits):
+        state = self.cp.ones(2 ** nqubits, dtype=self.dtype)
+        state /= self.cp.sqrt(2 ** nqubits)
+        return state
+
+    def plus_density_matrix(self, nqubits):
+        state = self.cp.ones(2 * (2 ** nqubits,), dtype=self.dtype)
+        state /= 2 ** nqubits
+        return state
+
     #def asmatrix_special(self, gate): Inherited from ``NumpyBackend``
 
     #def control_matrix(self, gate): Inherited from ``NumpyBackend``
@@ -231,9 +241,9 @@ class CupyBackend(NumbaBackend): # pragma: no cover
         return self.cp.asarray(matrix.ravel())
 
     #def apply_gate(self, gate, state, nqubits): Inherited from ``NumbaBackend``
-    
+
     #def apply_gate_density_matrix(self, gate, state, nqubits, inverse=False): Inherited from ``NumbaBackend``
-    
+
     #def _apply_ygate_density_matrix(self, gate, state, nqubits): Inherited from ``NumbaBackend``
 
     #def apply_channel(self, gate): Inherited from ``NumbaBackend``
@@ -264,7 +274,7 @@ class CupyBackend(NumbaBackend): # pragma: no cover
     def execute_distributed_circuit(self, circuit, initial_state=None, nshots=None, return_array=False):
         import joblib
         from qibo.states import CircuitResult
-        
+
         if not circuit.queues.queues:
             circuit.queues.set(circuit.queue)
 
@@ -272,7 +282,7 @@ class CupyBackend(NumbaBackend): # pragma: no cover
             cpu_backend = NumbaBackend()
             cpu_backend.set_precision(self.precision)
             ops = MultiGpuOps(self, cpu_backend, circuit)
-            
+
             if initial_state is None:
                 # Generate pieces for |000...0> state
                 pieces = [cpu_backend.zero_state(circuit.nlocal)]
@@ -303,7 +313,7 @@ class CupyBackend(NumbaBackend): # pragma: no cover
                         pieces = ops.swap(pieces, global_qubit, local_qubit)
                     else:
                         pieces = ops.apply_special_gate(pieces, gate)
-            
+
             for gate in special_gates: # pragma: no cover
                 pieces = ops.apply_special_gate(pieces, gate)
 
@@ -312,7 +322,7 @@ class CupyBackend(NumbaBackend): # pragma: no cover
             else:
                 circuit._final_state = CircuitResult(self, circuit, pieces, nshots)
                 return circuit._final_state
-        
+
         except self.oom_error:
             raise_error(RuntimeError, "State does not fit in memory during distributed "
                                       "execution. Please create a new circuit with "
@@ -437,7 +447,7 @@ class MultiGpuOps: # pragma: no cover
         self.backend = backend
         self.circuit = circuit
         self.cpu_ops = cpu_backend.ops
-    
+
     def transpose_state(self, pieces, state, nqubits, order):
         original_shape = state.shape
         state = state.ravel()

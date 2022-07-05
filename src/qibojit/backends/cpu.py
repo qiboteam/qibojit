@@ -70,6 +70,10 @@ class NumbaBackend(NumpyBackend):
         state = np.empty((size, size), dtype=self.dtype)
         return self.ops.initial_density_matrix(state)
 
+    #def plus_state(self, nqubits): Inherited from ``NumpyBackend``
+
+    #def plus_density_matrix(self, nqubits): Inherited from ``NumpyBackend``
+
     #def asmatrix_special(self, gate): Inherited from ``NumpyBackend``
 
     #def control_matrix(self, gate): Inherited from ``NumpyBackend``
