@@ -43,7 +43,7 @@ class NumbaBackend(NumpyBackend):
             4: self.gates.apply_four_qubit_gate_kernel,
             5: self.gates.apply_five_qubit_gate_kernel
         }
-        self.set_threads(len(psutil.Process().cpu_affinity()))
+        self.set_threads(psutil.cpu_count(logical=False))
 
     def set_precision(self, precision):
         if precision != self.precision:
