@@ -17,6 +17,18 @@ def test_zero_state(backend, dtype, is_matrix):
     backend.assert_allclose(final_state, target_state)
 
 
+@pytest.mark.parametrize("is_matrix", [False, True])
+def test_plus_state(backend, dtype, is_matrix):
+    set_precision(dtype, backend)
+    if is_matrix:
+        final_state =  backend.plus_density_matrix(4)
+        target_state = np.ones((16, 16), dtype=dtype) / 16
+    else:
+        final_state =  backend.plus_state(4)
+        target_state = np.ones(16, dtype=dtype) / 4
+    backend.assert_allclose(final_state, target_state)
+
+
 @pytest.mark.parametrize("nqubits,targets,results",
                          [(2, [0], [1]), (2, [1], [0]), (3, [1], [1]),
                           (4, [1, 3], [1, 0]), (5, [1, 2, 4], [0, 1, 1]),
@@ -64,7 +76,7 @@ def test_collapse_call(backend, density_matrix):
     else:
         target_state = gate.apply(tbackend, np.copy(state), 3)
         np.random.seed(123)
-        final_state = gate.apply(backend, np.copy(state), 3)        
+        final_state = gate.apply(backend, np.copy(state), 3)
     backend.assert_allclose(final_state, target_state)
 
 
