@@ -25,6 +25,7 @@ class NumbaBackend(NumpyBackend):
 
     def __init__(self):
         super().__init__()
+        import sys
         import psutil
         from qibojit.custom_operators import gates, ops
         self.name = "qibojit"
@@ -43,7 +44,10 @@ class NumbaBackend(NumpyBackend):
             4: self.gates.apply_four_qubit_gate_kernel,
             5: self.gates.apply_five_qubit_gate_kernel
         }
-        self.set_threads(psutil.cpu_count(logical=False))
+        if sys.platform == "darwin":  # pragma: no cover
+            self.set_threads(psutil.cpu_count(logical=False))
+        else:
+            self.set_threads(len(psutil.Process().cpu_affinity()))
 
     def set_precision(self, precision):
         if precision != self.precision:
