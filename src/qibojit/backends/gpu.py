@@ -420,25 +420,6 @@ class CupyBackend(NumbaBackend): # pragma: no cover
             ud = self.cp.transpose(self.cp.conj(eigenvectors))
             return self.cp.matmul(eigenvectors, self.cp.matmul(expd, ud))
 
-    def calculate_matrix_product(self, hamiltonian, o):
-        if isinstance(o, hamiltonian.__class__):
-            new_matrix = hamiltonian.matrix.dot(o.matrix)
-            return hamiltonian.__class__(hamiltonian.nqubits, new_matrix)
-
-        if isinstance(o, self.tensor_types):
-            rank = len(tuple(o.shape))
-            o = self.cast(o)
-            if rank == 1: # vector
-                return hamiltonian.matrix.dot(o[:, np.newaxis])[:, 0]
-            elif rank == 2: # matrix
-                return hamiltonian.matrix.dot(o)
-            else:
-                raise_error(ValueError, "Cannot multiply Hamiltonian with "
-                                        "rank-{} tensor.".format(rank))
-
-        raise_error(NotImplementedError, "Hamiltonian matmul to {} not "
-                                         "implemented.".format(type(o)))
-
 
 class CuQuantumBackend(CupyBackend): # pragma: no cover
     # CI does not test for GPU
