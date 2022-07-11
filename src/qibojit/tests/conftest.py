@@ -1,30 +1,29 @@
 import pytest
-import qibo
-from qibo import K
-qibo.set_backend("qibojit")
+from qibojit.backends import NumbaBackend, CupyBackend, CuQuantumBackend
+
+BACKENDS = {
+    "numba": NumbaBackend,
+    "cupy": CupyBackend,
+    "cuquantum": CuQuantumBackend
+}
+
+# ignore backends that are not available in the current testing environment
+AVAILABLE_BACKENDS = []
+for backend_name in BACKENDS.keys():
+    try:
+        BACKENDS.get(backend_name)()
+        AVAILABLE_BACKENDS.append(backend_name)
+    except (ModuleNotFoundError, ImportError):
+        pass
 
 
 @pytest.fixture
-def dtype(precision):
-    original_precision = qibo.get_precision()
-    qibo.set_precision(precision)
-    if precision == "double":
-        yield "complex128"
-    else:
-        yield "complex64"
-    qibo.set_precision(original_precision)
-
-
-@pytest.fixture
-def platform(platform_name):
-    original_platform = K.platform.name
-    K.set_platform(platform_name)
-    yield
-    K.set_platform(original_platform)
+def backend(backend_name):
+    yield BACKENDS.get(backend_name)()
 
 
 def pytest_generate_tests(metafunc):
-    if "platform_name" in metafunc.fixturenames:
-        metafunc.parametrize("platform_name", K.available_platforms)
+    if "backend_name" in metafunc.fixturenames:
+        metafunc.parametrize("backend_name", AVAILABLE_BACKENDS)
     if "dtype" in metafunc.fixturenames:
-        metafunc.parametrize("precision", ["double", "single"])
+        metafunc.parametrize("dtype", ["complex128", "complex64"])
