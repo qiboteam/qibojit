@@ -431,7 +431,7 @@ class CuQuantumBackend(CupyBackend): # pragma: no cover
         self.cuquantum = cuquantum
         self.cusv = cusv
         self.platform = "cuquantum"
-        self.supports_multigpu = False
+        self.supports_multigpu = True
         self.handle = self.cusv.create()
         self.custom_matrices = CuQuantumMatrices(self.dtype)
 
