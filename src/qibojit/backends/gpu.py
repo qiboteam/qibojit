@@ -328,13 +328,13 @@ class CupyBackend(NumbaBackend): # pragma: no cover
                                       "execution. Please create a new circuit with "
                                       "different device configuration and try again.")
 
-    def get_state_tensor(self, result):
+    def circuit_result_tensor(self, result):
         if isinstance(result.execution_result, list):
             # transform distributed state pieces to tensor
             ops = MultiGpuOps(self, NumbaBackend(), result.circuit)
             return ops.to_tensor(result.execution_result)
         else:
-            return super().get_state_tensor(result)
+            return super().circuit_result_tensor(result)
 
     #def calculate_symbolic(self, state, nqubits, decimals=5, cutoff=1e-10, max_terms=20): Inherited from ``NumpyBackend``
 
