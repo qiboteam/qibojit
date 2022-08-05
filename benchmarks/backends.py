@@ -1,11 +1,12 @@
+# -*- coding: utf-8 -*-
 from abstract import AbstractBackend
 
 
 class NumbaBackend(AbstractBackend):
-
     def __init__(self):
         super().__init__()
         from qibojit import custom_operators as op
+
         self.op = op
 
     def qubits_tensor(self, nqubits, targets, controls=[]):
@@ -14,10 +15,10 @@ class NumbaBackend(AbstractBackend):
 
 
 class CupyBackend(AbstractBackend):
-
     def __init__(self):
         super().__init__()
         from qibojit import custom_operators as op
+
         op.set_backend("cupy")
         self.op = op
 
@@ -27,16 +28,18 @@ class CupyBackend(AbstractBackend):
 
 
 class TensorflowBackend(AbstractBackend):
-
     def __init__(self):
         import os
+
         os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
         super().__init__()
         import tensorflow as tf
         from qibotf import custom_operators as op
+
         self.backend = tf
         self.op = op
         import psutil
+
         self.nthreads = psutil.cpu_count(logical=False)
 
     def cast(self, x, dtype="complex128"):
@@ -65,19 +68,27 @@ class TensorflowBackend(AbstractBackend):
         return self.op.apply_z_pow(state, gate, qubits, nqubits, target, self.nthreads)
 
     def apply_two_qubit_gate(self, state, gate, nqubits, target1, target2, qubits):
-        return self.op.apply_two_qubit_gate(state, gate, qubits, nqubits, target1, target2, self.nthreads)
+        return self.op.apply_two_qubit_gate(
+            state, gate, qubits, nqubits, target1, target2, self.nthreads
+        )
 
     def apply_swap(self, state, nqubits, target1, target2, qubits):
-        return self.op.apply_swap(state, qubits, nqubits, target1, target2, self.nthreads)
+        return self.op.apply_swap(
+            state, qubits, nqubits, target1, target2, self.nthreads
+        )
 
     def apply_fsim(self, state, gate, nqubits, target1, target2, qubits):
-        return self.op.apply_fsim(state, gate, qubits, nqubits, target1, target2, self.nthreads)
+        return self.op.apply_fsim(
+            state, gate, qubits, nqubits, target1, target2, self.nthreads
+        )
 
     def initial_state(self, nqubits, dtype, is_matrix=False):
         return self.op.initial_state(nqubits, dtype, is_matrix, self.nthreads)
 
     def collapse_state(self, state, qubits, result, nqubits, normalize=True):
-        return self.op.collapse_state(state, qubits, result, nqubits, normalize, self.nthreads)
+        return self.op.collapse_state(
+            state, qubits, result, nqubits, normalize, self.nthreads
+        )
 
     def collapse_state_args(self, state, nqubits, controls=[]):
         if controls:
@@ -87,7 +98,9 @@ class TensorflowBackend(AbstractBackend):
         return [state, qubits, result, nqubits]
 
     def measure_frequencies(self, frequencies, probs, nshots, nqubits):
-        return self.op.measure_frequencies(frequencies, probs, nshots, nqubits, 1234, self.nthreads)
+        return self.op.measure_frequencies(
+            frequencies, probs, nshots, nqubits, 1234, self.nthreads
+        )
 
 
 class Backends(dict):
@@ -96,7 +109,7 @@ class Backends(dict):
         "numba": NumbaBackend,
         "cupy": CupyBackend,
         "tensorflow": TensorflowBackend,
-        }
+    }
 
     def get(self, name):
         if name not in self:

@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 # This file contains the C++/CUDA implementation of many methods
 # defined in gates.py and ops.py.
 # The methods in gates.py and ops.py are called by NumbaBackend
@@ -125,9 +126,11 @@ __device__ long collapse_index(const int* qubits, long g, long h, int ntargets) 
 
 # ---------- KERNELS ----------
 
-apply_gate_kernel = f"""
+apply_gate_kernel = (
+    f"""
 #include <cupy/complex.cuh>
-{_apply_gate}"""+"""
+{_apply_gate}"""
+    + """
 // C++ implementation of gates.py:apply_gate_kernel()
 extern "C"
 __global__ void apply_gate_kernel(T* state, long tk, int m, const T* gate) {
@@ -136,11 +139,14 @@ __global__ void apply_gate_kernel(T* state, long tk, int m, const T* gate) {
   _apply_gate(state[i], state[i + tk], gate);
 }
 """
+)
 
 
-apply_x_kernel = f"""
+apply_x_kernel = (
+    f"""
 #include <cupy/complex.cuh>
-{_apply_x}"""+"""
+{_apply_x}"""
+    + """
 // C++ implementation of gates.py:apply_x_kernel()
 extern "C"
 __global__ void apply_x_kernel(T* state, long tk, int m) {
@@ -149,11 +155,14 @@ __global__ void apply_x_kernel(T* state, long tk, int m) {
   _apply_x(state[i], state[i + tk]);
 }
 """
+)
 
 
-apply_y_kernel = f"""
+apply_y_kernel = (
+    f"""
 #include <cupy/complex.cuh>
-{_apply_y}"""+"""
+{_apply_y}"""
+    + """
 // C++ implementation of gates.py:apply_y_kernel()
 extern "C"
 __global__ void apply_y_kernel(T* state, long tk, int m) {
@@ -162,11 +171,14 @@ __global__ void apply_y_kernel(T* state, long tk, int m) {
   _apply_y(state[i], state[i + tk]);
 }
 """
+)
 
 
-apply_z_kernel = f"""
+apply_z_kernel = (
+    f"""
 #include <cupy/complex.cuh>
-{_apply_z}"""+"""
+{_apply_z}"""
+    + """
 // C++ implementation of gates.py:apply_z_kernel()
 extern "C"
 __global__ void apply_z_kernel(T* state, long tk, int m) {
@@ -175,11 +187,14 @@ __global__ void apply_z_kernel(T* state, long tk, int m) {
   _apply_z(state[i + tk]);
 }
 """
+)
 
 
-apply_z_pow_kernel = f"""
+apply_z_pow_kernel = (
+    f"""
 #include <cupy/complex.cuh>
-{_apply_z_pow}"""+"""
+{_apply_z_pow}"""
+    + """
 // C++ implementation of gates.py:apply_z_pow_kernel()
 extern "C"
 __global__ void apply_z_pow_kernel(T* state, long tk, int m,
@@ -189,11 +204,14 @@ __global__ void apply_z_pow_kernel(T* state, long tk, int m,
   _apply_z_pow(state[i + tk], gate[0]);
 }
 """
+)
 
 
-apply_two_qubit_gate_kernel = f"""
+apply_two_qubit_gate_kernel = (
+    f"""
 #include <cupy/complex.cuh>
-{_apply_two_qubit_gate}"""+"""
+{_apply_two_qubit_gate}"""
+    + """
 // C++ implementation of gates.py:apply_two_qubit_gate_kernel()
 // the portion of code before the parallel for of the Python
 // method is in backends.py:CupyBackend.two_qubit_base()
@@ -207,11 +225,14 @@ __global__ void apply_two_qubit_gate_kernel(T* state, long tk1, long tk2,
   _apply_two_qubit_gate(state[i], state[i + uk1], state[i + uk2], state[i + uk1 + uk2], gate);
 }
 """
+)
 
 
-apply_fsim_kernel = f"""
+apply_fsim_kernel = (
+    f"""
 #include <cupy/complex.cuh>
-{_apply_fsim}"""+"""
+{_apply_fsim}"""
+    + """
 // C++ implementation of gates.py:apply_fsim_kernel()
 // the portion of code before the parallel for of the Python
 // method is in backends.py:CupyBackend.two_qubit_base()
@@ -225,11 +246,14 @@ __global__ void apply_fsim_kernel(T* state, long tk1, long tk2,
   _apply_fsim(state[i + uk1], state[i + uk2], state[i + uk1 + uk2], gate);
 }
 """
+)
 
 
-apply_swap_kernel = f"""
+apply_swap_kernel = (
+    f"""
 #include <cupy/complex.cuh>
-{_apply_x}"""+"""
+{_apply_x}"""
+    + """
 // C++ implementation of gates.py:apply_swap_kernel()
 extern "C"
 __global__ void apply_swap_kernel(T* state, long tk1, long tk2,
@@ -240,12 +264,15 @@ __global__ void apply_swap_kernel(T* state, long tk1, long tk2,
   _apply_x(state[i + tk2], state[i + tk1]);
 }
 """
+)
 
 
-multicontrol_apply_gate_kernel = f"""
+multicontrol_apply_gate_kernel = (
+    f"""
 #include <cupy/complex.cuh>
 {_apply_gate}
-{multicontrol_index}"""+"""
+{multicontrol_index}"""
+    + """
 // C++ implementation of gates.py:multicontrol_apply_gate_kernel()
 extern "C"
 __global__ void multicontrol_apply_gate_kernel(T* state, long tk, int m, const T* gate,
@@ -255,12 +282,15 @@ __global__ void multicontrol_apply_gate_kernel(T* state, long tk, int m, const T
   _apply_gate(state[i - tk], state[i], gate);
 }
 """
+)
 
 
-multicontrol_apply_x_kernel = f"""
+multicontrol_apply_x_kernel = (
+    f"""
 #include <cupy/complex.cuh>
 {_apply_x}
-{multicontrol_index}"""+"""
+{multicontrol_index}"""
+    + """
 // C++ implementation of gates.py:multicontrol_apply_x_kernel()
 extern "C"
 __global__ void multicontrol_apply_x_kernel(T* state, long tk, int m,
@@ -270,12 +300,15 @@ __global__ void multicontrol_apply_x_kernel(T* state, long tk, int m,
   _apply_x(state[i - tk], state[i]);
 }
 """
+)
 
 
-multicontrol_apply_y_kernel = f"""
+multicontrol_apply_y_kernel = (
+    f"""
 #include <cupy/complex.cuh>
 {_apply_y}
-{multicontrol_index}"""+"""
+{multicontrol_index}"""
+    + """
 // C++ implementation of gates.py:multicontrol_apply_y_kernel()
 extern "C"
 __global__ void multicontrol_apply_y_kernel(T* state, long tk, int m,
@@ -285,12 +318,15 @@ __global__ void multicontrol_apply_y_kernel(T* state, long tk, int m,
   _apply_y(state[i - tk], state[i]);
 }
 """
+)
 
 
-multicontrol_apply_z_kernel = f"""
+multicontrol_apply_z_kernel = (
+    f"""
 #include <cupy/complex.cuh>
 {_apply_z}
-{multicontrol_index}"""+"""
+{multicontrol_index}"""
+    + """
 // C++ implementation of gates.py:multicontrol_apply_z_kernel()
 extern "C"
 __global__ void multicontrol_apply_z_kernel(T* state, long tk, int m,
@@ -300,12 +336,15 @@ __global__ void multicontrol_apply_z_kernel(T* state, long tk, int m,
   _apply_z(state[i]);
 }
 """
+)
 
 
-multicontrol_apply_z_pow_kernel = f"""
+multicontrol_apply_z_pow_kernel = (
+    f"""
 #include <cupy/complex.cuh>
 {_apply_z_pow}
-{multicontrol_index}"""+"""
+{multicontrol_index}"""
+    + """
 // C++ implementation of gates.py:multicontrol_apply_z_pow_kernel()
 extern "C"
 __global__ void multicontrol_apply_z_pow_kernel(T* state, long tk, int m,
@@ -316,12 +355,15 @@ __global__ void multicontrol_apply_z_pow_kernel(T* state, long tk, int m,
   _apply_z_pow(state[i], gate[0]);
 }
 """
+)
 
 
-multicontrol_apply_two_qubit_gate_kernel = f"""
+multicontrol_apply_two_qubit_gate_kernel = (
+    f"""
 #include <cupy/complex.cuh>
 {_apply_two_qubit_gate}
-{multicontrol_index}"""+"""
+{multicontrol_index}"""
+    + """
 // C++ implementation of gates.py:multicontrol_apply_two_qubit_gate_kernel()
 // the portion of code before the parallel for of the Python method
 // is in backends.py:CupyBackend.two_qubit_base()
@@ -338,12 +380,15 @@ __global__ void multicontrol_apply_two_qubit_gate_kernel(T* state,
   _apply_two_qubit_gate(state[i - uk1 - uk2], state[i - uk2], state[i - uk1], state[i], gate);
 }
 """
+)
 
 
-multicontrol_apply_fsim_kernel = f"""
+multicontrol_apply_fsim_kernel = (
+    f"""
 #include <cupy/complex.cuh>
 {_apply_fsim}
-{multicontrol_index}"""+"""
+{multicontrol_index}"""
+    + """
 // C++ implementation of gates.py:multicontrol_apply_fsim_kernel()
 // the portion of code before the parallel for of the Python method
 // is in backends.py:CupyBackend.two_qubit_base()
@@ -360,12 +405,15 @@ __global__ void multicontrol_apply_fsim_kernel(T* state,
   _apply_fsim(state[i - uk2], state[i - uk1], state[i], gate);
 }
 """
+)
 
 
-multicontrol_apply_swap_kernel = f"""
+multicontrol_apply_swap_kernel = (
+    f"""
 #include <cupy/complex.cuh>
 {_apply_x}
-{multicontrol_index}"""+"""
+{multicontrol_index}"""
+    + """
 // C++ implementation of gates.py:multicontrol_apply_swap_kernel()
 extern "C"
 __global__ void multicontrol_apply_swap_kernel(T* state,
@@ -379,12 +427,15 @@ __global__ void multicontrol_apply_swap_kernel(T* state,
   _apply_x(state[i - tk1], state[i - tk2]);
 }
 """
+)
 
 
-apply_multi_qubit_gate_kernel = f"""
+apply_multi_qubit_gate_kernel = (
+    f"""
 #include <cupy/complex.cuh>
 {multicontrol_index}
-{multitarget_index}"""+"""
+{multitarget_index}"""
+    + """
 // C++ implementation of gates.py:apply_multi_qubit_gate_kernel()
 extern "C" __global__ void
 __launch_bounds__(MAX_BLOCK_SIZE) // to prevent cuda_error_launch_out_of_resources.
@@ -413,11 +464,14 @@ apply_multi_qubit_gate_kernel(T* state,
   }
 }
 """
+)
 
 
-collapse_state_kernel = f"""
+collapse_state_kernel = (
+    f"""
 #include <cupy/complex.cuh>
-{collapse_index}"""+"""
+{collapse_index}"""
+    + """
 // C++ implementation of ops.py:collapse_state() and ops.py:collapse_state_normalized()
 // Only the parallel for is implemented here. the other portions of code are
 // implemented in backends.py:CupyBackend.collapse_state()
@@ -434,6 +488,7 @@ __global__ void collapse_state_kernel(T* state, const int* qubits,
   }
 }
 """
+)
 
 
 initial_state_kernel = """
