@@ -1,11 +1,9 @@
+# -*- coding: utf-8 -*-
 import pytest
-from qibojit.backends import NumbaBackend, CupyBackend, CuQuantumBackend
 
-BACKENDS = {
-    "numba": NumbaBackend,
-    "cupy": CupyBackend,
-    "cuquantum": CuQuantumBackend
-}
+from qibojit.backends import CupyBackend, CuQuantumBackend, NumbaBackend
+
+BACKENDS = {"numba": NumbaBackend, "cupy": CupyBackend, "cuquantum": CuQuantumBackend}
 
 # ignore backends that are not available in the current testing environment
 AVAILABLE_BACKENDS = []

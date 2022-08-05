@@ -1,32 +1,34 @@
+# -*- coding: utf-8 -*-
 import numpy as np
-from numba import prange, njit
+from numba import njit, prange
 
 
-@njit(["complex64[:](complex64[:])",
-       "complex128[:](complex128[:])"],
-       parallel=True,
-       cache=True)
+@njit(
+    ["complex64[:](complex64[:])", "complex128[:](complex128[:])"],
+    parallel=True,
+    cache=True,
+)
 def initial_state_vector(state):
     state[0] = 1
-    for i in prange(1, len(state)): # pylint: disable=not-an-iterable
+    for i in prange(1, len(state)):  # pylint: disable=not-an-iterable
         state[i] = 0
     return state
 
 
-@njit(["complex64[:,:](complex64[:,:])",
-       "complex128[:,:](complex128[:,:])"],
-       parallel=True,
-       cache=True)
+@njit(
+    ["complex64[:,:](complex64[:,:])", "complex128[:,:](complex128[:,:])"],
+    parallel=True,
+    cache=True,
+)
 def initial_density_matrix(state):
-    for i in prange(len(state)): # pylint: disable=not-an-iterable
-        for j in prange(len(state)): # pylint: disable=not-an-iterable
+    for i in prange(len(state)):  # pylint: disable=not-an-iterable
+        for j in prange(len(state)):  # pylint: disable=not-an-iterable
             state[i, j] = 0
     state[0, 0] = 1
     return state
 
 
-@njit("int64(int64, int64, int32[:])",
-       cache=True)
+@njit("int64(int64, int64, int32[:])", cache=True)
 def collapse_index(g, h, qubits):
     i = 0
     i += g
@@ -36,12 +38,16 @@ def collapse_index(g, h, qubits):
     return i
 
 
-@njit(["complex64[:](complex64[:], int32[:], int64, int64)",
-       "complex128[:](complex128[:], int32[:], int64, int64)"],
-       parallel=True,
-       cache=True)
+@njit(
+    [
+        "complex64[:](complex64[:], int32[:], int64, int64)",
+        "complex128[:](complex128[:], int32[:], int64, int64)",
+    ],
+    parallel=True,
+    cache=True,
+)
 def collapse_state(state, qubits, result, nqubits):
-    #qubits = tuple(qubits)
+    # qubits = tuple(qubits)
     nstates = 1 << (nqubits - len(qubits))
     nsubstates = 1 << len(qubits)
 
@@ -53,12 +59,16 @@ def collapse_state(state, qubits, result, nqubits):
     return state
 
 
-@njit(["complex64[:](complex64[:], int32[:], int64, int64)",
-       "complex128[:](complex128[:], int32[:], int64, int64)"],
-       parallel=True,
-       cache=True)
+@njit(
+    [
+        "complex64[:](complex64[:], int32[:], int64, int64)",
+        "complex128[:](complex128[:], int32[:], int64, int64)",
+    ],
+    parallel=True,
+    cache=True,
+)
 def collapse_state_normalized(state, qubits, result, nqubits):
-    #qubits = tuple(qubits)
+    # qubits = tuple(qubits)
     nstates = 1 << (nqubits - len(qubits))
     nsubstates = 1 << len(qubits)
 
@@ -77,12 +87,16 @@ def collapse_state_normalized(state, qubits, result, nqubits):
     return state
 
 
-@njit(["int64[:](int64[:], float64[:], int64, optional(int64), int64, int64)",
-       "int32[:](int32[:], float32[:], int64, optional(int64), int64, int64)",
-       "int32[:](int32[:], float64[:], int64, optional(int64), int64, int64)",
-       "int64[:](int64[:], float32[:], int64, optional(int64), int64, int64)"],
-      cache=True,
-      parallel=True)
+@njit(
+    [
+        "int64[:](int64[:], float64[:], int64, optional(int64), int64, int64)",
+        "int32[:](int32[:], float32[:], int64, optional(int64), int64, int64)",
+        "int32[:](int32[:], float64[:], int64, optional(int64), int64, int64)",
+        "int64[:](int64[:], float32[:], int64, optional(int64), int64, int64)",
+    ],
+    cache=True,
+    parallel=True,
+)
 def measure_frequencies(frequencies, probs, nshots, nqubits, seed, nthreads):
     nstates = frequencies.shape[0]
     thread_nshots = np.zeros(nthreads, dtype=frequencies.dtype)
@@ -117,23 +131,27 @@ def transpose_state(pieces, state, nqubits, order):
     npiece = nstates // ndevices
     qubit_exponents = [1 << (nqubits - x - 1) for x in order[::-1]]
 
-    for g in prange(nstates): # pylint: disable=not-an-iterable
+    for g in prange(nstates):  # pylint: disable=not-an-iterable
         k = 0
         for q in range(nqubits):
-            if ((g >> q) % 2):
+            if (g >> q) % 2:
                 k += qubit_exponents[q]
         state[g] = pieces[k // npiece][k % npiece]
     return state
 
 
-@njit(["void(complex64[:], complex64[:], int64, int64)",
-       "void(complex128[:], complex128[:], int64, int64)"],
-       cache=True,
-       parallel=True)
+@njit(
+    [
+        "void(complex64[:], complex64[:], int64, int64)",
+        "void(complex128[:], complex128[:], int64, int64)",
+    ],
+    cache=True,
+    parallel=True,
+)
 def swap_pieces(piece0, piece1, new_global, nlocal):
     m = nlocal - new_global - 1
     tk = 1 << m
     nstates = 1 << (nlocal - 1)
-    for g in prange(nstates): # pylint: disable=not-an-iterable
+    for g in prange(nstates):  # pylint: disable=not-an-iterable
         i = ((g >> m) << (m + 1)) + (g & (tk - 1))
         piece0[i + tk], piece1[i] = piece1[i], piece0[i + tk]

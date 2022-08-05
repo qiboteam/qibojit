@@ -1,10 +1,11 @@
-import os
+# -*- coding: utf-8 -*-
 import argparse
 import json
+import os
 import time
+
 import numpy as np
 from backends import backends
-
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--nqubits", default=20, type=int)
@@ -19,11 +20,13 @@ parser.add_argument("--filename", default=None, type=str)
 
 
 def random_state(nqubits, dtype="complex128"):
-    x = np.random.random(2 ** nqubits) + 1j * np.random.random(2 ** nqubits)
+    x = np.random.random(2**nqubits) + 1j * np.random.random(2**nqubits)
     return (x / np.sqrt(np.sum(np.abs(x) ** 2))).astype(dtype)
 
 
-def main(nqubits, nreps, backend, method, controls, random, nshots, collapsenonorm, filename):
+def main(
+    nqubits, nreps, backend, method, controls, random, nshots, collapsenonorm, filename
+):
     if filename is not None:
         if os.path.isfile(filename):
             with open(filename, "r") as file:
@@ -35,12 +38,19 @@ def main(nqubits, nreps, backend, method, controls, random, nshots, collapsenono
     else:
         logs = []
 
-    logs.append({
-        "nqubits": nqubits, "backend": backend, "random": random,
-        "nreps": nreps, "method": method, "controls": controls,
-        "nshots": nshots, "collapsenonorm": collapsenonorm,
-        "CUDA_VISIBLE_DEVICES": os.environ.get("CUDA_VISIBLE_DEVICES")
-        })
+    logs.append(
+        {
+            "nqubits": nqubits,
+            "backend": backend,
+            "random": random,
+            "nreps": nreps,
+            "method": method,
+            "controls": controls,
+            "nshots": nshots,
+            "collapsenonorm": collapsenonorm,
+            "CUDA_VISIBLE_DEVICES": os.environ.get("CUDA_VISIBLE_DEVICES"),
+        }
+    )
 
     backend = backends.get(backend)
     if method == "initial_state":
@@ -48,7 +58,7 @@ def main(nqubits, nreps, backend, method, controls, random, nshots, collapsenono
     elif random:
         state = random_state(nqubits)
     else:
-        state = np.zeros(2 ** nqubits, dtype=np.complex128)
+        state = np.zeros(2**nqubits, dtype=np.complex128)
         state[0] = 1
 
     start_time = time.time()

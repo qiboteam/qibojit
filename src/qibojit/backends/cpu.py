@@ -1,10 +1,11 @@
+# -*- coding: utf-8 -*-
 import numpy as np
+from qibo.backends.numpy import NumpyBackend
 from qibo.config import log
 from qibo.gates.abstract import ParametrizedGate
 from qibo.gates.special import FusedGate
-from qibo.backends.numpy import NumpyBackend
-from qibojit.backends.matrices import CustomMatrices
 
+from qibojit.backends.matrices import CustomMatrices
 
 GATE_OPS = {
     "X": "apply_x",
@@ -17,22 +18,32 @@ GATE_OPS = {
     "CU1": "apply_z_pow",
     "SWAP": "apply_swap",
     "fSim": "apply_fsim",
-    "GeneralizedfSim": "apply_fsim"
+    "GeneralizedfSim": "apply_fsim",
 }
 
 
 class NumbaBackend(NumpyBackend):
-
     def __init__(self):
         super().__init__()
         import sys
+
         import psutil
+
         from qibojit.custom_operators import gates, ops
+
         self.name = "qibojit"
         self.platform = "numba"
-        self.numeric_types = (int, float, complex, np.int32,
-                              np.int64, np.float32, np.float64,
-                              np.complex64, np.complex128)
+        self.numeric_types = (
+            int,
+            float,
+            complex,
+            np.int32,
+            np.int64,
+            np.float32,
+            np.float64,
+            np.complex64,
+            np.complex128,
+        )
         self.tensor_types = (np.ndarray,)
         self.device = "/CPU:0"
         self.custom_matrices = CustomMatrices(self.dtype)
@@ -42,7 +53,7 @@ class NumbaBackend(NumpyBackend):
         self.multi_qubit_kernels = {
             3: self.gates.apply_three_qubit_gate_kernel,
             4: self.gates.apply_four_qubit_gate_kernel,
-            5: self.gates.apply_five_qubit_gate_kernel
+            5: self.gates.apply_five_qubit_gate_kernel,
         }
         if sys.platform == "darwin":  # pragma: no cover
             self.set_threads(psutil.cpu_count(logical=False))
@@ -57,30 +68,31 @@ class NumbaBackend(NumpyBackend):
 
     def set_threads(self, nthreads):
         import numba
+
         numba.set_num_threads(nthreads)
         self.nthreads = nthreads
 
-    #def cast(self, x, dtype=None, copy=False): Inherited from ``NumpyBackend``
+    # def cast(self, x, dtype=None, copy=False): Inherited from ``NumpyBackend``
 
-    #def to_numpy(self, x): Inherited from ``NumpyBackend``
+    # def to_numpy(self, x): Inherited from ``NumpyBackend``
 
     def zero_state(self, nqubits):
-        size = 2 ** nqubits
+        size = 2**nqubits
         state = np.empty((size,), dtype=self.dtype)
         return self.ops.initial_state_vector(state)
 
     def zero_density_matrix(self, nqubits):
-        size = 2 ** nqubits
+        size = 2**nqubits
         state = np.empty((size, size), dtype=self.dtype)
         return self.ops.initial_density_matrix(state)
 
-    #def plus_state(self, nqubits): Inherited from ``NumpyBackend``
+    # def plus_state(self, nqubits): Inherited from ``NumpyBackend``
 
-    #def plus_density_matrix(self, nqubits): Inherited from ``NumpyBackend``
+    # def plus_density_matrix(self, nqubits): Inherited from ``NumpyBackend``
 
-    #def asmatrix_special(self, gate): Inherited from ``NumpyBackend``
+    # def asmatrix_special(self, gate): Inherited from ``NumpyBackend``
 
-    #def control_matrix(self, gate): Inherited from ``NumpyBackend``
+    # def control_matrix(self, gate): Inherited from ``NumpyBackend``
 
     def one_qubit_base(self, state, nqubits, target, kernel, gate, qubits):
         ncontrols = len(qubits) - 1 if qubits is not None else 0
@@ -113,7 +125,9 @@ class NumbaBackend(NumpyBackend):
         if qubits is None:
             qubits = np.array(sorted(nqubits - q - 1 for q in targets), dtype="int32")
         nstates = 1 << (nqubits - len(qubits))
-        targets = np.array([1 << (nqubits - t - 1) for t in targets[::-1]], dtype="int64")
+        targets = np.array(
+            [1 << (nqubits - t - 1) for t in targets[::-1]], dtype="int64"
+        )
         if len(targets) > 5:
             kernel = self.gates.apply_multi_qubit_gate_kernel
         else:
@@ -131,7 +145,7 @@ class NumbaBackend(NumpyBackend):
         name = gate.__class__.__name__
         if isinstance(gate, ParametrizedGate):
             return getattr(self.custom_matrices, name)(*gate.parameters)
-        elif isinstance(gate, FusedGate): # pragma: no cover
+        elif isinstance(gate, FusedGate):  # pragma: no cover
             # fusion is tested in qibo tests
             return self.asmatrix_fused(gate)
         else:
@@ -171,15 +185,27 @@ class NumbaBackend(NumpyBackend):
         shape = state.shape
         if len(targets) == 1:
             op = GATE_OPS.get(name, "apply_gate")
-            state = self.one_qubit_base(state.ravel(), 2 * nqubits, *targets, op, matrix, qubits_dm)
-            state = self.one_qubit_base(state, 2 * nqubits, *targets_dm, op, np.conj(matrix), qubits)
+            state = self.one_qubit_base(
+                state.ravel(), 2 * nqubits, *targets, op, matrix, qubits_dm
+            )
+            state = self.one_qubit_base(
+                state, 2 * nqubits, *targets_dm, op, np.conj(matrix), qubits
+            )
         elif len(targets) == 2:
             op = GATE_OPS.get(name, "apply_two_qubit_gate")
-            state = self.two_qubit_base(state.ravel(), 2 * nqubits, *targets, op, matrix, qubits_dm)
-            state = self.two_qubit_base(state, 2 * nqubits, *targets_dm, op, np.conj(matrix), qubits)
+            state = self.two_qubit_base(
+                state.ravel(), 2 * nqubits, *targets, op, matrix, qubits_dm
+            )
+            state = self.two_qubit_base(
+                state, 2 * nqubits, *targets_dm, op, np.conj(matrix), qubits
+            )
         else:
-            state = self.multi_qubit_base(state.ravel(), 2 * nqubits, targets, matrix, qubits_dm)
-            state = self.multi_qubit_base(state, 2 * nqubits, targets_dm, np.conj(matrix), qubits)
+            state = self.multi_qubit_base(
+                state.ravel(), 2 * nqubits, targets, matrix, qubits_dm
+            )
+            state = self.multi_qubit_base(
+                state, 2 * nqubits, targets_dm, np.conj(matrix), qubits
+            )
         return np.reshape(state, shape)
 
     def _apply_ygate_density_matrix(self, gate, state, nqubits):
@@ -190,12 +216,16 @@ class NumbaBackend(NumpyBackend):
         targets_dm = tuple(q + nqubits for q in targets)
         state = self.cast(state)
         shape = state.shape
-        state = self.one_qubit_base(state.ravel(), 2 * nqubits, *targets, "apply_y", matrix, qubits_dm)
+        state = self.one_qubit_base(
+            state.ravel(), 2 * nqubits, *targets, "apply_y", matrix, qubits_dm
+        )
         # force using ``apply_gate`` kernel so that conjugate is properly applied
-        state = self.one_qubit_base(state, 2 * nqubits, *targets_dm, "apply_gate", np.conj(matrix), qubits)
+        state = self.one_qubit_base(
+            state, 2 * nqubits, *targets_dm, "apply_gate", np.conj(matrix), qubits
+        )
         return np.reshape(state, shape)
 
-    #def apply_channel(self, gate): Inherited from ``NumpyBackend``
+    # def apply_channel(self, gate): Inherited from ``NumpyBackend``
 
     def apply_channel_density_matrix(self, channel, state, nqubits):
         state = self.cast(state)
@@ -226,30 +256,33 @@ class NumbaBackend(NumpyBackend):
             state = state / self.np.trace(state)
         return state
 
-    #def calculate_probabilities(self, state, qubits, nqubits): Inherited from ``NumpyBackend``
+    # def calculate_probabilities(self, state, qubits, nqubits): Inherited from ``NumpyBackend``
 
-    #def sample_shots(self, probabilities, nshots): Inherited from ``NumpyBackend``
+    # def sample_shots(self, probabilities, nshots): Inherited from ``NumpyBackend``
 
-    #def aggregate_shots(self, shots): Inherited from ``NumpyBackend``
+    # def aggregate_shots(self, shots): Inherited from ``NumpyBackend``
 
-    #def samples_to_binary(self, samples, nqubits): Inherited from ``NumpyBackend``
+    # def samples_to_binary(self, samples, nqubits): Inherited from ``NumpyBackend``
 
-    #def samples_to_decimal(self, samples, nqubits): Inherited from ``NumpyBackend``
+    # def samples_to_decimal(self, samples, nqubits): Inherited from ``NumpyBackend``
 
     def sample_frequencies(self, probabilities, nshots):
         from qibo.config import SHOT_METROPOLIS_THRESHOLD
+
         if nshots < SHOT_METROPOLIS_THRESHOLD:
             return super().sample_frequencies(probabilities, nshots)
 
         import collections
+
         seed = np.random.randint(0, int(1e8), dtype="int64")
         nqubits = int(np.log2(tuple(probabilities.shape)[0]))
-        frequencies = np.zeros(2 ** nqubits, dtype="int64")
+        frequencies = np.zeros(2**nqubits, dtype="int64")
         # always fall back to numba CPU backend because for ops not implemented on GPU
         frequencies = self.measure_frequencies_op(
-            frequencies, probabilities, nshots, nqubits, seed, self.nthreads)
+            frequencies, probabilities, nshots, nqubits, seed, self.nthreads
+        )
         return collections.Counter({i: f for i, f in enumerate(frequencies) if f > 0})
 
-    #def calculate_frequencies(self, samples): Inherited from ``NumpyBackend``
+    # def calculate_frequencies(self, samples): Inherited from ``NumpyBackend``
 
-    #def assert_allclose(self, value, target, rtol=1e-7, atol=0.0): Inherited from ``NumpyBackend``
+    # def assert_allclose(self, value, target, rtol=1e-7, atol=0.0): Inherited from ``NumpyBackend``

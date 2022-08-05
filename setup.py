@@ -1,16 +1,18 @@
+# -*- coding: utf-8 -*-
 # Installation script for python
-from setuptools import setup, find_packages
-from setuptools.command.install import install
 import os
 import re
+
+from setuptools import find_packages, setup
+from setuptools.command.install import install
 
 PACKAGE = "qibojit"
 
 
 # Returns the version
 def get_version():
-    """ Gets the version from the package's __init__ file
-    if there is some problem, let it happily fail """
+    """Gets the version from the package's __init__ file
+    if there is some problem, let it happily fail"""
     VERSIONFILE = os.path.join("src", PACKAGE, "__init__.py")
     initfile_lines = open(VERSIONFILE, "rt").readlines()
     VSRE = r"^__version__ = ['\"]([^'\"]*)['\"]"
@@ -40,16 +42,11 @@ setup(
         "Programming Language :: Python :: 3",
         "Topic :: Scientific/Engineering :: Physics",
     ],
-    install_requires=[
-        "numba>=0.51.0",
-        "scipy",
-        "psutil",
-        "qibo>=0.1.7rc0"
-    ],
+    install_requires=["numba>=0.51.0", "scipy", "psutil", "qibo>=0.1.7rc0"],
     extras_require={
         "tests": ["pytest"],
     },
     python_requires=">=3.7.0",
     long_description=long_description,
-    long_description_content_type='text/markdown',
+    long_description_content_type="text/markdown",
 )

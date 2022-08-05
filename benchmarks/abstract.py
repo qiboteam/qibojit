@@ -1,7 +1,8 @@
+# -*- coding: utf-8 -*-
 class AbstractBackend:
-
     def __init__(self):
         import numpy as np
+
         self.np = np
         self.op = None
 
@@ -14,7 +15,7 @@ class AbstractBackend:
     def qubits_tensor(self, nqubits, targets, controls=[]):
         qubits = [nqubits - q - 1 for q in targets]
         qubits.extend(nqubits - q - 1 for q in controls)
-        return self.op.cast(sorted(qubits),dtype=self.np.int32)
+        return self.op.cast(sorted(qubits), dtype=self.np.int32)
 
     def apply_gate_args(self, state, nqubits, controls=[]):
         gate = self.cast([[1, 1], [1, -1]], dtype=state.dtype)
@@ -85,6 +86,7 @@ class AbstractBackend:
 
     def qft(self, state, nqubits):
         import numpy as np
+
         matrix = self.np.array([[1, 1], [1, -1]])
         matrix = self.cast(matrix / self.np.sqrt(2), dtype=state.dtype)
         for i1 in range(nqubits):

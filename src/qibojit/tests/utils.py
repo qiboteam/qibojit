@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 import numpy as np
 
 
@@ -13,18 +14,19 @@ def random_complex(shape, dtype="complex128"):
 
 
 def random_state(nqubits, dtype="complex128"):
-    x = random_complex((2 ** nqubits,), dtype=dtype)
+    x = random_complex((2**nqubits,), dtype=dtype)
     return x / np.sqrt(np.sum(np.abs(x) ** 2))
 
 
 def random_density_matrix(nqubits, dtype="complex128"):
-    x = random_complex(2 * (2 ** nqubits,), dtype=dtype)
+    x = random_complex(2 * (2**nqubits,), dtype=dtype)
     return x / np.trace(x)
 
 
 def random_unitary(nqubits, dtype="complex128"):
     from scipy.linalg import expm
-    shape = 2 * (2 ** nqubits,)
+
+    shape = 2 * (2**nqubits,)
     m = random_complex(shape, dtype=dtype)
     return expm(1j * (m + m.T.conj()))
 

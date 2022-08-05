@@ -1,19 +1,27 @@
-import pytest
+# -*- coding: utf-8 -*-
 import itertools
+
 import numpy as np
-from qibojit.tests.utils import qubits_tensor, random_complex, random_state, set_precision
+import pytest
+
+from qibojit.tests.utils import (
+    qubits_tensor,
+    random_complex,
+    random_state,
+    set_precision,
+)
 
 
 @pytest.mark.parametrize("is_matrix", [False, True])
 def test_zero_state(backend, dtype, is_matrix):
     set_precision(dtype, backend)
     if is_matrix:
-        final_state =  backend.zero_density_matrix(4)
-        target_state = np.array([1] + [0]*255, dtype=dtype)
+        final_state = backend.zero_density_matrix(4)
+        target_state = np.array([1] + [0] * 255, dtype=dtype)
         target_state = np.reshape(target_state, (16, 16))
     else:
-        final_state =  backend.zero_state(4)
-        target_state = np.array([1] + [0]*15, dtype=dtype)
+        final_state = backend.zero_state(4)
+        target_state = np.array([1] + [0] * 15, dtype=dtype)
     backend.assert_allclose(final_state, target_state)
 
 
@@ -21,18 +29,26 @@ def test_zero_state(backend, dtype, is_matrix):
 def test_plus_state(backend, dtype, is_matrix):
     set_precision(dtype, backend)
     if is_matrix:
-        final_state =  backend.plus_density_matrix(4)
+        final_state = backend.plus_density_matrix(4)
         target_state = np.ones((16, 16), dtype=dtype) / 16
     else:
-        final_state =  backend.plus_state(4)
+        final_state = backend.plus_state(4)
         target_state = np.ones(16, dtype=dtype) / 4
     backend.assert_allclose(final_state, target_state)
 
 
-@pytest.mark.parametrize("nqubits,targets,results",
-                         [(2, [0], [1]), (2, [1], [0]), (3, [1], [1]),
-                          (4, [1, 3], [1, 0]), (5, [1, 2, 4], [0, 1, 1]),
-                          (15, [4, 7], [0, 0]), (16, [8, 12, 15], [1, 0, 1])])
+@pytest.mark.parametrize(
+    "nqubits,targets,results",
+    [
+        (2, [0], [1]),
+        (2, [1], [0]),
+        (3, [1], [1]),
+        (4, [1, 3], [1, 0]),
+        (5, [1, 2, 4], [0, 1, 1]),
+        (15, [4, 7], [0, 0]),
+        (16, [8, 12, 15], [1, 0, 1]),
+    ],
+)
 @pytest.mark.parametrize("normalize", [True, False])
 def test_collapse_state(backend, nqubits, targets, results, normalize, dtype):
     atol = 1e-7 if dtype == "complex64" else 1e-14
@@ -57,8 +73,9 @@ def test_collapse_state(backend, nqubits, targets, results, normalize, dtype):
 
 @pytest.mark.parametrize("density_matrix", [False, True])
 def test_collapse_call(backend, density_matrix):
-    from qibo.backends import NumpyBackend
     from qibo import gates
+    from qibo.backends import NumpyBackend
+
     if density_matrix:
         state = random_complex((8, 8))
         state = state + np.conj(state.T)
@@ -87,13 +104,16 @@ def generate_transpose_qubits(nqubits):
     return qubits
 
 
-CONFIG = ((n, generate_transpose_qubits(n))
-          for _ in range(5) for n in range(3, 11))
+CONFIG = ((n, generate_transpose_qubits(n)) for _ in range(5) for n in range(3, 11))
+
+
 @pytest.mark.parametrize("nqubits,qubits", CONFIG)
 @pytest.mark.parametrize("ndevices", [2, 4, 8])
 def test_transpose_state(backend, nqubits, qubits, ndevices, dtype):
-    if backend.platform != "numba": # pragma: no cover
-        pytest.skip(f"``transpose_state`` op is not available for {backend.platform} platform.")
+    if backend.platform != "numba":  # pragma: no cover
+        pytest.skip(
+            f"``transpose_state`` op is not available for {backend.platform} platform."
+        )
     qubit_order = list(qubits)
     state = random_state(nqubits, dtype)
     state_tensor = np.reshape(state, nqubits * (2,))
@@ -106,12 +126,17 @@ def test_transpose_state(backend, nqubits, qubits, ndevices, dtype):
 
 
 CONFIG = ((n, np.random.randint(1, n)) for _ in range(10) for n in range(4, 11))
+
+
 @pytest.mark.parametrize("nqubits,local", CONFIG)
 def test_swap_pieces_zero_global(backend, nqubits, local, dtype):
-    if backend.platform != "numba": # pragma: no cover
-        pytest.skip(f"``swap_pieces`` op is not available for {backend.platform} platform.")
+    if backend.platform != "numba":  # pragma: no cover
+        pytest.skip(
+            f"``swap_pieces`` op is not available for {backend.platform} platform."
+        )
 
     from qibo import gates
+
     state = random_state(nqubits, dtype)
     target_state = np.copy(state)
     shape = (2, int(state.shape[0]) // 2)
@@ -127,14 +152,22 @@ def test_swap_pieces_zero_global(backend, nqubits, local, dtype):
     backend.assert_allclose(piece1, target_state[1])
 
 
-CONFIG = ((n, np.random.randint(0, n), np.random.randint(0, n))
-          for _ in range(10) for n in range(5, 11))
+CONFIG = (
+    (n, np.random.randint(0, n), np.random.randint(0, n))
+    for _ in range(10)
+    for n in range(5, 11)
+)
+
+
 @pytest.mark.parametrize("nqubits,qlocal,qglobal", CONFIG)
 def test_swap_pieces(backend, nqubits, qlocal, qglobal, dtype):
-    if backend.platform != "numba": # pragma: no cover
-        pytest.skip(f"``swap_pieces`` op is not available for {backend.platform} platform.")
+    if backend.platform != "numba":  # pragma: no cover
+        pytest.skip(
+            f"``swap_pieces`` op is not available for {backend.platform} platform."
+        )
 
     from qibo import gates
+
     state = random_state(nqubits, dtype)
     target_state = np.copy(state)
     shape = (2, int(state.shape[0]) // 2)
@@ -142,8 +175,9 @@ def test_swap_pieces(backend, nqubits, qlocal, qglobal, dtype):
     while qlocal == qglobal:
         qlocal = np.random.randint(0, nqubits)
 
-    transpose_order = ([qglobal] + list(range(qglobal)) +
-                        list(range(qglobal + 1, nqubits)))
+    transpose_order = (
+        [qglobal] + list(range(qglobal)) + list(range(qglobal + 1, nqubits))
+    )
 
     gate = gates.SWAP(qglobal, qlocal)
     target_state = backend.apply_gate(gate, target_state, nqubits)
@@ -168,20 +202,24 @@ def test_swap_pieces(backend, nqubits, qlocal, qglobal, dtype):
 def test_measure_frequencies(backend, realtype, inttype, nthreads):
     probs = np.ones(16, dtype=realtype) / 16
     frequencies = np.zeros(16, dtype=inttype)
-    #if backend.name in ["cupy", "cuquantum"]:  # pragma: no cover
-        # CI does not test for GPU
+    # if backend.name in ["cupy", "cuquantum"]:  # pragma: no cover
+    # CI does not test for GPU
     #    with pytest.raises(NotImplementedError):
     #        frequencies = backend.measure_frequencies(frequencies, probs, nshots=1000,
     #                                                     nqubits=4, seed=1234,
     #                                                     nthreads=nthreads)
-    #else:
-    if nthreads is None: nthreads = backend.nthreads
-    frequencies = backend.measure_frequencies_op(frequencies, probs, nshots=1000,
-                                                 nqubits=4, seed=1234, nthreads=nthreads)
+    # else:
+    if nthreads is None:
+        nthreads = backend.nthreads
+    frequencies = backend.measure_frequencies_op(
+        frequencies, probs, nshots=1000, nqubits=4, seed=1234, nthreads=nthreads
+    )
     assert np.sum(frequencies) == 1000
     if nthreads == 4:
-        target_frequencies = np.array([72, 65, 63, 54, 57, 55, 67, 50, 53, 67, 69,
-                                       68, 64, 68, 66, 62], dtype=inttype)
+        target_frequencies = np.array(
+            [72, 65, 63, 54, 57, 55, 67, 50, 53, 67, 69, 68, 64, 68, 66, 62],
+            dtype=inttype,
+        )
         backend.assert_allclose(frequencies, target_frequencies)
 
 
@@ -190,6 +228,8 @@ NONZERO.extend(itertools.combinations(range(8), r=2))
 NONZERO.extend(itertools.combinations(range(8), r=3))
 NONZERO.extend(itertools.combinations(range(8), r=4))
 NSHOTS = (len(NONZERO) // 2 + 1) * [1000, 200000]
+
+
 @pytest.mark.parametrize("nonzero,nshots", zip(NONZERO, NSHOTS))
 def test_measure_frequencies_sparse_probabilities(backend, nonzero, nshots):
     probs = np.zeros(8, dtype=np.float64)
