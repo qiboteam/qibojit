@@ -30,9 +30,11 @@ class NumbaBackend(NumpyBackend):
         import psutil
 
         from qibojit.custom_operators import gates, ops
+        from qibojit import __version__
 
         self.name = "qibojit"
         self.platform = "numba"
+        self.version = __version__
         self.numeric_types = (
             int,
             float,
