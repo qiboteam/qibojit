@@ -29,8 +29,8 @@ class NumbaBackend(NumpyBackend):
 
         import psutil
 
-        from qibojit.custom_operators import gates, ops
         from qibojit import __version__
+        from qibojit.custom_operators import gates, ops
 
         self.name = "qibojit"
         self.platform = "numba"
