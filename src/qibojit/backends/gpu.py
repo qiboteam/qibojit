@@ -26,6 +26,7 @@ class CupyBackend(NumbaBackend):  # pragma: no cover
         self.platform = "cupy"
         self.versions = {
             "qibo" : qibo_version,
+            "qibojit": qibojit_version,
             "numpy": self.np.__version__,
             "cupy": self.cp.__version__
         }
@@ -488,13 +489,16 @@ class CuQuantumBackend(CupyBackend):  # pragma: no cover
         super().__init__()
         import cuquantum  # pylint: disable=import-error
         from cuquantum import custatevec as cusv  # pylint: disable=import-error
+
         from qibojit import __version__
+        from qibo import __version__ as qibo_version
 
         self.cuquantum = cuquantum
         self.cusv = cusv
         self.platform = "cuquantum"
         self.versions = {
             "qibo" : qibo_version,
+            "qibojit": __version__,
             "numpy": np.__version__,
             "cupy": self.cp.__version__,
             "cuquantum": self.cuquantum.__version__
