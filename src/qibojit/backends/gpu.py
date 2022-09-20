@@ -15,22 +15,16 @@ class CupyBackend(NumbaBackend):  # pragma: no cover
 
     def __init__(self):
         NumpyBackend.__init__(self)
-        import os
 
         import cupy as cp  # pylint: disable=import-error
         import cupy_backends  # pylint: disable=import-error
-        from qibo import __version__ as qibo_version
-
-        from qibojit import __version__ as qibojit_version
 
         self.name = "qibojit"
         self.platform = "cupy"
-        self.versions = {
-            "qibo": qibo_version,
-            "qibojit": qibojit_version,
-            "numpy": self.np.__version__,
-            "cupy": cp.__version__,
-        }
+        self.versions[
+            "cupy" : cp.__version__,
+        ]
+
         self.supports_multigpu = True
         self.numeric_types = (
             int,
@@ -490,9 +484,6 @@ class CuQuantumBackend(CupyBackend):  # pragma: no cover
         super().__init__()
         import cuquantum  # pylint: disable=import-error
         from cuquantum import custatevec as cusv  # pylint: disable=import-error
-        from qibo import __version__ as qibo_version
-
-        from qibojit import __version__
 
         self.cuquantum = cuquantum
         self.cusv = cusv

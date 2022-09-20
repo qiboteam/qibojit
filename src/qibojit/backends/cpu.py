@@ -29,7 +29,6 @@ class NumbaBackend(NumpyBackend):
 
         import psutil
         from numba import __version__ as numba_version
-        from qibo import __version__ as qibo_version
 
         from qibojit import __version__ as qibojit_version
         from qibojit.custom_operators import gates, ops
