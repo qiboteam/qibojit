@@ -36,10 +36,12 @@ class NumbaBackend(NumpyBackend):
 
         self.name = "qibojit"
         self.platform = "numba"
-        self.versions.update({
-            "qibojit": qibojit_version,
-            "numba": numba_version,
-        })
+        self.versions.update(
+            {
+                "qibojit": qibojit_version,
+                "numba": numba_version,
+            }
+        )
         self.numeric_types = (
             int,
             float,
