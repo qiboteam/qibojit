@@ -29,7 +29,7 @@ class CupyBackend(NumbaBackend):  # pragma: no cover
             "qibo": qibo_version,
             "qibojit": qibojit_version,
             "numpy": self.np.__version__,
-            "cupy": self.cp.__version__,
+            "cupy": cp.__version__,
         }
         self.supports_multigpu = True
         self.numeric_types = (
@@ -497,13 +497,7 @@ class CuQuantumBackend(CupyBackend):  # pragma: no cover
         self.cuquantum = cuquantum
         self.cusv = cusv
         self.platform = "cuquantum"
-        self.versions = {
-            "qibo": qibo_version,
-            "qibojit": __version__,
-            "numpy": np.__version__,
-            "cupy": self.cp.__version__,
-            "cuquantum": self.cuquantum.__version__,
-        }
+        self.versions["cuquantum"] = self.cuquantum.__version__
         self.supports_multigpu = True
         self.handle = self.cusv.create()
         self.custom_matrices = CuQuantumMatrices(self.dtype)
