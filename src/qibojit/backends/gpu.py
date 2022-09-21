@@ -21,9 +21,7 @@ class CupyBackend(NumbaBackend):  # pragma: no cover
 
         self.name = "qibojit"
         self.platform = "cupy"
-        self.versions[
-            "cupy" : cp.__version__,
-        ]
+        self.versions["cupy"] = cp.__version__
 
         self.supports_multigpu = True
         self.numeric_types = (
