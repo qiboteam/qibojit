@@ -15,13 +15,14 @@ class CupyBackend(NumbaBackend):  # pragma: no cover
 
     def __init__(self):
         NumpyBackend.__init__(self)
-        import os
 
         import cupy as cp  # pylint: disable=import-error
         import cupy_backends  # pylint: disable=import-error
 
         self.name = "qibojit"
         self.platform = "cupy"
+        self.versions["cupy"] = cp.__version__
+
         self.supports_multigpu = True
         self.numeric_types = (
             int,
@@ -485,6 +486,7 @@ class CuQuantumBackend(CupyBackend):  # pragma: no cover
         self.cuquantum = cuquantum
         self.cusv = cusv
         self.platform = "cuquantum"
+        self.versions["cuquantum"] = self.cuquantum.__version__
         self.supports_multigpu = True
         self.handle = self.cusv.create()
         self.custom_matrices = CuQuantumMatrices(self.dtype)

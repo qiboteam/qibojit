@@ -28,11 +28,19 @@ class NumbaBackend(NumpyBackend):
         import sys
 
         import psutil
+        from numba import __version__ as numba_version
 
+        from qibojit import __version__ as qibojit_version
         from qibojit.custom_operators import gates, ops
 
         self.name = "qibojit"
         self.platform = "numba"
+        self.versions.update(
+            {
+                "qibojit": qibojit_version,
+                "numba": numba_version,
+            }
+        )
         self.numeric_types = (
             int,
             float,
