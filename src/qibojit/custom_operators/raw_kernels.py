@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 # This file contains the C++/CUDA implementation of many methods
 # defined in gates.py and ops.py.
 # The methods in gates.py and ops.py are called by NumbaBackend

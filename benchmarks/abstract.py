@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 class AbstractBackend:
     def __init__(self):
         import numpy as np

@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 import numpy as np
 from qibo.backends.numpy import NumpyBackend
 from qibo.config import log
