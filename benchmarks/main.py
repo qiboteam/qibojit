@@ -29,7 +29,7 @@ def main(
 ):
     if filename is not None:
         if os.path.isfile(filename):
-            with open(filename, "r") as file:
+            with open(filename) as file:
                 logs = json.load(file)
             print("Extending existing logs from {}.".format(filename))
         else:
