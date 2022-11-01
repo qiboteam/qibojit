@@ -2,7 +2,7 @@
 import sys
 
 import numpy as np
-from qibo.backends.matrices import Matrices
+from qibo.backends.npmatrices import NumpyMatrices
 
 if sys.version_info.minor >= 8:
     from functools import cached_property  # pylint: disable=E0611
@@ -18,7 +18,7 @@ else:
         return wrapper
 
 
-class CuQuantumMatrices(Matrices):
+class CuQuantumMatrices(NumpyMatrices):
     # These matrices are used by the custom operators and may
     # not correspond to the mathematical representation of each gate
 

@@ -492,7 +492,8 @@ class CuQuantumBackend(CupyBackend):  # pragma: no cover
         self.custom_matrices = CuQuantumMatrices(self.dtype)
 
     def __del__(self):
-        self.cusv.destroy(self.handle)
+        if hasattr(self, "cusv"):
+            self.cusv.destroy(self.handle)
 
     def set_precision(self, precision):
         if precision != self.precision:
