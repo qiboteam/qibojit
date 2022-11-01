@@ -42,7 +42,7 @@ setup(
         "Programming Language :: Python :: 3",
         "Topic :: Scientific/Engineering :: Physics",
     ],
-    install_requires=["numba>=0.51.0", "scipy", "psutil", "qibo>=0.1.7rc0"],
+    install_requires=["numba>=0.51.0", "scipy", "psutil", "qibo>0.1.8"],
     extras_require={
         "tests": ["pytest"],
     },
