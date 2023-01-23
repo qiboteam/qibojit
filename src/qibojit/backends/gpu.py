@@ -340,7 +340,9 @@ class CupyBackend(NumbaBackend):  # pragma: no cover
                     "Initial state type {} is not supported by "
                     "distributed circuits.".format(type(initial_state)),
                 )
-
+            for gate in circuit.queue:
+                if isinstance(gate, M):
+                    gate.result.backend = CupyBackend()
             special_gates = iter(circuit.queues.special_queue)
             for i, queues in enumerate(circuit.queues.queues):
                 if queues:  # standard gate
