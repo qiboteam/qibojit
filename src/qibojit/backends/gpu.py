@@ -309,6 +309,7 @@ class CupyBackend(NumbaBackend):  # pragma: no cover
         self, circuit, initial_state=None, nshots=None, return_array=False
     ):
         import joblib
+        from qibo.gates import M
         from qibo.states import CircuitResult
 
         if not circuit.queues.queues:
