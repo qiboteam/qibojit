@@ -309,6 +309,7 @@ class CupyBackend(NumbaBackend):  # pragma: no cover
         self, circuit, initial_state=None, nshots=None, return_array=False
     ):
         import joblib
+        from qibo.gates import M
         from qibo.states import CircuitResult
 
         if not circuit.queues.queues:
@@ -340,7 +341,9 @@ class CupyBackend(NumbaBackend):  # pragma: no cover
                     "Initial state type {} is not supported by "
                     "distributed circuits.".format(type(initial_state)),
                 )
-
+            for gate in circuit.queue:
+                if isinstance(gate, M):
+                    gate.result.backend = CupyBackend()
             special_gates = iter(circuit.queues.special_queue)
             for i, queues in enumerate(circuit.queues.queues):
                 if queues:  # standard gate
