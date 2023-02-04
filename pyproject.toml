@@ -1,0 +1,13 @@
+[tool.pylint.master]
+output-format = "colorized"
+
+[tool.pylint.reports]
+output-format = "colorized"
+
+[tool.pytest.ini_options]
+testpaths = ['src/qibojit/tests/']
+addopts = [
+    '--cov=qibojit',
+    '--cov-report=xml',
+]
+env = ["D:NUMBA_DISABLE_JIT=1"]

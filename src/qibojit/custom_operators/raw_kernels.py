@@ -16,7 +16,7 @@ __device__ long multicontrol_index(const int* qubits, long g, int ncontrols) {
   }
   return i;
 }
-"""
+"""  # pragma: no cover
 
 
 _apply_gate = """
@@ -26,7 +26,7 @@ __device__ void _apply_gate(T& state1, T& state2, const T* gate) {
   state1 = gate[0] * state1 + gate[1] * state2;
   state2 = gate[2] * buffer + gate[3] * state2;
 }
-"""
+"""  # pragma: no cover
 
 
 _apply_x = """
@@ -36,7 +36,7 @@ __device__ void _apply_x(T& state1, T& state2) {
   state1 = state2;
   state2 = buffer;
 }
-"""
+"""  # pragma: no cover
 
 
 _apply_y = """
@@ -48,7 +48,7 @@ __device__ void _apply_y(T& state1, T& state2) {
   state1 = state2;
   state2 = buffer;
 }
-"""
+"""  # pragma: no cover
 
 
 _apply_z = """
@@ -56,7 +56,7 @@ _apply_z = """
 __device__ void _apply_z(T& state) {
   state = state * T(-1);
 }
-"""
+"""  # pragma: no cover
 
 
 _apply_z_pow = """
@@ -64,7 +64,7 @@ _apply_z_pow = """
 __device__ void _apply_z_pow(T& state, T gate) {
   state = state * gate;
 }
-"""
+"""  # pragma: no cover
 
 
 _apply_two_qubit_gate = """
@@ -83,7 +83,7 @@ __device__ void _apply_two_qubit_gate(T& state0, T& state1, T& state2, T& state3
   state3 = gate[12] * buffer0 + gate[13] * buffer1
          + gate[14] * buffer2 + gate[15] * state3;
 }
-"""
+"""  # pragma: no cover
 
 
 _apply_fsim = """
@@ -94,7 +94,7 @@ __device__ void _apply_fsim(T& state1, T& state2, T& state3, const T* gate) {
   state2 = gate[2] * buffer + gate[3] * state2;
   state3 = gate[4] * state3;
 }
-"""
+"""  # pragma: no cover
 
 
 multitarget_index = """
@@ -106,7 +106,7 @@ __device__ long multitarget_index(const long* targets, long i, int ntargets) {
   }
   return t;
 }
-"""
+"""  # pragma: no cover
 
 
 collapse_index = """
@@ -121,7 +121,7 @@ __device__ long collapse_index(const int* qubits, long g, long h, int ntargets) 
   }
   return i;
 }
-"""
+"""  # pragma: no cover
 
 # ---------- KERNELS ----------
 
@@ -138,7 +138,7 @@ __global__ void apply_gate_kernel(T* state, long tk, int m, const T* gate) {
   _apply_gate(state[i], state[i + tk], gate);
 }
 """
-)
+)  # pragma: no cover
 
 
 apply_x_kernel = (
@@ -154,7 +154,7 @@ __global__ void apply_x_kernel(T* state, long tk, int m) {
   _apply_x(state[i], state[i + tk]);
 }
 """
-)
+)  # pragma: no cover
 
 
 apply_y_kernel = (
@@ -170,7 +170,7 @@ __global__ void apply_y_kernel(T* state, long tk, int m) {
   _apply_y(state[i], state[i + tk]);
 }
 """
-)
+)  # pragma: no cover
 
 
 apply_z_kernel = (
@@ -186,7 +186,7 @@ __global__ void apply_z_kernel(T* state, long tk, int m) {
   _apply_z(state[i + tk]);
 }
 """
-)
+)  # pragma: no cover
 
 
 apply_z_pow_kernel = (
@@ -203,7 +203,7 @@ __global__ void apply_z_pow_kernel(T* state, long tk, int m,
   _apply_z_pow(state[i + tk], gate[0]);
 }
 """
-)
+)  # pragma: no cover
 
 
 apply_two_qubit_gate_kernel = (
@@ -224,7 +224,7 @@ __global__ void apply_two_qubit_gate_kernel(T* state, long tk1, long tk2,
   _apply_two_qubit_gate(state[i], state[i + uk1], state[i + uk2], state[i + uk1 + uk2], gate);
 }
 """
-)
+)  # pragma: no cover
 
 
 apply_fsim_kernel = (
@@ -245,7 +245,7 @@ __global__ void apply_fsim_kernel(T* state, long tk1, long tk2,
   _apply_fsim(state[i + uk1], state[i + uk2], state[i + uk1 + uk2], gate);
 }
 """
-)
+)  # pragma: no cover
 
 
 apply_swap_kernel = (
@@ -263,7 +263,7 @@ __global__ void apply_swap_kernel(T* state, long tk1, long tk2,
   _apply_x(state[i + tk2], state[i + tk1]);
 }
 """
-)
+)  # pragma: no cover
 
 
 multicontrol_apply_gate_kernel = (
@@ -281,7 +281,7 @@ __global__ void multicontrol_apply_gate_kernel(T* state, long tk, int m, const T
   _apply_gate(state[i - tk], state[i], gate);
 }
 """
-)
+)  # pragma: no cover
 
 
 multicontrol_apply_x_kernel = (
@@ -299,7 +299,7 @@ __global__ void multicontrol_apply_x_kernel(T* state, long tk, int m,
   _apply_x(state[i - tk], state[i]);
 }
 """
-)
+)  # pragma: no cover
 
 
 multicontrol_apply_y_kernel = (
@@ -317,7 +317,7 @@ __global__ void multicontrol_apply_y_kernel(T* state, long tk, int m,
   _apply_y(state[i - tk], state[i]);
 }
 """
-)
+)  # pragma: no cover
 
 
 multicontrol_apply_z_kernel = (
@@ -335,7 +335,7 @@ __global__ void multicontrol_apply_z_kernel(T* state, long tk, int m,
   _apply_z(state[i]);
 }
 """
-)
+)  # pragma: no cover
 
 
 multicontrol_apply_z_pow_kernel = (
@@ -354,7 +354,7 @@ __global__ void multicontrol_apply_z_pow_kernel(T* state, long tk, int m,
   _apply_z_pow(state[i], gate[0]);
 }
 """
-)
+)  # pragma: no cover
 
 
 multicontrol_apply_two_qubit_gate_kernel = (
@@ -379,7 +379,7 @@ __global__ void multicontrol_apply_two_qubit_gate_kernel(T* state,
   _apply_two_qubit_gate(state[i - uk1 - uk2], state[i - uk2], state[i - uk1], state[i], gate);
 }
 """
-)
+)  # pragma: no cover
 
 
 multicontrol_apply_fsim_kernel = (
@@ -404,7 +404,7 @@ __global__ void multicontrol_apply_fsim_kernel(T* state,
   _apply_fsim(state[i - uk2], state[i - uk1], state[i], gate);
 }
 """
-)
+)  # pragma: no cover
 
 
 multicontrol_apply_swap_kernel = (
@@ -426,7 +426,7 @@ __global__ void multicontrol_apply_swap_kernel(T* state,
   _apply_x(state[i - tk1], state[i - tk2]);
 }
 """
-)
+)  # pragma: no cover
 
 
 apply_multi_qubit_gate_kernel = (
@@ -463,7 +463,7 @@ apply_multi_qubit_gate_kernel(T* state,
   }
 }
 """
-)
+)  # pragma: no cover
 
 
 collapse_state_kernel = (
@@ -487,7 +487,7 @@ __global__ void collapse_state_kernel(T* state, const int* qubits,
   }
 }
 """
-)
+)  # pragma: no cover
 
 
 initial_state_kernel = """
@@ -500,4 +500,4 @@ initial_state_kernel = """
 extern "C" __global__ void initial_state_kernel(T* state) {
   state[0] = T(1, 0);
 }
-"""
+"""  # pragma: no cover
