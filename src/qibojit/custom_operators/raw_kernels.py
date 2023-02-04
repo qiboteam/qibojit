@@ -500,4 +500,4 @@ initial_state_kernel = """
 extern "C" __global__ void initial_state_kernel(T* state) {
   state[0] = T(1, 0);
 }
-"""  # pragma: no covers
+"""  # pragma: no cover
