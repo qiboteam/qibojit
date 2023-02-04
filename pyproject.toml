@@ -10,3 +10,4 @@ addopts = [
     '--cov=qibojit',
     '--cov-report=xml',
 ]
+env = ["D:NUMBA_DISABLE_JIT=1"]

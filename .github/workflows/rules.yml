@@ -13,6 +13,5 @@ jobs:
     with:
       os: ${{ matrix.os }}
       python-version: ${{ matrix.python-version }}
-      environment: "qibo"
-      disable-jit: true
+      environment: "qibojit"
     secrets: inherit
