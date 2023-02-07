@@ -103,7 +103,6 @@ class TensorflowBackend(AbstractBackend):
 
 
 class Backends(dict):
-
     _implemented = {
         "numba": NumbaBackend,
         "cupy": CupyBackend,
