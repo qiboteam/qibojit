@@ -246,7 +246,9 @@ class NumbaBackend(NumpyBackend):
             if channel.name == "ReadoutErrorChannel":
                 state = state_copy
             else:
-                state = self.apply_gate_density_matrix(gate, state, nqubits, inverse=True)
+                state = self.apply_gate_density_matrix(
+                    gate, state, nqubits, inverse=True
+                )
         return new_state
 
     def collapse_state(self, state, qubits, shot, nqubits, normalize=True):
