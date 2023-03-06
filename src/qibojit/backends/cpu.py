@@ -236,12 +236,17 @@ class NumbaBackend(NumpyBackend):
 
     def apply_channel_density_matrix(self, channel, state, nqubits):
         state = self.cast(state)
+        if channel.name == "ReadoutErrorChannel":
+            state_copy = self.cast(state, copy=True)
         new_state = (1 - channel.coefficient_sum) * state
         for coeff, gate in zip(channel.coefficients, channel.gates):
             state = self.apply_gate_density_matrix(gate, state, nqubits)
             new_state += coeff * state
             # reset the state
-            state = self.apply_gate_density_matrix(gate, state, nqubits, inverse=True)
+            if channel.name == "ReadoutErrorChannel":
+                state = state_copy
+            else:
+                state = self.apply_gate_density_matrix(gate, state, nqubits, inverse=True)
         return new_state
 
     def collapse_state(self, state, qubits, shot, nqubits, normalize=True):
