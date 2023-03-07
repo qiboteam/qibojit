@@ -2,6 +2,7 @@ import numpy as np
 from qibo.backends.numpy import NumpyBackend
 from qibo.config import log
 from qibo.gates.abstract import ParametrizedGate
+from qibo.gates.channels import ReadoutErrorChannel
 from qibo.gates.special import FusedGate
 
 from qibojit.backends.matrices import CustomMatrices
@@ -236,15 +237,15 @@ class NumbaBackend(NumpyBackend):
 
     def apply_channel_density_matrix(self, channel, state, nqubits):
         state = self.cast(state)
-        if channel.name == "ReadoutErrorChannel":
+        if isinstance(channel, ReadoutErrorChannel) is True:
             state_copy = self.cast(state, copy=True)
         new_state = (1 - channel.coefficient_sum) * state
         for coeff, gate in zip(channel.coefficients, channel.gates):
             state = self.apply_gate_density_matrix(gate, state, nqubits)
             new_state += coeff * state
             # reset the state
-            if channel.name == "ReadoutErrorChannel":
-                state = state_copy
+            if isinstance(channel, ReadoutErrorChannel) is True:
+                state = self.cast(state_copy, copy=True)
             else:
                 state = self.apply_gate_density_matrix(
                     gate, state, nqubits, inverse=True
