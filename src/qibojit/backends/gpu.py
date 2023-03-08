@@ -159,7 +159,7 @@ class CupyBackend(NumbaBackend):  # pragma: no cover
     def identity_density_matrix(self, nqubits):
         n = 1 << nqubits
         kernel = self.gates.get(f"initial_state_kernel_{self.kernel_type}")
-        state = self.cp.eye(n, n, dtype=self.dtype)
+        state = self.cp.eye(n, dtype=self.dtype)
         kernel((1,), (1,), [state])
         self.cp.cuda.stream.get_current_stream().synchronize()
         state /= 2**nqubits
