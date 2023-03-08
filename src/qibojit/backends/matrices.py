@@ -3,18 +3,7 @@ import sys
 import numpy as np
 from qibo.backends.npmatrices import NumpyMatrices
 
-if sys.version_info.minor >= 8:
-    from functools import cached_property  # pylint: disable=E0611
-else:
-    # Custom ``cached_property`` because it is not available for Python < 3.8
-    from functools import lru_cache
-
-    def cached_property(func):  # pragma: no cover
-        @property
-        def wrapper(self):
-            return lru_cache()(func)(self)
-
-        return wrapper
+from functools import cached_property  # pylint: disable=E0611
 
 
 class CuQuantumMatrices(NumpyMatrices):
