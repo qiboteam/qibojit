@@ -45,7 +45,7 @@ setup(
     extras_require={
         "tests": ["pytest"],
     },
-    python_requires=">=3.7.0",
+    python_requires=">=3.8.0",
     long_description=long_description,
     long_description_content_type="text/markdown",
 )
