@@ -20,6 +20,13 @@ def test_zero_state(backend, dtype, is_matrix):
     backend.assert_allclose(final_state, target_state)
 
 
+def test_identity_density_matrix(backend, dtype):
+    set_precision(dtype, backend)
+    final_state = backend.identity_density_matrix(4)
+    target_state = np.eye(16, 16, dtype=dtype) / 16
+    backend.assert_allclose(final_state, target_state)
+
+
 @pytest.mark.parametrize("is_matrix", [False, True])
 def test_plus_state(backend, dtype, is_matrix):
     set_precision(dtype, backend)
