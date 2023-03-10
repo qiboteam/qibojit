@@ -41,11 +41,11 @@ setup(
         "Programming Language :: Python :: 3",
         "Topic :: Scientific/Engineering :: Physics",
     ],
-    install_requires=["numba>=0.51.0", "scipy", "psutil", "qibo>0.1.8"],
+    install_requires=["numba>=0.51.0", "scipy", "psutil", "qibo>=0.1.11"],
     extras_require={
         "tests": ["pytest"],
     },
-    python_requires=">=3.7.0",
+    python_requires=">=3.8.0",
     long_description=long_description,
     long_description_content_type="text/markdown",
 )
