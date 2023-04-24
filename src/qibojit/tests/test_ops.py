@@ -20,10 +20,12 @@ def test_zero_state(backend, dtype, is_matrix):
     backend.assert_allclose(final_state, target_state)
 
 
-def test_identity_density_matrix(backend, dtype):
+@pytest.mark.parametrize("normalize", [False, True])
+def test_identity_density_matrix(backend, dtype, normalize):
     set_precision(dtype, backend)
-    final_state = backend.identity_density_matrix(4)
-    target_state = np.eye(16, 16, dtype=dtype) / 16
+    norm = 16 if normalize else 1.0
+    final_state = backend.identity_density_matrix(4, normalize=normalize)
+    target_state = np.eye(16, dtype=dtype) / norm
     backend.assert_allclose(final_state, target_state)
 
 
