@@ -158,7 +158,7 @@ class NumbaBackend(NumpyBackend):
             return self.asmatrix_fused(gate)
         else:
             matrix = getattr(self.custom_matrices, name)
-            return matrix(2**len(gate.target_qubits)) if callable(matrix) else matrix
+            return matrix(2 ** len(gate.target_qubits)) if callable(matrix) else matrix
 
     def apply_gate(self, gate, state, nqubits):
         matrix = self._as_custom_matrix(gate)
