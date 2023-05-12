@@ -2,7 +2,7 @@ import itertools
 
 import numpy as np
 import pytest
-from qibo.quantum_info import random_statevector
+from qibo.quantum_info import random_density_matrix, random_statevector
 
 from qibojit.tests.utils import qubits_tensor, random_complex, set_precision
 
@@ -56,8 +56,7 @@ def test_plus_state(backend, dtype, is_matrix):
 @pytest.mark.parametrize("normalize", [True, False])
 def test_collapse_state(backend, nqubits, targets, results, normalize, dtype):
     atol = 1e-7 if dtype == "complex64" else 1e-14
-    state = random_statevector(2**nqubits)
-    state = backend.cast(state, dtype=dtype)
+    state = random_statevector(2**nqubits, backend=backend)
     slicer = nqubits * [slice(None)]
     for t, r in zip(targets, results):
         slicer[t] = r
@@ -81,14 +80,12 @@ def test_collapse_call(backend, density_matrix):
     from qibo import gates
     from qibo.backends import NumpyBackend
 
-    if density_matrix:
-        state = random_complex((8, 8))
-        state = state + np.conj(state.T)
-        state = state / np.trace(state)
-    else:
-        state = random_statevector(2**3)
-
     tbackend = NumpyBackend()
+    if density_matrix:
+        state = random_density_matrix(2**3, backend=tbackend)
+    else:
+        state = random_statevector(2**3, backend=tbackend)
+
     gate = gates.M(0, 1, collapse=True)
     np.random.seed(123)
     if density_matrix:
@@ -120,7 +117,7 @@ def test_transpose_state(backend, nqubits, qubits, ndevices, dtype):
             f"``transpose_state`` op is not available for {backend.platform} platform."
         )
     qubit_order = list(qubits)
-    state = random_statevector(2**nqubits)
+    state = random_statevector(2**nqubits, backend=backend)
     state = backend.cast(state, dtype=dtype)
     state_tensor = np.reshape(state, nqubits * (2,))
     target_state = np.transpose(state_tensor, qubit_order).flatten()
@@ -143,7 +140,7 @@ def test_swap_pieces_zero_global(backend, nqubits, local, dtype):
 
     from qibo import gates
 
-    state = random_statevector(2**nqubits)
+    state = random_statevector(2**nqubits, backend=backend)
     state = backend.cast(state, dtype=dtype)
     target_state = np.copy(state)
     shape = (2, int(state.shape[0]) // 2)
@@ -175,7 +172,7 @@ def test_swap_pieces(backend, nqubits, qlocal, qglobal, dtype):
 
     from qibo import gates
 
-    state = random_statevector(2**nqubits)
+    state = random_statevector(2**nqubits, backend=backend)
     state = backend.cast(state, dtype=dtype)
     target_state = np.copy(state)
     shape = (2, int(state.shape[0]) // 2)
