@@ -31,11 +31,11 @@ ATOL = {"complex64": 1e-4, "complex128": 1e-10}
     ],
 )
 def test_apply_gate(backend, nqubits, target, controls, dtype):
-    state = random_statevector(2**nqubits).astype(dtype)
-    matrix = random_unitary(2**1).astype(dtype)
+    tbackend = NumpyBackend()
+    state = random_statevector(2**nqubits, backend=tbackend).astype(dtype)
+    matrix = random_unitary(2**1, backend=tbackend).astype(dtype)
     gate = gates.Unitary(matrix, target).controlled_by(*controls)
 
-    tbackend = NumpyBackend()
     set_precision(dtype, backend, tbackend)
     target_state = tbackend.apply_gate(gate, np.copy(state), nqubits)
     state = backend.apply_gate(gate, np.copy(state), nqubits)
@@ -45,11 +45,11 @@ def test_apply_gate(backend, nqubits, target, controls, dtype):
 @pytest.mark.parametrize(("nqubits", "target"), [(4, 1), (6, 5)])
 @pytest.mark.parametrize("use_qubits", [False, True])
 def test_one_qubit_base(backend, nqubits, target, use_qubits, dtype):
-    state = random_statevector(2**nqubits).astype(dtype)
+    tbackend = NumpyBackend()
+    state = random_statevector(2**nqubits, backend=tbackend).astype(dtype)
     matrix = random_complex((2, 2), dtype=dtype)
     gate = gates.Unitary(matrix, target)
 
-    tbackend = NumpyBackend()
     set_precision(dtype, backend, tbackend)
     target_state = tbackend.apply_gate(gate, np.copy(state), nqubits)
     qubits = qubits_tensor(nqubits, [target]) if use_qubits else None
@@ -73,11 +73,11 @@ def test_one_qubit_base(backend, nqubits, target, use_qubits, dtype):
 )
 @pytest.mark.parametrize("pauli", ["X", "Y", "Z"])
 def test_apply_pauli_gate(backend, nqubits, target, pauli, controls, dtype):
-    state = random_statevector(2**nqubits).astype(dtype)
+    tbackend = NumpyBackend()
+    state = random_statevector(2**nqubits, backend=tbackend).astype(dtype)
     gate = getattr(gates, pauli)
     gate = gate(target).controlled_by(*controls)
 
-    tbackend = NumpyBackend()
     set_precision(dtype, backend, tbackend)
     target_state = tbackend.apply_gate(gate, np.copy(state), nqubits)
     state = backend.apply_gate(gate, np.copy(state), nqubits)
@@ -89,11 +89,11 @@ def test_apply_pauli_gate(backend, nqubits, target, pauli, controls, dtype):
     [(3, 0, []), (3, 2, [1]), (3, 2, [0, 1]), (6, 1, [0, 2, 4])],
 )
 def test_apply_zpow_gate(backend, nqubits, target, controls, dtype):
-    state = random_statevector(2**nqubits).astype(dtype)
+    tbackend = NumpyBackend()
+    state = random_statevector(2**nqubits, backend=tbackend).astype(dtype)
     theta = 0.1234
     gate = gates.U1(target, theta=theta).controlled_by(*controls)
 
-    tbackend = NumpyBackend()
     set_precision(dtype, backend, tbackend)
     target_state = tbackend.apply_gate(gate, np.copy(state), nqubits)
     state = backend.apply_gate(gate, np.copy(state), nqubits)
@@ -118,14 +118,14 @@ def test_apply_zpow_gate(backend, nqubits, target, controls, dtype):
 def test_apply_two_qubit_gate(
     backend, nqubits, targets, controls, density_matrix, dtype
 ):
+    tbackend = NumpyBackend()
     if density_matrix:
-        state = random_density_matrix(2**nqubits).astype(dtype)
+        state = random_density_matrix(2**nqubits, backend=tbackend).astype(dtype)
     else:
-        state = random_statevector(2**nqubits).astype(dtype)
-    matrix = random_unitary(2**2).astype(dtype)
+        state = random_statevector(2**nqubits, backend=tbackend).astype(dtype)
+    matrix = random_unitary(2**2, backend=tbackend).astype(dtype)
     gate = gates.Unitary(matrix, *targets).controlled_by(*controls)
 
-    tbackend = NumpyBackend()
     set_precision(dtype, backend, tbackend)
     if density_matrix:
         target_state = tbackend.apply_gate_density_matrix(gate, np.copy(state), nqubits)
@@ -139,11 +139,11 @@ def test_apply_two_qubit_gate(
 @pytest.mark.parametrize(("nqubits", "targets"), [(5, [3, 4]), (4, [2, 0])])
 @pytest.mark.parametrize("use_qubits", [False, True])
 def test_apply_two_qubit_base(backend, nqubits, targets, use_qubits, dtype):
-    state = random_statevector(2**nqubits).astype(dtype)
+    tbackend = NumpyBackend()
+    state = random_statevector(2**nqubits, backend=tbackend).astype(dtype)
     matrix = random_complex((4, 4), dtype=dtype)
     gate = gates.Unitary(matrix, *targets)
 
-    tbackend = NumpyBackend()
     set_precision(dtype, backend, tbackend)
     target_state = tbackend.apply_gate(gate, np.copy(state), nqubits)
     qubits = qubits_tensor(nqubits, targets) if use_qubits else None
@@ -169,10 +169,10 @@ def test_apply_two_qubit_base(backend, nqubits, targets, use_qubits, dtype):
     ],
 )
 def test_apply_swap(backend, nqubits, targets, controls, dtype):
-    state = random_statevector(2**nqubits).astype(dtype)
+    tbackend = NumpyBackend()
+    state = random_statevector(2**nqubits, backend=tbackend).astype(dtype)
     gate = gates.SWAP(*targets).controlled_by(*controls)
 
-    tbackend = NumpyBackend()
     set_precision(dtype, backend, tbackend)
     target_state = tbackend.apply_gate(gate, np.copy(state), nqubits)
     state = backend.apply_gate(gate, np.copy(state), nqubits)
@@ -196,12 +196,12 @@ def test_apply_swap(backend, nqubits, targets, controls, dtype):
     ],
 )
 def test_apply_fsim(backend, nqubits, targets, controls, dtype):
-    state = random_statevector(2**nqubits).astype(dtype)
+    tbackend = NumpyBackend()
+    state = random_statevector(2**nqubits, backend=tbackend).astype(dtype)
     matrix = random_complex((2, 2), dtype=dtype)
     phi = 0.4321
     gate = gates.GeneralizedfSim(*targets, matrix, phi).controlled_by(*controls)
 
-    tbackend = NumpyBackend()
     set_precision(dtype, backend, tbackend)
     target_state = tbackend.apply_gate(gate, np.copy(state), nqubits)
     state = backend.apply_gate(gate, np.copy(state), nqubits)
@@ -230,15 +230,15 @@ def test_apply_fsim(backend, nqubits, targets, controls, dtype):
 def test_apply_multiqubit_gate(
     backend, nqubits, targets, controls, density_matrix, dtype
 ):
+    tbackend = NumpyBackend()
     if density_matrix:
-        state = random_density_matrix(2**nqubits).astype(dtype)
+        state = random_density_matrix(2**nqubits, backend=tbackend).astype(dtype)
     else:
-        state = random_statevector(2**nqubits).astype(dtype)
+        state = random_statevector(2**nqubits, backend=tbackend).astype(dtype)
     rank = 2 ** len(targets)
     matrix = random_complex((rank, rank), dtype=dtype)
     gate = gates.Unitary(matrix, *targets).controlled_by(*controls)
 
-    tbackend = NumpyBackend()
     set_precision(dtype, backend, tbackend)
     if density_matrix:
         target_state = tbackend.apply_gate_density_matrix(gate, np.copy(state), nqubits)
@@ -272,11 +272,11 @@ def test_apply_multiqubit_gate_large(backend, nqubits, targets, controls, dtype)
 @pytest.mark.parametrize(("nqubits", "targets"), [(5, [2, 3, 4]), (4, [2, 0, 1])])
 @pytest.mark.parametrize("use_qubits", [False, True])
 def test_apply_multi_qubit_base(backend, nqubits, targets, use_qubits, dtype):
-    state = random_statevector(2**nqubits).astype(dtype)
+    tbackend = NumpyBackend()
+    state = random_statevector(2**nqubits, backend=tbackend).astype(dtype)
     matrix = random_complex((8, 8), dtype=dtype)
     gate = gates.Unitary(matrix, *targets)
 
-    tbackend = NumpyBackend()
     set_precision(dtype, backend, tbackend)
     target_state = tbackend.apply_gate(gate, np.copy(state), nqubits)
     if use_qubits:
@@ -294,15 +294,15 @@ def test_apply_multi_qubit_base(backend, nqubits, targets, use_qubits, dtype):
 def test_gates_on_circuit(backend, gatename, density_matrix):
     from qibo.models import Circuit
 
+    tbackend = NumpyBackend()
     if density_matrix:
-        state = random_density_matrix(2**1)
+        state = random_density_matrix(2**1, backend=tbackend)
     else:
-        state = random_statevector(2**1)
+        state = random_statevector(2**1, backend=tbackend)
 
     c = Circuit(1, density_matrix=density_matrix)
     c.add(getattr(gates, gatename)(0))
 
-    tbackend = NumpyBackend()
     target_state = tbackend.execute_circuit(c, np.copy(state))
     final_state = backend.execute_circuit(c, np.copy(state))
     backend.assert_allclose(final_state, target_state)
@@ -324,15 +324,15 @@ def test_gates_on_circuit(backend, gatename, density_matrix):
 def test_parametrized_gates_on_circuit(backend, gatename, params, density_matrix):
     from qibo.models import Circuit
 
+    tbackend = NumpyBackend()
     if density_matrix:
-        state = random_density_matrix(2**2)
+        state = random_density_matrix(2**2, backend=tbackend)
     else:
-        state = random_statevector(2**2)
+        state = random_statevector(2**2, backend=tbackend)
 
     c = Circuit(2, density_matrix=density_matrix)
     c.add(getattr(gates, gatename)(0, 1, **params))
 
-    tbackend = NumpyBackend()
     target_state = tbackend.execute_circuit(c, np.copy(state))
     final_state = backend.execute_circuit(c, np.copy(state))
     backend.assert_allclose(final_state, target_state)
@@ -340,10 +340,10 @@ def test_parametrized_gates_on_circuit(backend, gatename, params, density_matrix
 
 @pytest.mark.parametrize("gatename", ["H", "X", "Z"])
 def test_density_matrix_half_calls(backend, gatename):
-    state = random_density_matrix(2**3)
+    tbackend = NumpyBackend()
+    state = random_density_matrix(2**3, backend=tbackend)
     gate = getattr(gates, gatename)(1)
 
-    tbackend = NumpyBackend()
     target_state = tbackend.apply_gate_half_density_matrix(gate, np.copy(state), 3)
     final_state = backend.apply_gate_half_density_matrix(gate, np.copy(state), 3)
     backend.assert_allclose(final_state, target_state)
@@ -356,7 +356,7 @@ def test_unitary_channel(backend, dtype):
     probs = [0.4, 0.3]
     matrices = [((0,), a1), ((2, 3), a2)]
     channel = gates.UnitaryChannel(probs, matrices)
-    state = random_density_matrix(2**4).astype(dtype)
+    state = random_density_matrix(2**4, backend=tbackend).astype(dtype)
 
     set_precision(dtype, backend, tbackend)
     target_state = tbackend.apply_channel_density_matrix(channel, np.copy(state), 4)
@@ -368,8 +368,8 @@ def test_readout_error_channel(backend):
     nqubits = 1
     d = 2**nqubits
 
-    rho = random_density_matrix(d, seed=1)
-    P = random_stochastic_matrix(d, seed=1)
+    rho = random_density_matrix(d, seed=1, backend=backend)
+    P = random_stochastic_matrix(d, seed=1, backend=backend)
 
     probability_sum = gates.ReadoutErrorChannel(0, P).apply_density_matrix(
         backend, rho, 1
