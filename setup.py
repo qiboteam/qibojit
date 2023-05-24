@@ -3,7 +3,6 @@ import os
 import re
 
 from setuptools import find_packages, setup
-from setuptools.command.install import install
 
 PACKAGE = "qibojit"
 
@@ -45,7 +44,7 @@ setup(
     extras_require={
         "tests": ["pytest"],
     },
-    python_requires=">=3.8.0",
+    python_requires=">=3.8.0,<3.12",
     long_description=long_description,
     long_description_content_type="text/markdown",
 )
