@@ -24,6 +24,10 @@ optional = true
 [tool.poetry.group.test.dependencies]
 pytest = "^7.3.1"
 
+[tool.poe.tasks]
+test = "pytest"
+lint = "pylint src/**/*.py -E"
+lint-warnings = "pylint src/**/*.py --exit-zero"
 
 [tool.pylint.master]
 output-format = "colorized"
