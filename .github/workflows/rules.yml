@@ -1,7 +1,7 @@
 # A single CI script with github workflow
 name: Tests
 
-on: 
+on:
   push:
   merge_group:
 
