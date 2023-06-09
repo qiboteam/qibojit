@@ -1,4 +1,3 @@
-import sys
 from functools import cached_property  # pylint: disable=E0611
 
 import numpy as np
