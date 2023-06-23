@@ -175,7 +175,9 @@ class CupyBackend(NumbaBackend):  # pragma: no cover
         state /= 2**nqubits
         return state
 
-    # def asmatrix_special(self, gate): Inherited from ``NumpyBackend``
+    def asmatrix_fused(self, gate):
+        npmatrix = super().asmatrix_fused(gate)
+        return self.cast(npmatrix, dtype=self.dtype)
 
     # def control_matrix(self, gate): Inherited from ``NumpyBackend``
 
