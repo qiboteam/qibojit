@@ -7,7 +7,7 @@ from qibo.backends.npmatrices import NumpyMatrices
 class CupyMatrices(NumpyMatrices):
     def __init__(self, dtype):
         super().__init__(dtype)
-        import cupy as cp
+        import cupy as cp  # pylint: disable=import-error
 
         # Define matrices by simply replacing np with cp in NumpyMatrices
         self.np = cp
