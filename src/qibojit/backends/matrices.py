@@ -4,6 +4,15 @@ import numpy as np
 from qibo.backends.npmatrices import NumpyMatrices
 
 
+class CupyMatrices(NumpyMatrices):
+    def __init__(self, dtype):
+        super().__init__(dtype)
+        import cupy as cp
+
+        # Define matrices by simply replacing np with cp in NumpyMatrices
+        self.np = cp
+
+
 class CuQuantumMatrices(NumpyMatrices):
     # These matrices are used by the custom operators and may
     # not correspond to the mathematical representation of each gate
