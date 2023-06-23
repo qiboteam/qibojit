@@ -4,7 +4,7 @@ import numpy as np
 from qibo.backends.npmatrices import NumpyMatrices
 
 
-class CupyMatrices(NumpyMatrices):
+class CupyMatrices(NumpyMatrices):  # pragma: no cover
     def __init__(self, dtype):
         super().__init__(dtype)
         import cupy as cp  # pylint: disable=import-error
