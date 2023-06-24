@@ -1,6 +1,5 @@
 from functools import cached_property  # pylint: disable=E0611
 
-import cupy as cp  # pylint: disable=import-error
 import numpy as np
 from qibo.backends.npmatrices import NumpyMatrices
 
@@ -8,6 +7,8 @@ from qibo.backends.npmatrices import NumpyMatrices
 class CupyMatrices(NumpyMatrices):  # pragma: no cover
     # Necessary to avoid https://github.com/qiboteam/qibo/issues/928
     def Unitary(self, u):
+        import cupy as cp  # pylint: disable=import-error
+
         if isinstance(u, cp.ndarray):
             u = u.get()
         return super().Unitary(u)
