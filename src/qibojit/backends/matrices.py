@@ -1,16 +1,16 @@
 from functools import cached_property  # pylint: disable=E0611
 
+import cupy as cp  # pylint: disable=import-error
 import numpy as np
 from qibo.backends.npmatrices import NumpyMatrices
 
 
 class CupyMatrices(NumpyMatrices):  # pragma: no cover
-    def __init__(self, dtype):
-        super().__init__(dtype)
-        import cupy as cp  # pylint: disable=import-error
-
-        # Define matrices by simply replacing np with cp in NumpyMatrices
-        self.np = cp
+    # Necessary to avoid https://github.com/qiboteam/qibo/issues/928
+    def Unitary(self, u):
+        if isinstance(u, cp.ndarray):
+            u = u.get()
+        return super().Unitary(u)
 
 
 class CuQuantumMatrices(NumpyMatrices):
