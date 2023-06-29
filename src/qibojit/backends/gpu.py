@@ -3,7 +3,7 @@ from qibo.backends.numpy import NumpyBackend
 from qibo.config import log, raise_error
 
 from qibojit.backends.cpu import NumbaBackend
-from qibojit.backends.matrices import CuQuantumMatrices, CustomMatrices
+from qibojit.backends.matrices import CupyMatrices, CuQuantumMatrices, CustomMatrices
 
 
 class CupyBackend(NumbaBackend):  # pragma: no cover
@@ -41,6 +41,7 @@ class CupyBackend(NumbaBackend):  # pragma: no cover
         self.sparse = cp.sparse
         self.device = "/GPU:0"
         self.kernel_type = "double"
+        self.matrices = CupyMatrices(self.dtype)
         self.custom_matrices = CustomMatrices(self.dtype)
         try:
             if not cp.cuda.runtime.getDeviceCount():  # pragma: no cover
@@ -174,7 +175,9 @@ class CupyBackend(NumbaBackend):  # pragma: no cover
         state /= 2**nqubits
         return state
 
-    # def asmatrix_special(self, gate): Inherited from ``NumpyBackend``
+    def asmatrix_fused(self, gate):
+        npmatrix = super().asmatrix_fused(gate)
+        return self.cast(npmatrix, dtype=self.dtype)
 
     # def control_matrix(self, gate): Inherited from ``NumpyBackend``
 

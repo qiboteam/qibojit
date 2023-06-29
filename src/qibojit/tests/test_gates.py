@@ -353,9 +353,10 @@ def test_unitary_channel(backend, dtype):
     tbackend = NumpyBackend()
     a1 = gates.X(0).asmatrix(tbackend)
     a2 = gates.CNOT(0, 1).asmatrix(tbackend)
+    qubits = [(0,), (2, 3)]
     probs = [0.4, 0.3]
-    matrices = [((0,), a1), ((2, 3), a2)]
-    channel = gates.UnitaryChannel(probs, matrices)
+    matrices = list(zip(probs, [a1, a2]))
+    channel = gates.UnitaryChannel(qubits, matrices)
     state = random_density_matrix(2**4, backend=tbackend).astype(dtype)
 
     set_precision(dtype, backend, tbackend)
