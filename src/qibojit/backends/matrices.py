@@ -52,6 +52,9 @@ class CuQuantumMatrices(NumpyMatrices):
     def TOFFOLI(self):
         return self.X
 
+    def DEUTSCH(self, theta):
+        return 1j * self.RX(2 * theta)
+
 
 class CustomMatrices(CuQuantumMatrices):
     # These matrices are used by the custom operators and may
