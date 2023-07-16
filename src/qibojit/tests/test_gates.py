@@ -181,6 +181,28 @@ def test_apply_csx(backend, nqubits, targets, dtype):
 
 
 @pytest.mark.parametrize(
+    ("nqubits", "targets"),
+    [
+        (3, [0, 1, 2]),
+        (4, [1, 2, 3]),
+        (4, [0, 2, 3]),
+        (4, [2, 3, 1]),
+        (5, [3, 4, 5]),
+        (6, [1, 2, 4]),
+    ],
+)
+def test_apply_deutsch(backend, nqubits, targets, dtype):
+    tbackend = NumpyBackend()
+    state = random_statevector(2**nqubits, backend=tbackend).astype(dtype)
+    gate = gates.DEUTSCH(*targets)
+
+    set_precision(dtype, backend, tbackend)
+    target_state = tbackend.apply_gate(gate, np.copy(state), nqubits)
+    state = backend.apply_gate(gate, np.copy(state), nqubits)
+    backend.assert_allclose(state, target_state, atol=ATOL.get(dtype))
+
+
+@pytest.mark.parametrize(
     ("nqubits", "targets", "controls"),
     [
         (2, [0, 1], []),
