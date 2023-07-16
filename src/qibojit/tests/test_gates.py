@@ -187,14 +187,15 @@ def test_apply_csx(backend, nqubits, targets, dtype):
         (4, [1, 2, 3]),
         (4, [0, 2, 3]),
         (4, [2, 3, 1]),
-        (5, [3, 4, 5]),
+        (5, [3, 4, 2]),
         (6, [1, 2, 4]),
     ],
 )
 def test_apply_deutsch(backend, nqubits, targets, dtype):
+    theta = np.random.rand()
     tbackend = NumpyBackend()
     state = random_statevector(2**nqubits, backend=tbackend).astype(dtype)
-    gate = gates.DEUTSCH(*targets)
+    gate = gates.DEUTSCH(*targets, theta)
 
     set_precision(dtype, backend, tbackend)
     target_state = tbackend.apply_gate(gate, np.copy(state), nqubits)
