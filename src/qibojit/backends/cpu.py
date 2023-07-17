@@ -238,14 +238,14 @@ class NumbaBackend(NumpyBackend):
 
     def apply_channel_density_matrix(self, channel, state, nqubits):
         state = self.cast(state)
-        if isinstance(channel, ReadoutErrorChannel) is True:
+        if not channel._all_unitary_operators:
             state_copy = self.cast(state, copy=True)
         new_state = (1 - channel.coefficient_sum) * state
         for coeff, gate in zip(channel.coefficients, channel.gates):
             state = self.apply_gate_density_matrix(gate, state, nqubits)
             new_state += coeff * state
             # reset the state
-            if isinstance(channel, ReadoutErrorChannel) is True:
+            if not channel._all_unitary_operators:
                 state = self.cast(state_copy, copy=True)
             else:
                 state = self.apply_gate_density_matrix(
