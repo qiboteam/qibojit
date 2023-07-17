@@ -181,7 +181,7 @@ class NumbaBackend(NumpyBackend):
         if inverse:
             # used to reset the state when applying channels
             # see :meth:`qibojit.backend.NumpyBackend.apply_channel_density_matrix` below
-            matrix = np.linalg.inv(gate.asmatrix(self))
+            matrix = np.transpose(np.conj(gate.asmatrix(self)))
             matrix = self.cast(matrix)
         else:
             matrix = self._as_custom_matrix(gate)
