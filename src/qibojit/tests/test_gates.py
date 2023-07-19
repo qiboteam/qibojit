@@ -3,6 +3,7 @@ import pytest
 from qibo import gates
 from qibo.backends import NumpyBackend
 from qibo.config import PRECISION_TOL
+from qibo.models import Circuit
 from qibo.quantum_info import (
     random_density_matrix,
     random_statevector,
@@ -156,6 +157,53 @@ def test_apply_two_qubit_base(backend, nqubits, targets, use_qubits, dtype):
 
 
 @pytest.mark.parametrize(
+    ("nqubits", "targets"),
+    [
+        (2, [0, 1]),
+        (3, [0, 2]),
+        (4, [1, 3]),
+        (3, [1, 2]),
+        (4, [0, 2]),
+        (4, [2, 3]),
+        (5, [3, 4]),
+        (6, [1, 4]),
+    ],
+)
+def test_apply_csx(backend, nqubits, targets, dtype):
+    tbackend = NumpyBackend()
+    state = random_statevector(2**nqubits, backend=tbackend).astype(dtype)
+    gate = gates.CSX(*targets)
+
+    set_precision(dtype, backend, tbackend)
+    target_state = tbackend.apply_gate(gate, np.copy(state), nqubits)
+    state = backend.apply_gate(gate, np.copy(state), nqubits)
+    backend.assert_allclose(state, target_state, atol=ATOL.get(dtype))
+
+
+@pytest.mark.parametrize(
+    ("nqubits", "targets"),
+    [
+        (3, [0, 1, 2]),
+        (4, [1, 2, 3]),
+        (4, [0, 2, 3]),
+        (4, [2, 3, 1]),
+        (5, [3, 4, 2]),
+        (6, [1, 2, 4]),
+    ],
+)
+def test_apply_deutsch(backend, nqubits, targets, dtype):
+    theta = np.random.rand()
+    tbackend = NumpyBackend()
+    state = random_statevector(2**nqubits, backend=tbackend).astype(dtype)
+    gate = gates.DEUTSCH(*targets, theta)
+
+    set_precision(dtype, backend, tbackend)
+    target_state = tbackend.apply_gate(gate, np.copy(state), nqubits)
+    state = backend.apply_gate(gate, np.copy(state), nqubits)
+    backend.assert_allclose(state, target_state, atol=ATOL.get(dtype))
+
+
+@pytest.mark.parametrize(
     ("nqubits", "targets", "controls"),
     [
         (2, [0, 1], []),
@@ -292,8 +340,6 @@ def test_apply_multi_qubit_base(backend, nqubits, targets, use_qubits, dtype):
 @pytest.mark.parametrize("gatename", ["H", "X", "Y", "Z"])
 @pytest.mark.parametrize("density_matrix", [False, True])
 def test_gates_on_circuit(backend, gatename, density_matrix):
-    from qibo.models import Circuit
-
     tbackend = NumpyBackend()
     if density_matrix:
         state = random_density_matrix(2**1, backend=tbackend)
