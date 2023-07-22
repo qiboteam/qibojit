@@ -8,7 +8,7 @@ readme = "README.md"
 homepage = "https://qibo.science"
 repository="https://github.com/qiboteam/qibojit"
 documentation = "https://qibo.science/docs/qibo/stable"
-keywrods = []
+keywords = []
 packages = [{ include = "qibojit", from = "src" }]
 classifiers=[
     "Programming Language :: Python :: 3",
