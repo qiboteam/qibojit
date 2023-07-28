@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "qibojit"
-version = "0.0.12"
+version = "0.0.13"
 description="Simulation tools based on numba and cupy."
 authors=["The Qibo team"]
 license = "Apache License 2.0"
