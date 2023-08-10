@@ -98,7 +98,7 @@ class NumbaBackend(NumpyBackend):
 
     # def plus_density_matrix(self, nqubits): Inherited from ``NumpyBackend``
 
-    # def asmatrix_special(self, gate): Inherited from ``NumpyBackend``
+    # def matrix_special(self, gate): Inherited from ``NumpyBackend``
 
     # def control_matrix(self, gate): Inherited from ``NumpyBackend``
 
@@ -155,7 +155,7 @@ class NumbaBackend(NumpyBackend):
             return getattr(self.custom_matrices, name)(*gate.parameters)
         elif isinstance(gate, FusedGate):  # pragma: no cover
             # fusion is tested in qibo tests
-            return self.asmatrix_fused(gate)
+            return self.matrix_fused(gate)
         else:
             matrix = getattr(self.custom_matrices, name)
             return matrix(2 ** len(gate.target_qubits)) if callable(matrix) else matrix
@@ -181,7 +181,7 @@ class NumbaBackend(NumpyBackend):
         if inverse:
             # used to reset the state when applying channels
             # see :meth:`qibojit.backend.NumpyBackend.apply_channel_density_matrix` below
-            matrix = np.linalg.inv(gate.asmatrix(self))
+            matrix = np.linalg.inv(gate.matrix(self))
             matrix = self.cast(matrix)
         else:
             matrix = self._as_custom_matrix(gate)

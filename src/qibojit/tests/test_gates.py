@@ -397,8 +397,8 @@ def test_density_matrix_half_calls(backend, gatename):
 
 def test_unitary_channel(backend, dtype):
     tbackend = NumpyBackend()
-    a1 = gates.X(0).asmatrix(tbackend)
-    a2 = gates.CNOT(0, 1).asmatrix(tbackend)
+    a1 = gates.X(0).matrix(tbackend)
+    a2 = gates.CNOT(0, 1).matrix(tbackend)
     qubits = [(0,), (2, 3)]
     probs = [0.4, 0.3]
     matrices = list(zip(probs, [a1, a2]))
