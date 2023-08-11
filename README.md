@@ -9,8 +9,8 @@ This package provides acceleration features for [Qibo](https://github.com/qibote
 
 ## Documentation
 
-The qibojit backend documentation is available at [qibo.readthedocs.io](https://qibo.readthedocs.io/en/stable/installation.html).
+The qibojit backend documentation is available at [qibo.science](https://qibo.science/qibo/stable/getting-started/installation.html).
 
 ## Citation policy
 
-If you use the package please refer to [the documentation](https://qibo.readthedocs.io/en/stable/appendix/citing-qibo.html) for citation instructions.
+If you use the package please refer to [the documentation](https://qibo.science/qibo/stable/appendix/citing-qibo.html) for citation instructions.
