@@ -38,12 +38,17 @@ class MultiNode:  # pragma: no cover
         ).ops
 
     def transpose_state(self, pieces, state, nqubits, order):
+        """Transpose state.
+
+        This operation is directly executed on the master.
+        """
         original_shape = state.shape
         state = state.ravel()
         state = self.global_ops.transpose_state(tuple(pieces), state, nqubits, order)
         return np.reshape(state, original_shape)
 
     def to_pieces(self, state):
+        """Split state to pieces."""
         nqubits = self.circuit.nqubits
         qubits = self.circuit.queues.qubits
         shape = (self.circuit.ndevices, 2**self.circuit.nlocal)
@@ -58,6 +63,7 @@ class MultiNode:  # pragma: no cover
         return pieces
 
     def to_tensor(self, pieces):
+        """Reconstruct tensor from pieces."""
         nqubits = self.circuit.nqubits
         qubits = self.circuit.queues.qubits
         if qubits.list == list(range(self.circuit.nglobal)):
@@ -108,8 +114,12 @@ class MultiNode:  # pragma: no cover
         return pieces
 
     def swap(self, pieces, global_qubit, local_qubit):
-        m = self.circuit.queues.qubits.reduced_global.get(global_qubit)
-        m = self.circuit.nglobal - m - 1
+        """Execute qubits swap on pieces."""
+        m = (
+            self.circuit.nglobal
+            - self.circuit.queues.qubits.reduced_global.get(global_qubit)
+            - 1
+        )
         t = 1 << m
         for g in range(self.circuit.ndevices // 2):
             i = ((g >> m) << (m + 1)) + (g & (t - 1))
@@ -120,6 +130,7 @@ class MultiNode:  # pragma: no cover
         return pieces
 
     def revert_swaps(self, pieces, swap_pairs):
+        """Revert qubit swaps."""
         for q1, q2 in swap_pairs:
             if q1 not in self.circuit.queues.qubits.set:
                 q1, q2 = q2, q1
