@@ -25,6 +25,7 @@ numba=">=0.51.0"
 qibo=">=0.2.0"
 scipy = "^1.10.1"
 psutil = "^5.9.5"
+dask = {version = "^2023.5.0", extras = ["distributed"]}
 
 [tool.poetry.group.test]
 optional = true
