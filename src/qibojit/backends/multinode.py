@@ -2,22 +2,45 @@
 
 The implementation is heavily inspired by the
 :cls:`qibojit.backends.gpu.MultiGpuOps` backend for multiple GPUs.
+
+.. todo::
+
+    The only thing specific to GPU of the `MultiGpuOps` backend is the way the devices are
+    enumerated in the `apply_gates` method.
+    Thus, it should be possible to reimplement it just using the `MultiNode` and a
+    suitable scheduler (i.e. a helper function will generate the scheduler to emulate
+    the `MultiGpuOps` backend).
 """
+
+import numpy as np
 
 
 class MultiNode:  # pragma: no cover
-    # CI does not have GPUs
+    """Multinode execution backend.
 
-    def __init__(self, backend, cpu_backend, circuit):
-        self.backend = backend
+    It relies on a `local_backend` to execute the operations on the various nodes, and a
+    `global_backend` for the operations executed by the master.
+    If the `global_backend` is not specified it defaults to the local one.
+
+    .. todo::
+
+        - turn `local_backend` into a map of `node: backend`, to allow a different
+          backend for each node (this would allow for GPUs to be treated as regular
+          nodes, e.g.)
+        - write constructor to allow for a node list and a single local backend
+    """
+
+    def __init__(self, local_backend, circuit, global_backend=None):
+        self.backend = local_backend
         self.circuit = circuit
-        self.cpu_ops = cpu_backend.ops
+        self.global_ops = (
+            global_backend if global_backend is not None else local_backend
+        ).ops
 
     def transpose_state(self, pieces, state, nqubits, order):
         original_shape = state.shape
         state = state.ravel()
-        # always fall back to numba CPU backend because for ops not implemented on GPU
-        state = self.cpu_ops.transpose_state(tuple(pieces), state, nqubits, order)
+        state = self.global_ops.transpose_state(tuple(pieces), state, nqubits, order)
         return np.reshape(state, original_shape)
 
     def to_pieces(self, state):
@@ -62,8 +85,10 @@ class MultiNode:  # pragma: no cover
             del piece
 
     def apply_special_gate(self, pieces, gate):
-        """Executes special gates on CPU.
+        """Execute special gates on CPU.
 
+        Note
+        ----
         Currently special gates are ``Flatten`` or ``CallbackGate``.
         This method calculates the full state vector because special gates
         are not implemented for state pieces.
@@ -89,7 +114,7 @@ class MultiNode:  # pragma: no cover
         for g in range(self.circuit.ndevices // 2):
             i = ((g >> m) << (m + 1)) + (g & (t - 1))
             local_eff = self.circuit.queues.qubits.reduced_local.get(local_qubit)
-            self.cpu_ops.swap_pieces(
+            self.global_ops.swap_pieces(
                 pieces[i], pieces[i + t], local_eff, self.circuit.nlocal
             )
         return pieces
