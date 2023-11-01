@@ -927,23 +927,27 @@ six = ">=1.5"
 
 [[package]]
 name = "qibo"
-version = "0.2.0"
+version = "0.2.2"
 description = "A framework for quantum computing with hardware acceleration."
 optional = false
 python-versions = ">=3.8,<3.12"
-files = [
-    {file = "qibo-0.2.0-py3-none-any.whl", hash = "sha256:542c6f26de56e48a47a1e2ca56c382f426d5ddda8e9325d9fb821709b75e195b"},
-    {file = "qibo-0.2.0.tar.gz", hash = "sha256:c497a9c115577c0e0c5c09ab2f55147675bd82384af4f186a65c9c7fa916b8bf"},
-]
+files = []
+develop = false
 
 [package.dependencies]
-cma = ">=3.3.0,<4.0.0"
-joblib = ">=1.2.0,<2.0.0"
-matplotlib = ">=3.7.0,<4.0.0"
-psutil = ">=5.9.4,<6.0.0"
-scipy = ">=1.10.1,<2.0.0"
-sympy = ">=1.11.1,<2.0.0"
-tabulate = ">=0.9.0,<0.10.0"
+cma = "^3.3.0"
+joblib = "^1.2.0"
+matplotlib = "^3.7.0"
+psutil = "^5.9.4"
+scipy = "^1.10.1"
+sympy = "^1.11.1"
+tabulate = "^0.9.0"
+
+[package.source]
+type = "git"
+url = "https://github.com/qiboteam/qibo.git"
+reference = "master"
+resolved_reference = "caa6733c0f6f2ea65dcf4536df161f9d83debdd2"
 
 [[package]]
 name = "scipy"
@@ -1157,4 +1161,4 @@ testing = ["big-O", "jaraco.functools", "jaraco.itertools", "more-itertools", "p
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.8.0,<3.12"
-content-hash = "8187105bebad2c1c0f2f1fac1ae8bf6bc57b30aab98066cfaafc2b3488f9e2b9"
+content-hash = "d02460630b8212696718856f0060c2fde4cfdf230f07fc03835948972468a567"
