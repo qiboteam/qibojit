@@ -317,11 +317,14 @@ class CupyBackend(NumbaBackend):  # pragma: no cover
     # def reset_error_density_matrix(self, gate, state, nqubits): Inherited from ``NumpyBackend``
 
     def execute_distributed_circuit(
-        self, circuit, initial_state=None, nshots=None, return_array=False
+        self,
+        circuit,
+        initial_state=None,
+        nshots=1000,
     ):
         import joblib
         from qibo.gates import M
-        from qibo.states import CircuitResult
+        from qibo.result import CircuitResult, MeasurementOutcomes, QuantumState
 
         if not circuit.queues.queues:
             circuit.queues.set(circuit.queue)
@@ -338,7 +341,9 @@ class CupyBackend(NumbaBackend):  # pragma: no cover
                     np.zeros(2**circuit.nlocal, dtype=self.dtype)
                     for _ in range(circuit.ndevices - 1)
                 )
-            elif isinstance(initial_state, CircuitResult):
+            elif isinstance(initial_state, CircuitResult) or isinstance(
+                initial_state, QuantumState
+            ):
                 # TODO: Implement this
                 if isinstance(initial_state.execution_result, list):
                     pieces = initial_state.execution_result
@@ -376,11 +381,28 @@ class CupyBackend(NumbaBackend):  # pragma: no cover
             for gate in special_gates:  # pragma: no cover
                 pieces = ops.apply_special_gate(pieces, gate)
 
-            if return_array:
-                return ops.to_tensor(pieces)
+            state = ops.to_tensor(pieces)
+
+            if circuit.has_unitary_channel:
+                # here we necessarily have `density_matrix=True`, otherwise
+                # execute_circuit_repeated would have been called
+                if circuit.measurements:
+                    circuit._final_state = CircuitResult(
+                        state, circuit.measurements, self, nshots=nshots
+                    )
+                    return circuit._final_state
+                else:
+                    circuit._final_state = QuantumState(state, self)
+                    return circuit._final_state
             else:
-                circuit._final_state = CircuitResult(self, circuit, pieces, nshots)
-                return circuit._final_state
+                if circuit.measurements:
+                    circuit._final_state = CircuitResult(
+                        state, circuit.measurements, self, nshots=nshots
+                    )
+                    return circuit._final_state
+                else:
+                    circuit._final_state = QuantumState(state, self)
+                    return circuit._final_state
 
         except self.oom_error:
             raise_error(
