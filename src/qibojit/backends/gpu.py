@@ -282,6 +282,13 @@ class CupyBackend(NumbaBackend):  # pragma: no cover
         return self.cp.asarray(qubits, dtype=self.cp.int32)
 
     def _as_custom_matrix(self, gate):
+        from qibo.gates import Unitary
+
+        if isinstance(gate, Unitary):
+            matrix = gate.parameters[0]
+            if isinstance(matrix, self.cp.ndarray):
+                return matrix.ravel()
+
         matrix = super()._as_custom_matrix(gate)
         return self.cp.asarray(matrix.ravel())
 
