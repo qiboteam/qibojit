@@ -133,7 +133,7 @@ class CupyBackend(NumbaBackend):  # pragma: no cover
         if isinstance(x, self.cp.ndarray):
             return x.get()
         elif isinstance(x, list):
-            return self.cp.vstack(x).get()
+            return self.cp.asarray(x).get()
         elif self.sparse.issparse(x):
             return x.toarray().get()
         elif self.npsparse.issparse(x):
