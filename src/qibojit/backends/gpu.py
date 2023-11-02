@@ -132,6 +132,8 @@ class CupyBackend(NumbaBackend):  # pragma: no cover
     def to_numpy(self, x):
         if isinstance(x, self.cp.ndarray):
             return x.get()
+        elif isinstance(x, list):
+            return self.cp.vstack(x).get()
         elif self.sparse.issparse(x):
             return x.toarray().get()
         elif self.npsparse.issparse(x):
@@ -411,14 +413,6 @@ class CupyBackend(NumbaBackend):  # pragma: no cover
                 "execution. Please create a new circuit with "
                 "different device configuration and try again.",
             )
-
-    def circuit_result_tensor(self, result):
-        if isinstance(result.execution_result, list):
-            # transform distributed state pieces to tensor
-            ops = MultiGpuOps(self, NumbaBackend(), result.circuit)
-            return ops.to_tensor(result.execution_result)
-        else:
-            return super().circuit_result_tensor(result)
 
     # def calculate_symbolic(self, state, nqubits, decimals=5, cutoff=1e-10, max_terms=20): Inherited from ``NumpyBackend``
 
