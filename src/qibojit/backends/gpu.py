@@ -132,6 +132,8 @@ class CupyBackend(NumbaBackend):  # pragma: no cover
     def to_numpy(self, x):
         if isinstance(x, self.cp.ndarray):
             return x.get()
+        elif isinstance(x, list):
+            return self.cp.asarray(x).get()
         elif self.sparse.issparse(x):
             return x.toarray().get()
         elif self.npsparse.issparse(x):
@@ -280,6 +282,13 @@ class CupyBackend(NumbaBackend):  # pragma: no cover
         return self.cp.asarray(qubits, dtype=self.cp.int32)
 
     def _as_custom_matrix(self, gate):
+        from qibo.gates import Unitary
+
+        if isinstance(gate, Unitary):
+            matrix = gate.parameters[0]
+            if isinstance(matrix, self.cp.ndarray):
+                return matrix.ravel()
+
         matrix = super()._as_custom_matrix(gate)
         return self.cp.asarray(matrix.ravel())
 
@@ -317,11 +326,14 @@ class CupyBackend(NumbaBackend):  # pragma: no cover
     # def reset_error_density_matrix(self, gate, state, nqubits): Inherited from ``NumpyBackend``
 
     def execute_distributed_circuit(
-        self, circuit, initial_state=None, nshots=None, return_array=False
+        self,
+        circuit,
+        initial_state=None,
+        nshots=1000,
     ):
         import joblib
         from qibo.gates import M
-        from qibo.states import CircuitResult
+        from qibo.result import CircuitResult, MeasurementOutcomes, QuantumState
 
         if not circuit.queues.queues:
             circuit.queues.set(circuit.queue)
@@ -338,7 +350,9 @@ class CupyBackend(NumbaBackend):  # pragma: no cover
                     np.zeros(2**circuit.nlocal, dtype=self.dtype)
                     for _ in range(circuit.ndevices - 1)
                 )
-            elif isinstance(initial_state, CircuitResult):
+            elif isinstance(initial_state, CircuitResult) or isinstance(
+                initial_state, QuantumState
+            ):
                 # TODO: Implement this
                 if isinstance(initial_state.execution_result, list):
                     pieces = initial_state.execution_result
@@ -376,11 +390,28 @@ class CupyBackend(NumbaBackend):  # pragma: no cover
             for gate in special_gates:  # pragma: no cover
                 pieces = ops.apply_special_gate(pieces, gate)
 
-            if return_array:
-                return ops.to_tensor(pieces)
+            state = ops.to_tensor(pieces)
+
+            if circuit.has_unitary_channel:
+                # here we necessarily have `density_matrix=True`, otherwise
+                # execute_circuit_repeated would have been called
+                if circuit.measurements:
+                    circuit._final_state = CircuitResult(
+                        state, circuit.measurements, self, nshots=nshots
+                    )
+                    return circuit._final_state
+                else:
+                    circuit._final_state = QuantumState(state, self)
+                    return circuit._final_state
             else:
-                circuit._final_state = CircuitResult(self, circuit, pieces, nshots)
-                return circuit._final_state
+                if circuit.measurements:
+                    circuit._final_state = CircuitResult(
+                        state, circuit.measurements, self, nshots=nshots
+                    )
+                    return circuit._final_state
+                else:
+                    circuit._final_state = QuantumState(state, self)
+                    return circuit._final_state
 
         except self.oom_error:
             raise_error(
@@ -389,14 +420,6 @@ class CupyBackend(NumbaBackend):  # pragma: no cover
                 "execution. Please create a new circuit with "
                 "different device configuration and try again.",
             )
-
-    def circuit_result_tensor(self, result):
-        if isinstance(result.execution_result, list):
-            # transform distributed state pieces to tensor
-            ops = MultiGpuOps(self, NumbaBackend(), result.circuit)
-            return ops.to_tensor(result.execution_result)
-        else:
-            return super().circuit_result_tensor(result)
 
     # def calculate_symbolic(self, state, nqubits, decimals=5, cutoff=1e-10, max_terms=20): Inherited from ``NumpyBackend``
 
