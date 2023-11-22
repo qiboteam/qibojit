@@ -13,6 +13,7 @@ GATE_OPS = {
     "TOFFOLI": "apply_x",
     "Y": "apply_y",
     "Z": "apply_z",
+    "CY": "apply_y",
     "CZ": "apply_z",
     "U1": "apply_z_pow",
     "CU1": "apply_z_pow",
