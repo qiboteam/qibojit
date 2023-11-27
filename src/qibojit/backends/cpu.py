@@ -177,7 +177,7 @@ class NumbaBackend(NumpyBackend):
 
     def apply_gate_density_matrix(self, gate, state, nqubits, inverse=False):
         name = gate.__class__.__name__
-        if name == "Y":
+        if name in ["Y", "CY"]:
             return self._apply_ygate_density_matrix(gate, state, nqubits)
         if inverse:
             # used to reset the state when applying channels
