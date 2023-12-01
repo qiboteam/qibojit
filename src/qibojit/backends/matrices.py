@@ -23,6 +23,10 @@ class CuQuantumMatrices(NumpyMatrices):
         return self.X
 
     @cached_property
+    def CY(self):
+        return self.Y
+
+    @cached_property
     def CZ(self):
         return self.Z
 
