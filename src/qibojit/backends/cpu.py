@@ -70,7 +70,7 @@ class NumbaBackend(NumpyBackend):
         else:
             self.set_threads(len(psutil.Process().cpu_affinity()))
 
-        from qibojit.backends.clifford import CliffordOperations
+        from qibojit.backends.clifford_cpu import CliffordOperations
 
         self.clifford_operations = CliffordOperations(self.np)
 

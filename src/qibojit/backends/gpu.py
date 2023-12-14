@@ -98,6 +98,10 @@ class CupyBackend(NumbaBackend):  # pragma: no cover
         # number of available GPUs (for multigpu)
         self.ngpus = cp.cuda.runtime.getDeviceCount()
 
+        from qibojit.backends.clifford_gpu import CliffordOperations
+
+        self.clifford_operations = CliffordOperations(self.np)
+
     def set_precision(self, precision):
         super().set_precision(precision)
         if self.dtype == "complex128":
