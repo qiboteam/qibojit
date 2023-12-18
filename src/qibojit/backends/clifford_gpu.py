@@ -1,3 +1,4 @@
+import cupy as cp
 import numpy as np
 from cupyx import jit
 from qibo.backends.clifford import CliffordOperations as CO
@@ -176,6 +177,40 @@ class CliffordOperations(CO):
 
     @staticmethod
     @jit.rawkernel()
+    def RY_pi(symplectic_matrix, q, nqubits):
+        """Decomposition --> H-S-S"""
+        r = symplectic_matrix[:-1, -1]
+        x = symplectic_matrix[:-1, :nqubits]
+        z = symplectic_matrix[:-1, nqubits:-1]
+        xq = x[:, q]
+        tid = jit.blockIdx.xq * jit.blockDim.xq + jit.threadIdx.xq
+        ntid = jit.gridDim.xq * jit.blockDim.xq
+        for i in range(tid, xq.shape[0], ntid):
+            symplectic_matrix[i, -1] = r[i] ^ (x[i, q] & (z[i, q] ^ x[i, q]))
+            zq = symplectic_matrix[i, nqubits + q]
+            symplectic_matrix[i, nqubits + q] = symplectic_matrix[i, q]
+            symplectic_matrix[i, q] = zq
+        return symplectic_matrix
+
+    @staticmethod
+    @jit.rawkernel()
+    def RY_3pi_2(symplectic_matrix, q, nqubits):
+        """Decomposition --> H-S-S"""
+        r = symplectic_matrix[:-1, -1]
+        x = symplectic_matrix[:-1, :nqubits]
+        z = symplectic_matrix[:-1, nqubits:-1]
+        xq = x[:, q]
+        tid = jit.blockIdx.xq * jit.blockDim.xq + jit.threadIdx.xq
+        ntid = jit.gridDim.xq * jit.blockDim.xq
+        for i in range(tid, xq.shape[0], ntid):
+            symplectic_matrix[i, -1] = r[i] ^ (z[i, q] & (z[i, q] ^ x[i, q]))
+            zq = symplectic_matrix[i, nqubits + q]
+            symplectic_matrix[i, nqubits + q] = symplectic_matrix[i, q]
+            symplectic_matrix[i, q] = zq
+        return symplectic_matrix
+
+    @staticmethod
+    @jit.rawkernel()
     def SWAP(symplectic_matrix, control_q, target_q, nqubits):
         """Decomposition --> CNOT-CNOT-CNOT"""
         r = symplectic_matrix[:-1, -1]
@@ -293,4 +328,42 @@ class CliffordOperations(CO):
             symplectic_matrix[i - 1, target_q] = x_target_q
             symplectic_matrix[i - 1, nqubits + control_q] = z_control_q
             symplectic_matrix[i - 1, nqubits + target_q] = z_target_q
+        return symplectic_matrix
+
+    @staticmethod
+    @jit.rawkernel()
+    def _rowsum(symplectic_matrix, h, i, nqubits, include_scratch: bool = False):
+        x = symplectic_matrix[: -1 + (2 * nqubits + 2) * int(include_scratch), :nqubits]
+        z = symplectic_matrix[
+            : -1 + (2 * nqubits + 2) * int(include_scratch), nqubits:-1
+        ]
+
+        x1, x2 = x[i, :], x[h, :]
+        z1, z2 = z[i, :], z[h, :]
+        tid = jit.blockIdx.h * jit.blockDim.h + jit.threadIdx.h
+        ntid = jit.gridDim.h * jit.blockDim.h
+        for i in range(tid, len(h), ntid):
+            exp = cp.zeros(nqubits, dtype=int64)
+            x1_eq_z1 = (x1[j] ^ z1[j]) == False
+            x1_neq_z1 = ~x1_eq_z1
+            x1_eq_0 = x1[j] == False
+            x1_eq_1 = ~x1_eq_0
+            ind2 = x1_eq_z1 & x1_eq_1
+            ind3 = x1_eq_1 & x1_neq_z1
+            ind4 = x1_eq_0 & x1_neq_z1
+            exp[ind2] = z2[j, ind2].astype(uint64) - x2[j, ind2].astype(uint64)
+            exp[ind3] = z2[j, ind3].astype(uint64) * (
+                2 * x2[j, ind3].astype(uint64) - 1
+            )
+            exp[ind4] = x2[j, ind4].astype(uint64) * (
+                1 - 2 * z2[j, ind4].astype(uint64)
+            )
+
+            symplectic_matrix[h[j], -1] = (
+                2 * symplectic_matrix[h[j], -1]
+                + 2 * symplectic_matrix[i[j], -1]
+                + cp.sum(exp)
+            ) % 4 == 0
+            symplectic_matrix[h[j], :nqubits] = x[i[j], :] ^ x[h[j], :]
+            symplectic_matrix[h[j], nqubits:-1] = z[i[j], :] ^ z[h[j], :]
         return symplectic_matrix
