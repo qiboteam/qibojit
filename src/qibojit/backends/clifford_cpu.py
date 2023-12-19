@@ -17,7 +17,7 @@ class CliffordOperations(CO):
             symplectic_matrix[i, -1] = r[i] ^ (x[i, q] & z[i, q])
             tmp = symplectic_matrix[i, q]
             symplectic_matrix[i, q] = symplectic_matrix[i, nqubits + q]
-            symplectic_matrix[:, nqubits + q] = tmp
+            symplectic_matrix[i, nqubits + q] = tmp
         return symplectic_matrix
 
     @staticmethod
@@ -279,9 +279,9 @@ class CliffordOperations(CO):
             x_target_q = x[i, control_q] ^ x[i, target_q]
             z_control_q = z[i, control_q] ^ z[i, target_q] ^ x[i, target_q]
             z_target_q = z[i, target_q] ^ x[i, control_q]
-            symplectic_matrix[i - 1, target_q] = x_target_q
-            symplectic_matrix[i - 1, nqubits + control_q] = z_control_q
-            symplectic_matrix[i - 1, nqubits + target_q] = z_target_q
+            symplectic_matrix[i, target_q] = x_target_q
+            symplectic_matrix[i, nqubits + control_q] = z_control_q
+            symplectic_matrix[i, nqubits + target_q] = z_target_q
         return symplectic_matrix
 
     @staticmethod
@@ -317,7 +317,7 @@ class CliffordOperations(CO):
                 2 * symplectic_matrix[h[j], -1]
                 + 2 * symplectic_matrix[i[j], -1]
                 + np.sum(exp)
-            ) % 4 == 0
+            ) % 4 != 0
             symplectic_matrix[h[j], :nqubits] = x[i[j], :] ^ x[h[j], :]
             symplectic_matrix[h[j], nqubits:-1] = z[i[j], :] ^ z[h[j], :]
         return symplectic_matrix
