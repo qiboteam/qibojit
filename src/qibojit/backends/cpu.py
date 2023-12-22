@@ -6,6 +6,7 @@ from qibo.gates.abstract import ParametrizedGate
 from qibo.gates.channels import ReadoutErrorChannel
 from qibo.gates.special import FusedGate
 
+from qibojit.backends import clifford_operations_cpu
 from qibojit.backends.matrices import CustomMatrices
 
 GATE_OPS = {
@@ -70,9 +71,7 @@ class NumbaBackend(NumpyBackend):
         else:
             self.set_threads(len(psutil.Process().cpu_affinity()))
 
-        from qibojit.backends.clifford_cpu import CliffordOperations
-
-        self.clifford_operations = CliffordOperations(self.np)
+        self.clifford_operations = clifford_operations_cpu
 
     def set_precision(self, precision):
         if precision != self.precision:
