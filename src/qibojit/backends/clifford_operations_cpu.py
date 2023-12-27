@@ -1,6 +1,6 @@
 import numpy as np
+import qibo.backends.clifford_operations as co
 from numba import njit, prange, uint64
-from qibo.backends.clifford_operations import M as _M
 from qibo.backends.clifford_operations import *
 
 
@@ -261,7 +261,6 @@ def CY(symplectic_matrix, control_q, target_q, nqubits):
 
 @njit("b1[:,:](b1[:,:], u8[:], u8[:], u8, b1)", parallel=True, cache=True)
 def _rowsum(symplectic_matrix, h, i, nqubits, include_scratch: bool = False):
-    print("using numba rowsum")
     x = symplectic_matrix[: -1 + (2 * nqubits + 2) * uint64(include_scratch), :nqubits]
     z = symplectic_matrix[
         : -1 + (2 * nqubits + 2) * uint64(include_scratch), nqubits:-1
@@ -305,3 +304,26 @@ def _determined_outcome(state, q, nqubits):
             include_scratch=True,
         )
     return state, uint64(state[-1, -1])
+
+
+# monkey-patching the original qibo clifford operations
+for f in [
+    "H",
+    "CNOT",
+    "CZ",
+    "S",
+    "Z",
+    "X",
+    "Y",
+    "SX",
+    "SDG",
+    "SXDG",
+    "RY_pi",
+    "RY_3pi_2",
+    "SWAP",
+    "iSWAP",
+    "CY",
+    "_rowsum",
+    "_determined_outcome",
+]:
+    setattr(co, f, locals()[f])
