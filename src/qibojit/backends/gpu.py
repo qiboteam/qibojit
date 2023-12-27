@@ -67,8 +67,6 @@ class CupyBackend(NumbaBackend):  # pragma: no cover
         self.gates = {}
         from qibojit.custom_operators import raw_kernels
 
-        self.clifford_operations = clifford_operations_gpu
-
         def kernel_loader(name, ktype):
             code = getattr(raw_kernels, name)
             code = code.replace("T", f"thrust::complex<{ktype}>")
@@ -101,9 +99,7 @@ class CupyBackend(NumbaBackend):  # pragma: no cover
         # number of available GPUs (for multigpu)
         self.ngpus = cp.cuda.runtime.getDeviceCount()
 
-        from qibojit.backends.clifford_gpu import CliffordOperations
-
-        self.clifford_operations = CliffordOperations(self.np)
+        self.clifford_operations = clifford_operations_gpu
 
     def set_precision(self, precision):
         super().set_precision(precision)
