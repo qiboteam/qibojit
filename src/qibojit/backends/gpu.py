@@ -2,6 +2,7 @@ import numpy as np
 from qibo.backends.numpy import NumpyBackend
 from qibo.config import log, raise_error
 
+from qibojit.backends import clifford_operations_gpu
 from qibojit.backends.cpu import NumbaBackend
 from qibojit.backends.matrices import CupyMatrices, CuQuantumMatrices, CustomMatrices
 
@@ -64,10 +65,9 @@ class CupyBackend(NumbaBackend):  # pragma: no cover
 
         # load core kernels
         self.gates = {}
-        from qibojit.backends.clifford_gpu import CliffordOperations
         from qibojit.custom_operators import raw_kernels
 
-        self.clifford_operations = CliffordOperations(self.cp)
+        self.clifford_operations = clifford_operations_gpu
 
         def kernel_loader(name, ktype):
             code = getattr(raw_kernels, name)

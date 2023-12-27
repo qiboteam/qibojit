@@ -324,6 +324,6 @@ for f in [
     "iSWAP",
     "CY",
     "_rowsum",
-    # "_determined_outcome",
+    "_determined_outcome",
 ]:
     setattr(co, f, locals()[f])
