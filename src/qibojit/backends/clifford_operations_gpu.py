@@ -54,8 +54,8 @@ def apply_CZ(symplectic_matrix, control_q, target_q, nqubits):
     """Decomposition --> H-CNOT-H"""
     cqz = nqubits + control_q
     tqz = nqubits + target_q
-    tid = jit.blockIdx.xq * jit.blockDim.xq + jit.threadIdx.xq
-    ntid = jit.gridDim.xq * jit.blockDim.xq
+    tid = jit.blockIdx.x * jit.blockDim.x + jit.threadIdx.x
+    ntid = jit.gridDim.x * jit.blockDim.x
     for i in range(tid, symplectic_matrix.shape[0] - 1, ntid):
         symplectic_matrix[i, -1] = (
             symplectic_matrix[i, -1]
@@ -147,7 +147,7 @@ def apply_Y(symplectic_matrix, q, nqubits):
     qz = nqubits + q
     for i in range(tid, symplectic_matrix.shape[0] - 1, ntid):
         symplectic_matrix[i, -1] = (
-            rsymplectic_matrix[i, -1]
+            symplectic_matrix[i, -1]
             ^ (
                 symplectic_matrix[i, qz]
                 & (symplectic_matrix[i, qz] ^ symplectic_matrix[i, q])
