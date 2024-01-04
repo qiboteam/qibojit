@@ -420,34 +420,48 @@ def CY(symplectic_matrix, control_q, target_q, nqubits):
 
 
 @jit.rawkernel()
-def _rowsum(symplectic_matrix, h, i, nqubits, include_scratch: bool = False):
-    x = symplectic_matrix[: -1 + (2 * nqubits + 2) * int(include_scratch), :nqubits]
-    z = symplectic_matrix[: -1 + (2 * nqubits + 2) * int(include_scratch), nqubits:-1]
-
-    x1, x2 = x[i, :], x[h, :]
-    z1, z2 = z[i, :], z[h, :]
-    tid = jit.blockIdx.h * jit.blockDim.h + jit.threadIdx.h
-    ntid = jit.gridDim.h * jit.blockDim.h
-    for j in range(tid, len(h), ntid):
-        exp = cp.zeros(nqubits, dtype=int64)
-        x1_eq_z1 = (x1[j] ^ z1[j]) == False
-        x1_neq_z1 = ~x1_eq_z1
-        x1_eq_0 = x1[j] == False
-        x1_eq_1 = ~x1_eq_0
-        ind2 = x1_eq_z1 & x1_eq_1
-        ind3 = x1_eq_1 & x1_neq_z1
-        ind4 = x1_eq_0 & x1_neq_z1
-        exp[ind2] = z2[j, ind2].astype(uint64) - x2[j, ind2].astype(uint64)
-        exp[ind3] = z2[j, ind3].astype(uint64) * (2 * x2[j, ind3].astype(uint64) - 1)
-        exp[ind4] = x2[j, ind4].astype(uint64) * (1 - 2 * z2[j, ind4].astype(uint64))
-
+def _apply_rowsum(symplectic_matrix, h, i, nqubits, include_scratch: bool = False):
+    tid_x = jit.blockIdx.x * jit.blockDim.x + jit.threadIdx.x
+    tid_y = jit.blockIdx.y * jit.blockDim.y + jit.threadIdx.y
+    ntid_x = jit.gridDim.x * jit.blockDim.x
+    ntid_y = jit.gridDim.x * jit.blockDim.y
+    for j in range(tid_y, len(h), ntid_y):
+        exp = 0
+        for k in range(tid_x, nqubits, ntid_x):
+            jz = nqubits + j
+            x1_eq_z1 = symplectic_matrix[i[k], j] == symplectic_matrix[i[k], jz]
+            x1_eq_0 = symplectic_matrix[i[k], j] == False
+            if x1_eq_z1:
+                if not x1_eq_0:
+                    exp += int(symplectic_matrix[h[k], jz]) - int(
+                        symplectic_matrix[h[k], j]
+                    )
+            else:
+                if x1_eq_0:
+                    exp += int(symplectic_matrix[h[k], j]) * (
+                        1 - 2 * int(symplectic_matrix[h[k], jz])
+                    )
+                else:
+                    exp += int(symplectic_matrix[h[k], jz]) * (
+                        2 * int(symplectic_matrix[h[k], j]) - 1
+                    )
         symplectic_matrix[h[j], -1] = (
-            2 * symplectic_matrix[h[j], -1]
-            + 2 * symplectic_matrix[i[j], -1]
-            + cp.sum(exp)
+            2 * symplectic_matrix[h[j], -1] + 2 * symplectic_matrix[i[j], -1] + exp
         ) % 4 != 0
-        symplectic_matrix[h[j], :nqubits] = x[i[j], :] ^ x[h[j], :]
-        symplectic_matrix[h[j], nqubits:-1] = z[i[j], :] ^ z[h[j], :]
+        for k in range(tid_x, nqubits, ntid_y):
+            kz = nqubits + k
+            symplectic_matrix[h[j], k] = (
+                symplectic_matrix[i[j], k] ^ symplectic_matrix[h[j], k]
+            )
+            symplectic_matrix[h[j], nqubits + k] = (
+                symplectic_matrix[i[j], kz] ^ symplectic_matrix[h[j], kz]
+            )
+
+
+def _rowsum(symplectic_matrix, h, i, nqubits, include_scratch: bool = False):
+    _apply_rowsum[GRIDDIM, (BLOCKDIM, BLOCKDIM)](
+        symplectic_matrix, h, i, nqubits, include_scratch
+    )
     return symplectic_matrix
 
 
@@ -486,6 +500,6 @@ for f in [
     "iSWAP",
     "CY",
     "_rowsum",
-    "_determined_outcome",
+    # "_determined_outcome",
 ]:
     setattr(co, f, locals()[f])
