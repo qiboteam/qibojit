@@ -1,5 +1,6 @@
 import numpy as np
 from numba import njit
+from qibo.backends import clifford_operations
 from qibo.backends.numpy import NumpyBackend
 from qibo.config import log
 from qibo.gates.abstract import ParametrizedGate
@@ -71,7 +72,13 @@ class NumbaBackend(NumpyBackend):
         else:
             self.set_threads(len(psutil.Process().cpu_affinity()))
 
-        self.clifford_operations = clifford_operations_cpu
+        self.clifford_operations = clifford_operations
+        for method in dir(clifford_operations_cpu):
+            setattr(
+                self.clifford_operations,
+                method,
+                getattr(clifford_operations_cpu, method),
+            )
 
     def set_precision(self, precision):
         if precision != self.precision:

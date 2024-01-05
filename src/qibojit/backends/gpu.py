@@ -1,4 +1,5 @@
 import numpy as np
+from qibo.backends import clifford_operations
 from qibo.backends.numpy import NumpyBackend
 from qibo.config import log, raise_error
 
@@ -99,7 +100,13 @@ class CupyBackend(NumbaBackend):  # pragma: no cover
         # number of available GPUs (for multigpu)
         self.ngpus = cp.cuda.runtime.getDeviceCount()
 
-        self.clifford_operations = clifford_operations_gpu
+        self.clifford_operations = clifford_operations
+        for method in dir(clifford_operations_gpu):
+            setattr(
+                self.clifford_operations,
+                method,
+                getattr(clifford_operations_gpu, method),
+            )
 
     def set_precision(self, precision):
         super().set_precision(precision)

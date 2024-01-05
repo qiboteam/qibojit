@@ -1,8 +1,6 @@
 import cupy as cp
 import numpy as np
-import qibo.backends.clifford_operations as co
 from cupyx import jit
-from qibo.backends.clifford_operations import *
 
 GRIDDIM, BLOCKDIM = 1024, 128
 
@@ -420,7 +418,7 @@ def CY(symplectic_matrix, control_q, target_q, nqubits):
 
 
 @jit.rawkernel()
-def _apply_rowsum(symplectic_matrix, h, i, nqubits, include_scratch: bool = False):
+def _apply_rowsum(symplectic_matrix, h, i, nqubits):
     tid_x = jit.blockIdx.x * jit.blockDim.x + jit.threadIdx.x
     tid_y = jit.blockIdx.y * jit.blockDim.y + jit.threadIdx.y
     ntid_x = jit.gridDim.x * jit.blockDim.x
@@ -459,12 +457,32 @@ def _apply_rowsum(symplectic_matrix, h, i, nqubits, include_scratch: bool = Fals
 
 
 def _rowsum(symplectic_matrix, h, i, nqubits, include_scratch: bool = False):
+    GRIDDIM, BLOCKDIM = 32, 32
     _apply_rowsum[(GRIDDIM, GRIDDIM), (BLOCKDIM, BLOCKDIM)](
-        symplectic_matrix, h, i, nqubits, include_scratch
+        symplectic_matrix, h, i, nqubits
     )
     return symplectic_matrix
 
 
+def _random_outcome(state, p, q, nqubits):
+    h = cp.array([i for i in state[:-1, q].nonzero()[0] if i != p], dtype=cp.uint)
+    if h.shape[0] > 0:
+        state = _rowsum(
+            state,
+            h,
+            p * cp.ones(h.shape[0], dtype=np.uint),
+            nqubits,
+            False,
+        )
+    state[p - nqubits, :] = state[p, :]
+    outcome = cp.random.randint(2, size=1).item()
+    state[p, :] = 0
+    state[p, -1] = outcome
+    state[p, nqubits + q] = 1
+    return state, outcome
+
+
+"""
 @jit.rawkernel()
 def _determined_outcome(state, q, nqubits):
     state[-1, :] = False
@@ -480,26 +498,17 @@ def _determined_outcome(state, q, nqubits):
             include_scratch=True,
         )
     return state, uint64(state[-1, -1])
+"""
 
 
-# monkey-patching the original qibo clifford operations
-for f in [
-    "H",
-    "CNOT",
-    "CZ",
-    "S",
-    "Z",
-    "X",
-    "Y",
-    "SX",
-    "SDG",
-    "SXDG",
-    "RY_pi",
-    "RY_3pi_2",
-    "SWAP",
-    "iSWAP",
-    "CY",
-    "_rowsum",
-    # "_determined_outcome",
-]:
-    setattr(co, f, locals()[f])
+def _determined_outcome(state, q, nqubits):
+    state[-1, :] = False
+    for i in state[:nqubits, q].nonzero()[0]:
+        state = _rowsum(
+            state,
+            cp.array([2 * nqubits], dtype=np.uint),
+            cp.array([i + nqubits], dtype=np.uint),
+            nqubits,
+            include_scratch=True,
+        )
+    return state, cp.uint(state[-1, -1])
