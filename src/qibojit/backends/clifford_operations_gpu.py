@@ -424,7 +424,7 @@ def _apply_rowsum(symplectic_matrix, h, i, nqubits, include_scratch: bool = Fals
     tid_x = jit.blockIdx.x * jit.blockDim.x + jit.threadIdx.x
     tid_y = jit.blockIdx.y * jit.blockDim.y + jit.threadIdx.y
     ntid_x = jit.gridDim.x * jit.blockDim.x
-    ntid_y = jit.gridDim.x * jit.blockDim.y
+    ntid_y = jit.gridDim.y * jit.blockDim.y
     for j in range(tid_y, len(h), ntid_y):
         exp = 0
         for k in range(tid_x, nqubits, ntid_x):
@@ -459,7 +459,7 @@ def _apply_rowsum(symplectic_matrix, h, i, nqubits, include_scratch: bool = Fals
 
 
 def _rowsum(symplectic_matrix, h, i, nqubits, include_scratch: bool = False):
-    _apply_rowsum[GRIDDIM, (BLOCKDIM, BLOCKDIM)](
+    _apply_rowsum[(GRIDDIM, GRIDDIM), (BLOCKDIM, BLOCKDIM)](
         symplectic_matrix, h, i, nqubits, include_scratch
     )
     return symplectic_matrix
