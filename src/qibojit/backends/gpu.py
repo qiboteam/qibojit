@@ -1,3 +1,5 @@
+from importlib.util import find_spec, module_from_spec
+
 import numpy as np
 from qibo.backends import clifford_operations
 from qibo.backends.numpy import NumpyBackend
@@ -100,7 +102,9 @@ class CupyBackend(NumbaBackend):  # pragma: no cover
         # number of available GPUs (for multigpu)
         self.ngpus = cp.cuda.runtime.getDeviceCount()
 
-        self.clifford_operations = clifford_operations
+        spec = find_spec("qibo.backends.clifford_operations")
+        self.clifford_operations = module_from_spec(spec)
+        spec.loader.exec_module(self.clifford_operations)
         for method in dir(clifford_operations_gpu):
             setattr(
                 self.clifford_operations,
