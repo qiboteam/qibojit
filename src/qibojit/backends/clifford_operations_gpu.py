@@ -3,6 +3,7 @@ import numpy as np
 from cupyx import jit
 
 GRIDDIM, BLOCKDIM = 1024, 128
+BLOCKDIM_2D = (32, 32)
 
 
 @jit.rawkernel()
@@ -424,7 +425,8 @@ def _apply_rowsum(symplectic_matrix, h, i, nqubits):
     ntid_x = jit.gridDim.x * jit.blockDim.x
     ntid_y = jit.gridDim.y * jit.blockDim.y
     for j in range(tid_y, len(h), ntid_y):
-        exp = 0
+        if jit.blockIdx.x == 0:
+            exp = 0
         for k in range(tid_x, nqubits, ntid_x):
             jz = nqubits + j
             x1_eq_z1 = symplectic_matrix[i[k], j] == symplectic_matrix[i[k], jz]
@@ -456,26 +458,25 @@ def _apply_rowsum(symplectic_matrix, h, i, nqubits):
             )
 
 
-def _rowsum(symplectic_matrix, h, i, nqubits, include_scratch: bool = False):
-    GRIDDIM, BLOCKDIM = 32, 32
-    _apply_rowsum[(GRIDDIM, GRIDDIM), (BLOCKDIM, BLOCKDIM)](
-        symplectic_matrix, h, i, nqubits
-    )
+def _rowsum(symplectic_matrix, h, i, nqubits):
+    _apply_rowsum[(GRIDDIM, GRIDDIM), BLOCKDIM_2D](symplectic_matrix, h, i, nqubits)
     return symplectic_matrix
 
 
 def _random_outcome(state, p, q, nqubits):
-    h = cp.array([i for i in state[:-1, q].nonzero()[0] if i != p], dtype=cp.uint)
+    p = p[0] + nqubits
+    h = state[:-1, q].copy()
+    h[p] = False
+    h = h.nonzero()[0]
     if h.shape[0] > 0:
         state = _rowsum(
             state,
             h,
             p * cp.ones(h.shape[0], dtype=np.uint),
             nqubits,
-            False,
         )
     state[p - nqubits, :] = state[p, :]
-    outcome = cp.random.randint(2, size=1).item()
+    outcome = cp.random.randint(2, size=1)
     state[p, :] = 0
     state[p, -1] = outcome
     state[p, nqubits + q] = 1
@@ -509,6 +510,5 @@ def _determined_outcome(state, q, nqubits):
             cp.array([2 * nqubits], dtype=np.uint),
             cp.array([i + nqubits], dtype=np.uint),
             nqubits,
-            include_scratch=True,
         )
     return state, cp.uint(state[-1, -1])

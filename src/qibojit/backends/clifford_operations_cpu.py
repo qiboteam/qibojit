@@ -29,7 +29,6 @@ def CNOT(symplectic_matrix, control_q, target_q, nqubits):
     return symplectic_matrix
 
 
-@staticmethod
 @njit("b1[:,:](b1[:,:], u8, u8, u8)", parallel=True, cache=True)
 def CZ(symplectic_matrix, control_q, target_q, nqubits):
     """Decomposition --> H-CNOT-H"""
@@ -50,7 +49,6 @@ def CZ(symplectic_matrix, control_q, target_q, nqubits):
     return symplectic_matrix
 
 
-@staticmethod
 @njit("b1[:,:](b1[:,:], u8, u8)", parallel=True, cache=True)
 def S(symplectic_matrix, q, nqubits):
     r = symplectic_matrix[:-1, -1]
@@ -257,39 +255,35 @@ def CY(symplectic_matrix, control_q, target_q, nqubits):
     return symplectic_matrix
 
 
-@njit("b1[:,:](b1[:,:], u8[:], u8[:], u8, b1)", parallel=True, cache=True)
-def _rowsum(symplectic_matrix, h, i, nqubits, include_scratch: bool = False):
-    x = symplectic_matrix[: -1 + (2 * nqubits + 2) * uint64(include_scratch), :nqubits]
-    z = symplectic_matrix[
-        : -1 + (2 * nqubits + 2) * uint64(include_scratch), nqubits:-1
-    ]
-
-    x1, x2 = x[i, :], x[h, :]
-    z1, z2 = z[i, :], z[h, :]
+@njit("b1[:,:](b1[:,:], u8[:], u8[:], u8)", parallel=True, cache=True)
+def _rowsum(symplectic_matrix, h, i, nqubits):
+    xi, xh = symplectic_matrix[i, :nqubits], symplectic_matrix[h, :nqubits]
+    zi, zh = symplectic_matrix[i, nqubits:-1], symplectic_matrix[h, nqubits:-1]
     for j in prange(len(h)):
         exp = np.zeros(nqubits, dtype=uint64)
-        x1_eq_z1 = (x1[j] ^ z1[j]) == False
+        x1_eq_z1 = (xi[j] ^ zi[j]) == False
         x1_neq_z1 = ~x1_eq_z1
-        x1_eq_0 = x1[j] == False
+        x1_eq_0 = xi[j] == False
         x1_eq_1 = ~x1_eq_0
         ind2 = x1_eq_z1 & x1_eq_1
         ind3 = x1_eq_1 & x1_neq_z1
         ind4 = x1_eq_0 & x1_neq_z1
-        exp[ind2] = z2[j, ind2].astype(uint64) - x2[j, ind2].astype(uint64)
-        exp[ind3] = z2[j, ind3].astype(uint64) * (2 * x2[j, ind3].astype(uint64) - 1)
-        exp[ind4] = x2[j, ind4].astype(uint64) * (1 - 2 * z2[j, ind4].astype(uint64))
+        exp[ind2] = zh[j, ind2].astype(uint64) - xh[j, ind2].astype(uint64)
+        exp[ind3] = zh[j, ind3].astype(uint64) * (2 * xh[j, ind3].astype(uint64) - 1)
+        exp[ind4] = xh[j, ind4].astype(uint64) * (1 - 2 * zh[j, ind4].astype(uint64))
 
         symplectic_matrix[h[j], -1] = (
             2 * symplectic_matrix[h[j], -1]
             + 2 * symplectic_matrix[i[j], -1]
             + np.sum(exp)
         ) % 4 != 0
-        symplectic_matrix[h[j], :nqubits] = x[i[j], :] ^ x[h[j], :]
-        symplectic_matrix[h[j], nqubits:-1] = z[i[j], :] ^ z[h[j], :]
+        symplectic_matrix[h[j], :nqubits] = xi[j] ^ xh[j]
+        symplectic_matrix[h[j], nqubits:-1] = zi[j] ^ zh[j]
     return symplectic_matrix
 
 
 """
+# Not parallelizable?
 @njit("Tuple((b1[:,:], u8))(b1[:,:], u8, u8)", parallel=False, cache=True)
 def _determined_outcome(state, q, nqubits):
     state[-1, :] = False
