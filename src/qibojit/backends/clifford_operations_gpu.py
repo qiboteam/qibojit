@@ -5,217 +5,307 @@ from cupyx import jit
 GRIDDIM, BLOCKDIM = 1024, 128
 BLOCKDIM_2D = (32, 32)
 
+apply_one_qubit_kernel = """
+extern "C"
+__global__ void apply_{}(bool* symplectic_matrix, const int q, const int nqubits, conts int qz, const int dim) {{
+    _apply_{}(symplectic_matrix, q, nqubits, qz, dim);
+}}
+"""
 
-@jit.rawkernel()
-def apply_H(symplectic_matrix, q, nqubits):
-    tid = jit.blockIdx.x * jit.blockDim.x + jit.threadIdx.x
-    ntid = jit.gridDim.x * jit.blockDim.x
+apply_two_qubits_kernel = """
+extern "C"
+__global__ void apply_{}(bool* symplectic_matrix, const int control_q, const int target_q, const int nqubits, const int cqz, const int tqz, const int dim) {{
+    _apply_{}(symplectic_matrix, control_q, target_q, nqubits, cqz, tqz, dim);
+}}
+"""
+
+
+def one_qubit_kernel_launcher(kernel, args):
     qz = nqubits + q
-    for i in range(tid, symplectic_matrix.shape[0] - 1, ntid):
-        symplectic_matrix[i, -1] = symplectic_matrix[i, -1] ^ (
-            symplectic_matrix[i, q] & symplectic_matrix[i, qz]
-        )
-        tmp = symplectic_matrix[i, q]
-        symplectic_matrix[i, q] = symplectic_matrix[i, qz]
-        symplectic_matrix[i, qz] = tmp
+    dim = symplectic_matrix.shape[0]
+    return kernel((GRIDDIM,), (BLOCKDIM,), (*args, qz, dim))
+
+
+def two_qubits_kernel_launcher(kernel, args):
+    cqz = nqubits + control_q
+    tqz = nqubits + target_q
+    dim = symplectic_matrix.shape[0]
+    return kernel((GRIDDIM,), (BLOCKDIM,), (*args, cqz, tqz, dim))
+
+
+apply_H = """
+__device__ void _apply_H(bool* symplectic_matrix, const int& q, const int& nqubits, const int& qz, const int& dim) {
+    const int tid = blockIdx.x * blockDim.x + threadIdx.x;
+    const int ntid = gridDim.x * blockDim.x;
+    const int last = dim - 1;
+    for(int i = tid; i < last; i += ntid) {
+        symplectic_matrix[i * dim + last] = symplectic_matrix[i * dim + last] ^ (symplectic_matrix[i * dim + q] & symplectic_matrix[i * dim + qz]);
+        const bool tmp = symplectic_matrix[i * dim + q];
+        symplectic_matrix[i * dim + q] = symplectic_matrix[i * dim + qz];
+        symplectic_matrix[i * dim + qz] = tmp;
+    };
+}
+""" + apply_one_qubit_kernel.format(
+    "H", "H"
+)
+
+apply_H = cp.RawKernel(apply_H, "apply_H", options=("--std=c++11",))
 
 
 def H(symplectic_matrix, q, nqubits):
-    apply_H[GRIDDIM, BLOCKDIM](symplectic_matrix, q, nqubits)
+    one_qubit_kernel_launcher(apply_H, symplectic_matrix, q, nqubits)
     return symplectic_matrix
 
 
-@jit.rawkernel()
-def apply_CNOT(symplectic_matrix, control_q, target_q, nqubits):
-    tid = jit.blockIdx.x * jit.blockDim.x + jit.threadIdx.x
-    ntid = jit.gridDim.x * jit.blockDim.x
-    cqz = nqubits + control_q
-    tqz = nqubits + target_q
-    for i in range(tid, symplectic_matrix.shape[0] - 1, ntid):
-        symplectic_matrix[i, -1] = symplectic_matrix[i, -1] ^ (
-            symplectic_matrix[i, control_q] & symplectic_matrix[i, tqz]
-        ) & (symplectic_matrix[i, target_q] ^ ~symplectic_matrix[i, cqz])
-        symplectic_matrix[i, target_q] = (
-            symplectic_matrix[i, target_q] ^ symplectic_matrix[i, control_q]
-        )
-        symplectic_matrix[i, nqubits + control_q] = (
-            symplectic_matrix[i, cqz] ^ symplectic_matrix[i, tqz]
-        )
+apply_CNOT = """
+__device__ void _apply_CNOT(bool* symplectic_matrix, const int& control_q, const int& target_q, const int& nqubits, const int& cqz, const int& tqz, const int& dim) {
+    const int tid = blockIdx.x * blockDim.x + threadIdx.x;
+    const int ntid = gridDim.x * blockDim.x;
+    const int last = dim - 1;
+    for(int i = tid; i < last; i += ntid) {
+        symplectic_matrix[i * dim + last] = symplectic_matrix[i * dim + last] ^ (
+            symplectic_matrix[i * dim + control_q] & symplectic_matrix[i * dim + tqz]
+        ) & (symplectic_matrix[i * dim + target_q] ^ symplectic_matrix[i * dim + cqz] ^ 1);
+        symplectic_matrix[i * dim + target_q] = (
+            symplectic_matrix[i * dim + target_q] ^ symplectic_matrix[i * dim + control_q]
+        );
+        symplectic_matrix[i * dim + cqz] = (
+            symplectic_matrix[i * dim + cqz] ^ symplectic_matrix[i * dim + tqz]
+        );
+    };
+}
+""" + apply_two_qubits_kernel.format(
+    "CNOT", "CNOT"
+)
+
+apply_CNOT = cp.RawKernel(apply_CNOT, "apply_CNOT", options=("--std=c++11",))
 
 
 def CNOT(symplectic_matrix, control_q, target_q, nqubits):
-    apply_CNOT[GRIDDIM, BLOCKDIM](symplectic_matrix, control_q, target_q, nqubits)
+    two_qubits_kernel_launcher(
+        apply_CNOT, symplectic_matrix, control_q, target_q, nqubits
+    )
     return symplectic_matrix
 
 
-@jit.rawkernel()
-def apply_CZ(symplectic_matrix, control_q, target_q, nqubits):
-    """Decomposition --> H-CNOT-H"""
-    cqz = nqubits + control_q
-    tqz = nqubits + target_q
-    tid = jit.blockIdx.x * jit.blockDim.x + jit.threadIdx.x
-    ntid = jit.gridDim.x * jit.blockDim.x
-    for i in range(tid, symplectic_matrix.shape[0] - 1, ntid):
-        symplectic_matrix[i, -1] = (
-            symplectic_matrix[i, -1]
-            ^ (symplectic_matrix[i, target_q] & symplectic_matrix[i, tqz])
+apply_CZ = """
+__device__ void _apply_CZ(bool* symplectic_matrix, const int& control_q, const int& target_q, const int& nqubits, const int& cqz, const int& tqz, const int& dim) {
+    const int tid = blockIdx.x * blockDim.x + threadIdx.x;
+    const int ntid = gridDim.x * blockDim.x;
+    const int last = dim - 1;
+    for(int i = tid; i < last; i += ntid) {
+        symplectic_matrix[i * dim + last] = (
+            symplectic_matrix[i * dim + last]
+            ^ (symplectic_matrix[i * dim + target_q] & symplectic_matrix[i * dim + tqz])
             ^ (
-                symplectic_matrix[i, control_q]
-                & symplectic_matrix[i, target_q]
-                & (symplectic_matrix[i, tqz] ^ ~symplectic_matrix[i, cqz])
+                symplectic_matrix[i * dim + control_q]
+                & symplectic_matrix[i * dim + target_q]
+                & (symplectic_matrix[i * dim + tqz] ^ symplectic_matrix[i * dim + cqz]) ^ 1
             )
             ^ (
-                symplectic_matrix[i, target_q]
-                & (symplectic_matrix[i, tqz] ^ symplectic_matrix[i, control_q])
+                symplectic_matrix[i * dim + target_q]
+                & (symplectic_matrix[i * dim + tqz] ^ symplectic_matrix[i * dim + control_q])
             )
-        )
-        z_control_q = symplectic_matrix[i, target_q] ^ symplectic_matrix[i, cqz]
-        z_target_q = symplectic_matrix[i, tqz] ^ symplectic_matrix[i, control_q]
-        symplectic_matrix[i, cqz] = z_control_q
-        symplectic_matrix[i, tqz] = z_target_q
+        );
+        const bool z_control_q = symplectic_matrix[i * dim + target_q] ^ symplectic_matrix[i * dim + cqz];
+        const bool z_target_q = symplectic_matrix[i * dim + tqz] ^ symplectic_matrix[i * dim + control_q];
+        symplectic_matrix[i * dim + cqz] = z_control_q;
+        symplectic_matrix[i * dim + tqz] = z_target_q;
+    };
+}
+""" + apply_two_qubits_kernel.format(
+    "CZ", "CZ"
+)
+
+apply_CZ = cp.RawKernel(apply_CZ, "apply_CZ", options=("--std=c++11",))
 
 
 def CZ(symplectic_matrix, control_q, target_q, nqubits):
-    apply_CZ[GRIDDIM, BLOCKDIM](symplectic_matrix, control_q, target_q, nqubits)
+    two_qubits_kernel_launcher(
+        apply_CZ, symplectic_matrix, control_q, target_q, nqubits
+    )
     return symplectic_matrix
 
 
-@jit.rawkernel()
-def apply_S(symplectic_matrix, q, nqubits):
-    tid = jit.blockIdx.x * jit.blockDim.x + jit.threadIdx.x
-    ntid = jit.gridDim.x * jit.blockDim.x
-    qz = nqubits + q
-    for i in range(tid, symplectic_matrix.shape[0] - 1, ntid):
-        symplectic_matrix[i, -1] = symplectic_matrix[i, -1] ^ (
-            symplectic_matrix[i, q] & symplectic_matrix[i, qz]
-        )
-        symplectic_matrix[i, qz] = symplectic_matrix[i, qz] ^ symplectic_matrix[i, q]
+apply_S = """
+__device__ void _apply_S(bool* symplectic_matrix, const int& q, const int& nqubits, const int& qz, const int& dim) {
+    const int tid = blockIdx.x * blockDim.x + threadIdx.x;
+    const int ntid = gridDim.x * blockDim.x;
+    const int last = dim - 1;
+    for(int i = tid; i < last; i += ntid) {
+        symplectic_matrix[i * dim + last] = symplectic_matrix[i * dim + last] ^ (
+            symplectic_matrix[i * dim + q] & symplectic_matrix[i * dim + qz]
+        );
+        symplectic_matrix[i * dim + qz] = symplectic_matrix[i * dim + qz] ^ symplectic_matrix[i * dim + q];
+    };
+}
+""" + apply_one_qubit_kernel.format(
+    "S", "S"
+)
+
+apply_S = cp.RawKernel(apply_S, "apply_S", options=("--std=c++11",))
 
 
 def S(symplectic_matrix, q, nqubits):
-    apply_S[GRIDDIM, BLOCKDIM](symplectic_matrix, q, nqubits)
+    one_qubit_kernel_launcher(apply_S, symplectic_matrix, q, nqubits)
     return symplectic_matrix
 
 
-@jit.rawkernel()
-def apply_Z(symplectic_matrix, q, nqubits):
-    """Decomposition --> S-S"""
-    tid = jit.blockIdx.x * jit.blockDim.x + jit.threadIdx.x
-    ntid = jit.gridDim.x * jit.blockDim.x
-    qz = nqubits + q
-    for i in range(tid, symplectic_matrix.shape[0] - 1, ntid):
-        symplectic_matrix[i, -1] = symplectic_matrix[i, -1] ^ (
-            (symplectic_matrix[i, q] & symplectic_matrix[i, qz])
-            ^ symplectic_matrix[i, q]
-            & (symplectic_matrix[i, qz] ^ symplectic_matrix[i, q])
-        )
+apply_Z = """
+__device__ void _apply_Z(bool* symplectic_matrix, const int& q, const int& nqubits, const int& qz, const int& dim) {
+    const int tid = blockIdx.x * blockDim.x + threadIdx.x;
+    const int ntid = gridDim.x * blockDim.x;
+    const int last = dim - 1;
+    for(int i = tid; i < last; i += ntid) {
+        symplectic_matrix[i * dim + last] = symplectic_matrix[i * dim + last] ^ (
+            (symplectic_matrix[i * dim + q] & symplectic_matrix[i * dim + qz])
+            ^ symplectic_matrix[i * dim + q]
+            & (symplectic_matrix[i * dim + qz] ^ symplectic_matrix[i * dim + q])
+        );
+    };
+}
+""" + apply_one_qubit_kernel.format(
+    "Z", "Z"
+)
+
+apply_Z = cp.RawKernel(apply_Z, "apply_Z", options=("--std=c++11",))
 
 
 def Z(symplectic_matrix, q, nqubits):
-    apply_Z[GRIDDIM, BLOCKDIM](symplectic_matrix, q, nqubits)
+    one_qubit_kernel_launcher(apply_Z, symplectic_matrix, q, nqubits)
     return symplectic_matrix
 
 
-@jit.rawkernel()
-def apply_X(symplectic_matrix, q, nqubits):
-    """Decomposition --> H-S-S-H"""
-    tid = jit.blockIdx.x * jit.blockDim.x + jit.threadIdx.x
-    ntid = jit.gridDim.x * jit.blockDim.x
-    qz = nqubits + q
-    for i in range(tid, symplectic_matrix.shape[0] - 1, ntid):
-        symplectic_matrix[i, -1] = (
-            symplectic_matrix[i, -1]
+apply_X = """
+__device__ void _apply_X(bool* symplectic_matrix, const int& q, const int& nqubits, const int& qz, const int& dim) {
+    const int tid = blockIdx.x * blockDim.x + threadIdx.x;
+    const int ntid = gridDim.x * blockDim.x;
+    const int last = dim - 1;
+    for(int i = tid; i < last; i += ntid) {
+        symplectic_matrix[i * dim + last] = (
+            symplectic_matrix[i * dim + last]
             ^ (
-                symplectic_matrix[i, qz]
-                & (symplectic_matrix[i, qz] ^ symplectic_matrix[i, q])
+                symplectic_matrix[i * dim + qz]
+                & (symplectic_matrix[i * dim + qz] ^ symplectic_matrix[i * dim + q])
             )
-            ^ (symplectic_matrix[i, qz] & symplectic_matrix[i, q])
-        )
+            ^ (symplectic_matrix[i * dim + qz] & symplectic_matrix[i * dim + q])
+        );
+    };
+}
+""" + apply_one_qubit_kernel.format(
+    "X", "X"
+)
+
+apply_X = cp.RawKernel(apply_X, "apply_X", options=("--std=c++11",))
 
 
 def X(symplectic_matrix, q, nqubits):
-    apply_X[GRIDDIM, BLOCKDIM](symplectic_matrix, q, nqubits)
+    one_qubit_kernel_launcher(apply_X, symplectic_matrix, q, nqubits)
     return symplectic_matrix
 
 
-@jit.rawkernel()
-def apply_Y(symplectic_matrix, q, nqubits):
-    """Decomposition --> S-S-H-S-S-H"""
-    tid = jit.blockIdx.x * jit.blockDim.x + jit.threadIdx.x
-    ntid = jit.gridDim.x * jit.blockDim.x
-    qz = nqubits + q
-    for i in range(tid, symplectic_matrix.shape[0] - 1, ntid):
-        symplectic_matrix[i, -1] = (
-            symplectic_matrix[i, -1]
+apply_Y = """
+__device__ void _apply_Y(bool* symplectic_matrix, const int& q, const int& nqubits, const int& qz, const int& dim) {
+    const int tid = blockIdx.x * blockDim.x + threadIdx.x;
+    const int ntid = gridDim.x * blockDim.x;
+    const int last = dim - 1;
+    for(int i = tid; i < last; i += ntid) {
+        symplectic_matrix[i * dim + last] = (
+            symplectic_matrix[i * dim + last]
             ^ (
-                symplectic_matrix[i, qz]
-                & (symplectic_matrix[i, qz] ^ symplectic_matrix[i, q])
+                symplectic_matrix[i * dim + qz]
+                & (symplectic_matrix[i * dim + qz] ^ symplectic_matrix[i * dim + q])
             )
             ^ (
-                symplectic_matrix[i, q]
-                & (symplectic_matrix[i, qz] ^ symplectic_matrix[i, q])
+                symplectic_matrix[i * dim + q]
+                & (symplectic_matrix[i * dim + qz] ^ symplectic_matrix[i * dim + q])
             )
-        )
+        );
+    };
+}
+""" + apply_one_qubit_kernel.format(
+    "Y", "Y"
+)
+
+apply_Y = cp.RawKernel(apply_Y, "apply_Y", options=("--std=c++11",))
 
 
 def Y(symplectic_matrix, q, nqubits):
-    apply_Y[GRIDDIM, BLOCKDIM](symplectic_matrix, q, nqubits)
+    one_qubit_kernel_launcher(apply_Y, symplectic_matrix, q, nqubits)
     return symplectic_matrix
 
 
-@jit.rawkernel()
-def apply_SX(symplectic_matrix, q, nqubits):
-    """Decomposition --> H-S-H"""
-    tid = jit.blockIdx.x * jit.blockDim.x + jit.threadIdx.x
-    ntid = jit.gridDim.x * jit.blockDim.x
-    qz = nqubits + q
-    for i in range(tid, symplectic_matrix.shape[0] - 1, ntid):
-        symplectic_matrix[i, -1] = symplectic_matrix[i, -1] ^ (
-            symplectic_matrix[i, qz]
-            & (symplectic_matrix[i, qz] ^ symplectic_matrix[i, q])
-        )
-        symplectic_matrix[i, q] = symplectic_matrix[i, qz] ^ symplectic_matrix[i, q]
+apply_SX = """
+__device__ void _apply_SX(bool* symplectic_matrix, const int& q, const int& nqubits, const int& qz, const int& dim) {
+    const int tid = blockIdx.x * blockDim.x + threadIdx.x;
+    const int ntid = gridDim.x * blockDim.x;
+    const int last = dim - 1;
+    for(int i = tid; i < last; i += ntid) {
+        symplectic_matrix[i * dim + last] = symplectic_matrix[i * dim + last] ^ (
+            symplectic_matrix[i * dim + qz]
+            & (symplectic_matrix[i * dim + qz] ^ symplectic_matrix[i * dim + q])
+        );
+        symplectic_matrix[i * dim + q] = symplectic_matrix[i * dim + qz] ^ symplectic_matrix[i * dim + q];
+    };
+}
+""" + apply_one_qubit_kernel.format(
+    "SX", "SX"
+)
+
+apply_SX = cp.RawKernel(apply_SX, "apply_SX", options=("--std=c++11",))
 
 
 def SX(symplectic_matrix, q, nqubits):
-    apply_SX[GRIDDIM, BLOCKDIM](symplectic_matrix, q, nqubits)
+    one_qubit_kernel_launcher(apply_SX, symplectic_matrix, q, nqubits)
     return symplectic_matrix
 
 
-@jit.rawkernel()
-def apply_SDG(symplectic_matrix, q, nqubits):
-    """Decomposition --> S-S-S"""
-    tid = jit.blockIdx.x * jit.blockDim.x + jit.threadIdx.x
-    ntid = jit.gridDim.x * jit.blockDim.x
-    qz = nqubits + q
-    for i in range(tid, symplectic_matrix.shape[0] - 1, ntid):
-        symplectic_matrix[i, -1] = symplectic_matrix[i, -1] ^ (
-            symplectic_matrix[i, q]
-            & (symplectic_matrix[i, qz] ^ symplectic_matrix[i, q])
-        )
-        symplectic_matrix[i, qz] = symplectic_matrix[i, qz] ^ symplectic_matrix[i, q]
+apply_SDG = """
+__device__ void _apply_SDG(bool* symplectic_matrix, const int& q, const int& nqubits, const int& qz, const int& dim) {
+    const int tid = blockIdx.x * blockDim.x + threadIdx.x;
+    const int ntid = gridDim.x * blockDim.x;
+    const int last = dim - 1;
+    for(int i = tid; i < last; i += ntid) {
+        symplectic_matrix[i * dim + last] = symplectic_matrix[i * dim + last] ^ (
+            symplectic_matrix[i * dim + q]
+            & (symplectic_matrix[i * dim + qz] ^ symplectic_matrix[i * dim + q])
+        );
+        symplectic_matrix[i * dim + qz] = symplectic_matrix[i * dim + qz] ^ symplectic_matrix[i * dim + q];
+    };
+}
+""" + apply_one_qubit_kernel.format(
+    "SDG", "SDG"
+)
+
+apply_SDG = cp.RawKernel(apply_SDG, "apply_SDG", options=("--std=c++11",))
 
 
 def SDG(symplectic_matrix, q, nqubits):
-    apply_SDG[GRIDDIM, BLOCKDIM](symplectic_matrix, q, nqubits)
+    one_qubit_kernel_launcher(apply_SDG, symplectic_matrix, q, nqubits)
     return symplectic_matrix
 
 
-@jit.rawkernel()
-def apply_SXDG(symplectic_matrix, q, nqubits):
-    """Decomposition --> H-S-S-S-H"""
-    tid = jit.blockIdx.x * jit.blockDim.x + jit.threadIdx.x
-    ntid = jit.gridDim.x * jit.blockDim.x
-    qz = nqubits + q
-    for i in range(tid, symplectic_matrix.shape[0] - 1, ntid):
-        symplectic_matrix[i, -1] = symplectic_matrix[i, -1] ^ (
-            symplectic_matrix[i, qz] & symplectic_matrix[i, q]
-        )
-        symplectic_matrix[i, q] = symplectic_matrix[i, qz] ^ symplectic_matrix[i, q]
+apply_SXDG = """
+__device__ void _apply_SXDG(bool* symplectic_matrix, const int& q, const int& nqubits, const int& qz, const int& dim) {
+    const int tid = blockIdx.x * blockDim.x + threadIdx.x;
+    const int ntid = gridDim.x * blockDim.x;
+    const int last = dim - 1;
+    for(int i = tid; i < last; i += ntid) {
+        symplectic_matrix[i * dim + last] = symplectic_matrix[i * dim + last] ^ (
+            symplectic_matrix[i * dim + qz] & symplectic_matrix[i * dim + q]
+        );
+        symplectic_matrix[i * dim + q] = symplectic_matrix[i * dim + qz] ^ symplectic_matrix[i * dim + q];
+    };
+}
+""" + apply_one_qubit_kernel.format(
+    "SXDG", "SXDG"
+)
+
+apply_SXDG = cp.RawKernel(apply_SXDG, "apply_SXDG", options=("--std=c++11",))
 
 
 def SXDG(symplectic_matrix, q, nqubits):
-    apply_SXDG[GRIDDIM, BLOCKDIM](symplectic_matrix, q, nqubits)
+    one_qubit_kernel_launcher(apply_SXDG, symplectic_matrix, q, nqubits)
     return symplectic_matrix
 
 
@@ -235,186 +325,237 @@ def apply_RY_pi(symplectic_matrix, q, nqubits):
         symplectic_matrix[i, q] = zq
 
 
+apply_RY_pi = """
+__device__ void _apply_RY_pi(bool* symplectic_matrix, const int& q, const int& nqubits, const int& qz, const int& dim) {
+    const int tid = blockIdx.x * blockDim.x + threadIdx.x;
+    const int ntid = gridDim.x * blockDim.x;
+    const int last = dim - 1;
+    for(int i = tid; i < last; i += ntid) {
+        symplectic_matrix[i * dim + last] = symplectic_matrix[i * dim + last] ^ (
+            symplectic_matrix[i * dim + q]
+            & (symplectic_matrix[i * dim + qz] ^ symplectic_matrix[i * dim + q])
+        );
+        const bool zq = symplectic_matrix[i * dim + qz];
+        symplectic_matrix[i * dim + qz] = symplectic_matrix[i * dim + q];
+        symplectic_matrix[i * dim + q] = zq;
+    };
+}
+""" + apply_one_qubit_kernel.format(
+    "RY_pi", "RY_pi"
+)
+
+apply_RY_pi = cp.RawKernel(apply_RY_pi, "apply_RY_pi", options=("--std=c++11",))
+
+
 def RY_pi(symplectic_matrix, q, nqubits):
-    apply_RY_pi[GRIDDIM, BLOCKDIM](symplectic_matrix, q, nqubits)
+    one_qubit_kernel_launcher(apply_RY_pi, symplectic_matrix, q, nqubits)
     return symplectic_matrix
 
 
-@jit.rawkernel()
-def apply_RY_3pi_2(symplectic_matrix, q, nqubits):
-    """Decomposition --> H-S-S"""
-    tid = jit.blockIdx.x * jit.blockDim.x + jit.threadIdx.x
-    ntid = jit.gridDim.x * jit.blockDim.x
-    qz = nqubits + q
-    for i in range(tid, symplectic_matrix.shape[0] - 1, ntid):
-        symplectic_matrix[i, -1] = symplectic_matrix[i, -1] ^ (
-            symplectic_matrix[i, qz]
-            & (symplectic_matrix[i, qz] ^ symplectic_matrix[i, q])
-        )
-        zq = symplectic_matrix[i, qz]
-        symplectic_matrix[i, qz] = symplectic_matrix[i, q]
-        symplectic_matrix[i, q] = zq
+apply_RY_3pi_2 = """
+__device__ void _apply_RY_3pi_2(bool* symplectic_matrix, const int& q, const int& nqubits, const int& qz, const int& dim) {
+    const int tid = blockIdx.x * blockDim.x + threadIdx.x;
+    const int ntid = gridDim.x * blockDim.x;
+    const int last = dim - 1;
+    for(int i = tid; i < last; i += ntid) {
+        symplectic_matrix[i * dim + last] = symplectic_matrix[i * dim + last] ^ (
+            symplectic_matrix[i * dim + qz]
+            & (symplectic_matrix[i * dim + qz] ^ symplectic_matrix[i * dim + q])
+        );
+        const bool zq = symplectic_matrix[i * dim + qz];
+        symplectic_matrix[i * dim + qz] = symplectic_matrix[i * dim + q];
+        symplectic_matrix[i * dim + q] = zq;
+    };
+}
+""" + apply_one_qubit_kernel.format(
+    "RY_3pi_2", "RY_3pi_2"
+)
+
+apply_RY_3pi_2 = cp.RawKernel(
+    apply_RY_3pi_2, "apply_RY_3pi_2", options=("--std=c++11",)
+)
 
 
 def RY_3pi_2(symplectic_matrix, q, nqubits):
-    apply_RY_3pi_2[GRIDDIM, BLOCKDIM](symplectic_matrix, q, nqubits)
+    one_qubit_kernel_launcher(apply_RY_3pi_2, symplectic_matrix, q, nqubits)
     return symplectic_matrix
 
 
-@jit.rawkernel()
-def apply_SWAP(symplectic_matrix, control_q, target_q, nqubits):
-    """Decomposition --> CNOT-CNOT-CNOT"""
-    cqz = nqubits + control_q
-    tqz = nqubits + target_q
-    tid = jit.blockIdx.x * jit.blockDim.x + jit.threadIdx.x
-    ntid = jit.gridDim.x * jit.blockDim.x
-    for i in range(tid, symplectic_matrix.shape[0] - 1, ntid):
-        symplectic_matrix[i, -1] = (
-            symplectic_matrix[i, -1]
+apply_SWAP = """
+__device__ void _apply_SWAP(bool* symplectic_matrix, const int& control_q, const int& target_q, const int& nqubits, const int& cqz, const int& tqz, const int& dim) {
+    const int tid = blockIdx.x * blockDim.x + threadIdx.x;
+    const int ntid = gridDim.x * blockDim.x;
+    const int last = dim - 1;
+    for(int i = tid; i < last; i += ntid) {
+        symplectic_matrix[i * dim + last] = (
+            symplectic_matrix[i * dim + last]
             ^ (
-                symplectic_matrix[i, control_q]
-                & symplectic_matrix[i, tqz]
-                & (symplectic_matrix[i, target_q] ^ ~symplectic_matrix[i, cqz])
+                symplectic_matrix[i * dim + control_q]
+                & symplectic_matrix[i * dim + tqz]
+                & (symplectic_matrix[i * dim + target_q] ^ symplectic_matrix[i * dim + cqz] ^ 1)
             )
             ^ (
-                (symplectic_matrix[i, target_q] ^ symplectic_matrix[i, control_q])
-                & (symplectic_matrix[i, tqz] ^ symplectic_matrix[i, cqz])
-                & (symplectic_matrix[i, tqz] ^ ~symplectic_matrix[i, control_q])
+                (symplectic_matrix[i * dim + target_q] ^ symplectic_matrix[i * dim + control_q])
+                & (symplectic_matrix[i * dim + tqz] ^ symplectic_matrix[i * dim + cqz])
+                & (symplectic_matrix[i * dim + tqz] ^ symplectic_matrix[i * dim + control_q] ^ 1)
             )
             ^ (
-                symplectic_matrix[i, target_q]
-                & symplectic_matrix[i, cqz]
+                symplectic_matrix[i * dim + target_q]
+                & symplectic_matrix[i * dim + cqz]
                 & (
-                    symplectic_matrix[i, control_q]
-                    ^ symplectic_matrix[i, target_q]
-                    ^ symplectic_matrix[i, cqz]
-                    ^ ~symplectic_matrix[i, tqz]
+                    symplectic_matrix[i * dim + control_q]
+                    ^ symplectic_matrix[i * dim + target_q]
+                    ^ symplectic_matrix[i * dim + cqz]
+                    ^ symplectic_matrix[i * dim + tqz] ^ 1
                 )
             )
-        )
-        x_cq = symplectic_matrix[i, control_q]
-        x_tq = symplectic_matrix[i, target_q]
-        z_cq = symplectic_matrix[i, cqz]
-        z_tq = symplectic_matrix[i, tqz]
-        symplectic_matrix[i, control_q] = x_tq
-        symplectic_matrix[i, target_q] = x_cq
-        symplectic_matrix[i, cqz] = z_tq
-        symplectic_matrix[i, tqz] = z_cq
+        );
+        const bool x_cq = symplectic_matrix[i * dim + control_q];
+        const bool x_tq = symplectic_matrix[i * dim + target_q];
+        const bool z_cq = symplectic_matrix[i * dim + cqz];
+        const bool z_tq = symplectic_matrix[i * dim + tqz];
+        symplectic_matrix[i * dim + control_q] = x_tq;
+        symplectic_matrix[i * dim + target_q] = x_cq;
+        symplectic_matrix[i * dim + cqz] = z_tq;
+        symplectic_matrix[i * dim + tqz] = z_cq;
+    };
+}
+""" + apply_two_qubits_kernel.format(
+    "SWAP", "SWAP"
+)
+
+apply_SWAP = cp.RawKernel(apply_SWAP, "apply_SWAP", options=("--std=c++11",))
 
 
 def SWAP(symplectic_matrix, control_q, target_q, nqubits):
-    apply_SWAP[GRIDDIM, BLOCKDIM](symplectic_matrix, control_q, target_q, nqubits)
+    two_qubits_kernel_launcher(
+        apply_SWAP, symplectic_matrix, control_q, target_q, nqubits
+    )
     return symplectic_matrix
 
 
-@jit.rawkernel()
-def apply_iSWAP(symplectic_matrix, control_q, target_q, nqubits):
-    """Decomposition --> H-CNOT-CNOT-H-S-S"""
-    cqz = nqubits + control_q
-    tqz = nqubits + target_q
-    tid = jit.blockIdx.x * jit.blockDim.x + jit.threadIdx.x
-    ntid = jit.gridDim.x * jit.blockDim.x
-    for i in range(tid, symplectic_matrix.shape[0] - 1, ntid):
-        symplectic_matrix[i, -1] = (
-            symplectic_matrix[i, -1]
-            ^ (symplectic_matrix[i, target_q] & symplectic_matrix[i, tqz])
-            ^ (symplectic_matrix[i, control_q] & symplectic_matrix[i, cqz])
+apply_iSWAP = """
+__device__ void _apply_iSWAP(bool* symplectic_matrix, const int& control_q, const int& target_q, const int& nqubits, const int& cqz, const int& tqz, const int& dim) {
+    const int tid = blockIdx.x * blockDim.x + threadIdx.x;
+    const int ntid = gridDim.x * blockDim.x;
+    const int last = dim - 1;
+    for(int i = tid; i < last; i += ntid) {
+        symplectic_matrix[i * dim + last] = (
+            symplectic_matrix[i * dim + last]
+            ^ (symplectic_matrix[i * dim + target_q] & symplectic_matrix[i * dim + tqz])
+            ^ (symplectic_matrix[i * dim + control_q] & symplectic_matrix[i * dim + cqz])
             ^ (
-                symplectic_matrix[i, control_q]
-                & (symplectic_matrix[i, cqz] ^ symplectic_matrix[i, control_q])
+                symplectic_matrix[i * dim + control_q]
+                & (symplectic_matrix[i * dim + cqz] ^ symplectic_matrix[i * dim + control_q])
             )
             ^ (
-                (symplectic_matrix[i, cqz] ^ symplectic_matrix[i, control_q])
-                & (symplectic_matrix[i, tqz] ^ symplectic_matrix[i, target_q])
-                & (symplectic_matrix[i, target_q] ^ ~symplectic_matrix[i, control_q])
+                (symplectic_matrix[i * dim + cqz] ^ symplectic_matrix[i * dim + control_q])
+                & (symplectic_matrix[i * dim + tqz] ^ symplectic_matrix[i * dim + target_q])
+                & (symplectic_matrix[i * dim + target_q] ^ symplectic_matrix[i * dim + control_q] ^ 1)
             )
             ^ (
                 (
-                    symplectic_matrix[i, target_q]
-                    ^ symplectic_matrix[i, cqz]
-                    ^ symplectic_matrix[i, control_q]
+                    symplectic_matrix[i * dim + target_q]
+                    ^ symplectic_matrix[i * dim + cqz]
+                    ^ symplectic_matrix[i * dim + control_q]
                 )
                 & (
-                    symplectic_matrix[i, target_q]
-                    ^ symplectic_matrix[i, tqz]
-                    ^ symplectic_matrix[i, control_q]
+                    symplectic_matrix[i * dim + target_q]
+                    ^ symplectic_matrix[i * dim + tqz]
+                    ^ symplectic_matrix[i * dim + control_q]
                 )
                 & (
-                    symplectic_matrix[i, target_q]
-                    ^ symplectic_matrix[i, tqz]
-                    ^ symplectic_matrix[i, control_q]
-                    ^ ~symplectic_matrix[i, cqz]
+                    symplectic_matrix[i * dim + target_q]
+                    ^ symplectic_matrix[i * dim + tqz]
+                    ^ symplectic_matrix[i * dim + control_q]
+                    ^ symplectic_matrix[i * dim + cqz] ^ 1
                 )
             )
             ^ (
-                symplectic_matrix[i, control_q]
+                symplectic_matrix[i * dim + control_q]
                 & (
-                    symplectic_matrix[i, target_q]
-                    ^ symplectic_matrix[i, control_q]
-                    ^ symplectic_matrix[i, cqz]
+                    symplectic_matrix[i * dim + target_q]
+                    ^ symplectic_matrix[i * dim + control_q]
+                    ^ symplectic_matrix[i * dim + cqz]
                 )
             )
-        )
-        z_control_q = (
-            symplectic_matrix[i, target_q]
-            ^ symplectic_matrix[i, tqz]
-            ^ symplectic_matrix[i, control_q]
-        )
-        z_target_q = (
-            symplectic_matrix[i, target_q]
-            ^ symplectic_matrix[i, cqz]
-            ^ symplectic_matrix[i, control_q]
-        )
-        symplectic_matrix[i, cqz] = z_control_q
-        symplectic_matrix[i, tqz] = z_target_q
-        tmp = symplectic_matrix[i, control_q]
-        symplectic_matrix[i, control_q] = symplectic_matrix[i, target_q]
-        symplectic_matrix[i, target_q] = tmp
+        );
+        const bool z_control_q = (
+            symplectic_matrix[i * dim + target_q]
+            ^ symplectic_matrix[i * dim + tqz]
+            ^ symplectic_matrix[i * dim + control_q]
+        );
+        const bool z_target_q = (
+            symplectic_matrix[i * dim + target_q]
+            ^ symplectic_matrix[i * dim + cqz]
+            ^ symplectic_matrix[i * dim + control_q]
+        );
+        symplectic_matrix[i * dim + cqz] = z_control_q;
+        symplectic_matrix[i * dim + tqz] = z_target_q;
+        tmp = symplectic_matrix[i * dim + control_q];
+        symplectic_matrix[i * dim + control_q] = symplectic_matrix[i * dim + target_q];
+        symplectic_matrix[i * dim + target_q] = tmp;
+    };
+}
+""" + apply_two_qubits_kernel.format(
+    "iSWAP", "iSWAP"
+)
+
+apply_iSWAP = cp.RawKernel(apply_iSWAP, "apply_iSWAP", options=("--std=c++11",))
 
 
 def iSWAP(symplectic_matrix, control_q, target_q, nqubits):
-    apply_iSWAP[GRIDDIM, BLOCKDIM](symplectic_matrix, control_q, target_q, nqubits)
+    two_qubits_kernel_launcher(
+        apply_iSWAP, symplectic_matrix, control_q, target_q, nqubits
+    )
     return symplectic_matrix
 
 
-@jit.rawkernel()
-def apply_CY(symplectic_matrix, control_q, target_q, nqubits):
-    """Decomposition --> S-CNOT-SDG"""
-    cqz = nqubits + control_q
-    tqz = nqubits + target_q
-    tid = jit.blockIdx.x * jit.blockDim.x + jit.threadIdx.x
-    ntid = jit.gridDim.x * jit.blockDim.x
-    for i in range(tid, symplectic_matrix.shape[0] - 1, ntid):
-        symplectic_matrix[i, -1] = (
-            symplectic_matrix[i, -1]
+apply_CY = """
+__device__ void _apply_CY(bool* symplectic_matrix, const int& control_q, const int& target_q, const int& nqubits, const int& cqz, const int& tqz, const int& dim) {
+    const int tid = blockIdx.x * blockDim.x + threadIdx.x;
+    const int ntid = gridDim.x * blockDim.x;
+    const int last = dim - 1;
+    for(int i = tid; i < last; i += ntid) {
+        symplectic_matrix[i * dim + last] = (
+            symplectic_matrix[i * dim + last]
             ^ (
-                symplectic_matrix[i, target_q]
-                & (symplectic_matrix[i, tqz] ^ symplectic_matrix[i, target_q])
+                symplectic_matrix[i * dim + target_q]
+                & (symplectic_matrix[i * dim + tqz] ^ symplectic_matrix[i * dim + target_q])
             )
             ^ (
-                symplectic_matrix[i, control_q]
-                & (symplectic_matrix[i, target_q] ^ symplectic_matrix[i, tqz])
-                & (symplectic_matrix[i, cqz] ^ ~symplectic_matrix[i, target_q])
+                symplectic_matrix[i * dim + control_q]
+                & (symplectic_matrix[i * dim + target_q] ^ symplectic_matrix[i * dim + tqz])
+                & (symplectic_matrix[i * dim + cqz] ^ symplectic_matrix[i * dim + target_q] ^ 1)
             )
             ^ (
-                (symplectic_matrix[i, target_q] ^ symplectic_matrix[i, control_q])
-                & (symplectic_matrix[i, tqz] ^ symplectic_matrix[i, target_q])
+                (symplectic_matrix[i * dim + target_q] ^ symplectic_matrix[i * dim + control_q])
+                & (symplectic_matrix[i * dim + tqz] ^ symplectic_matrix[i * dim + target_q])
             )
-        )
-        x_target_q = symplectic_matrix[i, control_q] ^ symplectic_matrix[i, target_q]
-        z_control_q = (
-            symplectic_matrix[i, cqz]
-            ^ symplectic_matrix[i, tqz]
-            ^ symplectic_matrix[i, target_q]
-        )
-        z_target_q = symplectic_matrix[i, tqz] ^ symplectic_matrix[i, control_q]
-        symplectic_matrix[i, target_q] = x_target_q
-        symplectic_matrix[i, cqz] = z_control_q
-        symplectic_matrix[i, tqz] = z_target_q
+        );
+        const bool x_target_q = symplectic_matrix[i * dim + control_q] ^ symplectic_matrix[i * dim + target_q];
+        const bool z_control_q = (
+            symplectic_matrix[i * dim + cqz]
+            ^ symplectic_matrix[i * dim + tqz]
+            ^ symplectic_matrix[i * dim + target_q]
+        );
+        const bool z_target_q = symplectic_matrix[i * dim + tqz] ^ symplectic_matrix[i * dim + control_q];
+        symplectic_matrix[i * dim + target_q] = x_target_q;
+        symplectic_matrix[i * dim + cqz] = z_control_q;
+        symplectic_matrix[i * dim + tqz] = z_target_q;
+    };
+}
+""" + apply_two_qubits_kernel.format(
+    "CY", "CY"
+)
+
+apply_CY = cp.RawKernel(apply_CY, "apply_CY", options=("--std=c++11",))
 
 
 def CY(symplectic_matrix, control_q, target_q, nqubits):
-    apply_CY[GRIDDIM, BLOCKDIM](symplectic_matrix, control_q, target_q, nqubits)
+    two_qubits_kernel_launcher(
+        apply_CY, symplectic_matrix, control_q, target_q, nqubits
+    )
     return symplectic_matrix
 
 
