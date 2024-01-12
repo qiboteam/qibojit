@@ -7,7 +7,7 @@ BLOCKDIM_2D = (32, 32)
 
 apply_one_qubit_kernel = """
 extern "C"
-__global__ void apply_{}(bool* symplectic_matrix, const int q, const int nqubits, conts int qz, const int dim) {{
+__global__ void apply_{}(bool* symplectic_matrix, const int q, const int nqubits, const int qz, const int dim) {{
     _apply_{}(symplectic_matrix, q, nqubits, qz, dim);
 }}
 """
@@ -20,17 +20,21 @@ __global__ void apply_{}(bool* symplectic_matrix, const int control_q, const int
 """
 
 
-def one_qubit_kernel_launcher(kernel, args):
+def one_qubit_kernel_launcher(kernel, symplectic_matrix, q, nqubits):
     qz = nqubits + q
-    dim = symplectic_matrix.shape[0]
-    return kernel((GRIDDIM,), (BLOCKDIM,), (*args, qz, dim))
+    dim = 2 * nqubits + 1
+    return kernel((GRIDDIM,), (BLOCKDIM,), (symplectic_matrix, q, nqubits, qz, dim))
 
 
-def two_qubits_kernel_launcher(kernel, args):
+def two_qubits_kernel_launcher(kernel, symplectic_matrix, control_q, target_q, nqubits):
     cqz = nqubits + control_q
     tqz = nqubits + target_q
-    dim = symplectic_matrix.shape[0]
-    return kernel((GRIDDIM,), (BLOCKDIM,), (*args, cqz, tqz, dim))
+    dim = 2 * nqubits + 1
+    return kernel(
+        (GRIDDIM,),
+        (BLOCKDIM,),
+        (symplectic_matrix, control_q, target_q, nqubits, cqz, tqz, dim),
+    )
 
 
 apply_H = """
