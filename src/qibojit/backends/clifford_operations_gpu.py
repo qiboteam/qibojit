@@ -2,8 +2,8 @@ import cupy as cp
 import numpy as np
 
 GRIDDIM, BLOCKDIM = 1024, 128
-BLOCKDIM_2D = (16, 64)
-GRIDDIM_2D = (8, 32)
+BLOCKDIM_2D = (64, 16)
+GRIDDIM_2D = (32, 8)
 
 apply_one_qubit_kernel = """
 extern "C"
@@ -572,23 +572,23 @@ __device__ void _apply_rowsum(bool* symplectic_matrix, const int* h, const int *
     unsigned int ntid_y = gridDim.y * blockDim.y;
     const int last = dim - 1;
     for(int j = tid_y; j < nrows; j += ntid_y) {
-        int jz = nqubits + j;
         for(int k = tid_x; k < nqubits; k += ntid_x) {
-            bool x1_eq_z1 = symplectic_matrix[i[k] * dim + j] == symplectic_matrix[i[k] * dim + jz];
-            bool x1_eq_0 = symplectic_matrix[i[k] * dim + j] == false;
+            unsigned int kz = nqubits + k;
+            bool x1_eq_z1 = symplectic_matrix[i[j] * dim + k] == symplectic_matrix[i[j] * dim + kz];
+            bool x1_eq_0 = symplectic_matrix[i[j] * dim + k] == false;
             if (x1_eq_z1) {
                 if (not x1_eq_0) {
-                    exp[j] += ((int) symplectic_matrix[h[k] * dim + jz]) -
-                        (int) symplectic_matrix[h[k] * dim + j];
+                    exp[j] += ((int) symplectic_matrix[h[j] * dim + kz]) -
+                        (int) symplectic_matrix[h[j] * dim + k];
                 }
             } else {
                 if (x1_eq_0) {
-                    exp[j] += ((int) symplectic_matrix[h[k] * dim + j]) * (
-                        1 - 2 * (int) symplectic_matrix[h[k] * dim + jz]
+                    exp[j] += ((int) symplectic_matrix[h[j] * dim + k]) * (
+                        1 - 2 * (int) symplectic_matrix[h[j] * dim + kz]
                     );
                 } else {
-                    exp[j] += ((int) symplectic_matrix[h[k] * dim + jz]) * (
-                        2 * (int) symplectic_matrix[h[k] * dim + j] - 1
+                    exp[j] += ((int) symplectic_matrix[h[j] * dim + kz]) * (
+                        2 * (int) symplectic_matrix[h[j] * dim + k] - 1
                     );
                 }
             }
@@ -600,7 +600,7 @@ __device__ void _apply_rowsum(bool* symplectic_matrix, const int* h, const int *
             ) % 4 != 0;
         }
         for(int k = tid_x; k < nqubits; k += ntid_x) {
-            int kz = nqubits + k;
+            unsigned int kz = nqubits + k;
             symplectic_matrix[h[j] * dim + k] = (
                 symplectic_matrix[i[j] * dim + k] ^ symplectic_matrix[h[j] * dim + k]
             );
@@ -624,7 +624,7 @@ def _rowsum(symplectic_matrix, h, i, nqubits):
     nrows = len(h)
     exp = cp.zeros(len(h), dtype=cp.uint)
     apply_rowsum(
-        GRIDDIM_2D, BLOCKDIM_2D, (symplectic_matrix, h, i, nqubits, nrows, dim)
+        GRIDDIM_2D, BLOCKDIM_2D, (symplectic_matrix, h, i, nqubits, nrows, exp, dim)
     )
     return symplectic_matrix
 
