@@ -566,21 +566,22 @@ def CY(symplectic_matrix, control_q, target_q, nqubits):
 
 # This might be optimized using shared memory and warp reduction
 apply_rowsum = """
-__device__ void _apply_rowsum(bool* symplectic_matrix, const int* h, const int *i, const int& nqubits, const int& nrows, int* exp, const int& dim):
-    tid_x = blockIdx.x * blockDim.x + threadIdx.x;
-    tid_y = blockIdx.y * blockDim.y + threadIdx.y;
-    ntid_x = gridDim.x * blockDim.x;
-    ntid_y = gridDim.y * blockDim.y;
+__device__ void _apply_rowsum(bool* symplectic_matrix, const int* h, const int *i, const int& nqubits, const int& nrows, int* exp, const int& dim) {
+    unsigned int tid_x = blockIdx.x * blockDim.x + threadIdx.x;
+    unsigned int tid_y = blockIdx.y * blockDim.y + threadIdx.y;
+    unsigned int ntid_x = gridDim.x * blockDim.x;
+    unsigned int ntid_y = gridDim.y * blockDim.y;
     const int last = dim - 1;
     for(int j = tid_y; j < nrows; j += ntid_y) {
         int jz = nqubits + j;
         for(int k = tid_x; k < nqubits; k += ntid_x) {
-            x1_eq_z1 = symplectic_matrix[i[k] * dim + j] == symplectic_matrix[i[k] * dim + jz];
-            x1_eq_0 = symplectic_matrix[i[k] * dim + j] == False
+            bool x1_eq_z1 = symplectic_matrix[i[k] * dim + j] == symplectic_matrix[i[k] * dim + jz];
+            bool x1_eq_0 = symplectic_matrix[i[k] * dim + j] == false;
             if (x1_eq_z1) {
-                if not x1_eq_0:
+                if (not x1_eq_0) {
                     exp[j] += ((int) symplectic_matrix[h[k] * dim + jz]) -
                         (int) symplectic_matrix[h[k] * dim + j];
+                }
             } else {
                 if (x1_eq_0) {
                     exp[j] += ((int) symplectic_matrix[h[k] * dim + j]) * (
@@ -604,11 +605,12 @@ __device__ void _apply_rowsum(bool* symplectic_matrix, const int* h, const int *
             symplectic_matrix[h[j] * dim + k] = (
                 symplectic_matrix[i[j] * dim + k] ^ symplectic_matrix[h[j] * dim + k]
             );
-            symplectic_matrix[h[j], nqubits + k] = (
+            symplectic_matrix[h[j] * dim + kz] = (
                 symplectic_matrix[i[j] * dim + kz] ^ symplectic_matrix[h[j] * dim + kz]
             );
         }
     }
+}
 extern "C"
 __global__ void apply_rowsum(bool* symplectic_matrix, const int* h, const int* i, const int nqubits, const int nrows, int* exp, const int dim) {
     _apply_rowsum(symplectic_matrix, h, i, nqubits, nrows, exp, dim);
