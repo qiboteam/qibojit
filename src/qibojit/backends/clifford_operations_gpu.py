@@ -1,6 +1,5 @@
 import cupy as cp
 import numpy as np
-from cupyx import jit
 
 GRIDDIM, BLOCKDIM = 1024, 128
 BLOCKDIM_2D = (16, 64)
@@ -105,7 +104,7 @@ __device__ void _apply_CZ(bool* symplectic_matrix, const int& control_q, const i
             ^ (
                 symplectic_matrix[i * dim + control_q]
                 & symplectic_matrix[i * dim + target_q]
-                & (symplectic_matrix[i * dim + tqz] ^ symplectic_matrix[i * dim + cqz]) ^ 1
+                & (symplectic_matrix[i * dim + tqz] ^ symplectic_matrix[i * dim + cqz] ^ 1)
             )
             ^ (
                 symplectic_matrix[i * dim + target_q]
@@ -624,8 +623,8 @@ def _rowsum(symplectic_matrix, h, i, nqubits):
     dim = 2 * nqubits + 1
     nrows = len(h)
     exp = cp.zeros(len(h), dtype=cp.uint)
-    _apply_rowsum(
-        GRIDDIM2D, BLOCKDIM_2D, (symplectic_matrix, h, i, nqubits, nrows, dim)
+    apply_rowsum(
+        GRIDDIM_2D, BLOCKDIM_2D, (symplectic_matrix, h, i, nqubits, nrows, dim)
     )
     return symplectic_matrix
 
