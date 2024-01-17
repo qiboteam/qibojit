@@ -594,7 +594,7 @@ __device__ void _apply_rowsum(bool* symplectic_matrix, const int* h, const int *
             }
         }
         __syncthreads();
-        if (threadIdx.x == 0) {
+        if (threadIdx.x == 0 && blockIdx.x == 0) {
             symplectic_matrix[h[j] * dim + last] = (
                 2 * symplectic_matrix[h[j] * dim + last] + 2 * symplectic_matrix[i[j] * dim + last] + exp[j]
             ) % 4 != 0;
@@ -622,7 +622,7 @@ apply_rowsum = cp.RawKernel(apply_rowsum, "apply_rowsum", options=("--std=c++11"
 def _rowsum(symplectic_matrix, h, i, nqubits):
     dim = 2 * nqubits + 1
     nrows = len(h)
-    exp = cp.zeros(len(h), dtype=cp.uint)
+    exp = cp.zeros(len(h), dtype=int)
     apply_rowsum(
         GRIDDIM_2D, BLOCKDIM_2D, (symplectic_matrix, h, i, nqubits, nrows, exp, dim)
     )
@@ -638,13 +638,13 @@ def _random_outcome(state, p, q, nqubits):
         state = _rowsum(
             state,
             h,
-            p * cp.ones(h.shape[0], dtype=np.uint),
+            p.astype(cp.uint) * cp.ones(h.shape[0], dtype=np.uint),
             nqubits,
         )
     state[p - nqubits, :] = state[p, :]
-    outcome = cp.random.randint(2, size=1)
+    outcome = cp.random.randint(2, size=None, dtype=cp.uint)
     state[p, :] = 0
-    state[p, -1] = outcome
+    state[p, -1] = outcome.astype(bool)
     state[p, nqubits + q] = 1
     return state, outcome
 
