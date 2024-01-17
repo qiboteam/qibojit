@@ -1,3 +1,5 @@
+from functools import cache
+
 import cupy as cp
 import numpy as np
 
@@ -564,7 +566,7 @@ def CY(symplectic_matrix, control_q, target_q, nqubits):
 
 
 # This might be optimized using shared memory and warp reduction
-apply_rowsum = """
+_apply_rowsum = """
 __device__ void _apply_rowsum(bool* symplectic_matrix, const int* h, const int *i, const int& nqubits, const int& nrows, int* exp, const int& dim) {
     unsigned int tid_x = blockIdx.x * blockDim.x + threadIdx.x;
     unsigned int tid_y = blockIdx.y * blockDim.y + threadIdx.y;
@@ -610,17 +612,26 @@ __device__ void _apply_rowsum(bool* symplectic_matrix, const int* h, const int *
         }
     }
 }
+"""
+
+apply_rowsum = f"""
+{_apply_rowsum}
 extern "C"
-__global__ void apply_rowsum(bool* symplectic_matrix, const int* h, const int* i, const int nqubits, const int nrows, int* exp, const int dim) {
+__global__ void apply_rowsum(bool* symplectic_matrix, const int* h, const int* i, const int nqubits, const int nrows, int* exp, const int dim) {{
     _apply_rowsum(symplectic_matrix, h, i, nqubits, nrows, exp, dim);
-}
+}}
 """
 
 apply_rowsum = cp.RawKernel(apply_rowsum, "apply_rowsum", options=("--std=c++11",))
 
 
+@cache
+def _get_dim(nqubits):
+    return 2 * nqubits + 1
+
+
 def _rowsum(symplectic_matrix, h, i, nqubits):
-    dim = 2 * nqubits + 1
+    dim = _get_dim(nqubits)
     nrows = len(h)
     exp = cp.zeros(len(h), dtype=int)
     apply_rowsum(
@@ -629,11 +640,18 @@ def _rowsum(symplectic_matrix, h, i, nqubits):
     return symplectic_matrix
 
 
+def _get_p(state, nqubtis, q):
+    dim = _get_dim(nqubits)
+    return state.reshape(dim, dim)[nqubits:-1, q].nonzero()[0]
+
+
 def _random_outcome(state, p, q, nqubits):
+    dim = _get_dim(nqubits)
     p = p[0] + nqubits
-    h = state[:-1, q].copy()
-    h[p] = False
-    h = h.nonzero()[0]
+    tmp = state[p * dim + q].copy()
+    state[p * dim + q] = False
+    h = state.reshape(dim, dim)[:-1, q].nonzero()[0]
+    state[p * dim + q] = tmp
     if h.shape[0] > 0:
         state = _rowsum(
             state,
@@ -641,30 +659,37 @@ def _random_outcome(state, p, q, nqubits):
             p.astype(cp.uint) * cp.ones(h.shape[0], dtype=np.uint),
             nqubits,
         )
+    state = state.reshape(dim, dim)
     state[p - nqubits, :] = state[p, :]
     outcome = cp.random.randint(2, size=None, dtype=cp.uint)
-    state[p, :] = 0
+    state[p, :] = False
     state[p, -1] = outcome.astype(bool)
-    state[p, nqubits + q] = 1
-    return state, outcome
+    state[p, nqubits + q] = True
+    return state.ravel(), outcome
 
 
-"""
-@jit.rawkernel()
-def _determined_outcome(state, q, nqubits):
-    state[-1, :] = False
-    indices = state[:nqubits, q].nonzero()[0]
-    tid = jit.blockIdx.indices * jit.blockDim.indices + jit.threadIdx.indices
-    ntid = jit.gridDim.indices * jit.blockDim.indices
-    for i in range(tid, len(indices), ntid):
-        state = _rowsum(
-            state,
-            np.array([2 * nqubits], dtype=uint64),
-            np.array([indices[i] + nqubits], dtype=uint64),
-            nqubits,
-            include_scratch=True,
-        )
-    return state, uint64(state[-1, -1])
+__random_outcome = f"""
+#include <stdlib.h>
+{_apply_rowsum}
+__device__ void random_outcome(bool* state, int& p, int& q, int& nqubits, int& dim, int& outcome) {{
+    unsigned int tid_y = blockIdx.y;
+    unsigned int ntid_y = gridDim.y;
+    for(int j = tid_y; j < dim - 1; j += ntid_y) {{
+        if (state[j * dim + q] && j != p) {{
+            _apply_rowsum(state, j, p, nqubits, dim)
+        }}
+    }}
+    unsigned int tid_x = blockIdx.x * blockDim.x + threadIdx.x;
+    for(int j = tid_x * (1 + tid_y); j < dim; j += ntid_y) {{
+        state[(p - nqubits) * dim + j] = state[p * dim + j];
+        state[p * dim + j] = false;
+    }}
+    if (threadIdx.x == 0 && blockIdx.x == 0 && blockIdx.y == 0) {{
+        outcome = rand() % 2;
+        state[p * dim + dim] = (bool) outcome;
+        state[p * dim + nqubits + q] = true;
+    }}
+}}
 """
 
 
