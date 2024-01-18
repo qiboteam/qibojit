@@ -157,12 +157,12 @@ class CupyBackend(NumbaBackend):  # pragma: no cover
     def issparse(self, x):
         return self.sparse.issparse(x) or self.npsparse.issparse(x)
 
-    def reshape_clifford_state(self, state, nqubits):
-        if len(state.shape) > 1:
-            return state.ravel()
-        else:
-            dim = 2 * nqubits + 1
-            return state.reshape(dim, dim)
+    def clifford_pre_execution_reshape(self, state):
+        return state.ravel()
+
+    def clifford_post_execution_reshape(self, state, nqubits):
+        dim = 2 * nqubits + 1
+        return state.reshape(dim, dim)
 
     def zero_state(self, nqubits):
         n = 1 << nqubits

@@ -315,22 +315,6 @@ def SXDG(symplectic_matrix, q, nqubits):
     return symplectic_matrix
 
 
-@jit.rawkernel()
-def apply_RY_pi(symplectic_matrix, q, nqubits):
-    """Decomposition --> H-S-S"""
-    tid = jit.blockIdx.x * jit.blockDim.x + jit.threadIdx.x
-    ntid = jit.gridDim.x * jit.blockDim.x
-    qz = nqubits + q
-    for i in range(tid, symplectic_matrix.shape[0] - 1, ntid):
-        symplectic_matrix[i, -1] = symplectic_matrix[i, -1] ^ (
-            symplectic_matrix[i, q]
-            & (symplectic_matrix[i, qz] ^ symplectic_matrix[i, q])
-        )
-        zq = symplectic_matrix[i, qz]
-        symplectic_matrix[i, qz] = symplectic_matrix[i, q]
-        symplectic_matrix[i, q] = zq
-
-
 apply_RY_pi = """
 __device__ void _apply_RY_pi(bool* symplectic_matrix, const int& q, const int& nqubits, const int& qz, const int& dim) {
     const int tid = blockIdx.x * blockDim.x + threadIdx.x;
@@ -640,7 +624,7 @@ def _rowsum(symplectic_matrix, h, i, nqubits):
     return symplectic_matrix
 
 
-def _get_p(state, nqubtis, q):
+def _get_p(state, q, nqubits):
     dim = _get_dim(nqubits)
     return state.reshape(dim, dim)[nqubits:-1, q].nonzero()[0]
 
@@ -648,10 +632,11 @@ def _get_p(state, nqubtis, q):
 def _random_outcome(state, p, q, nqubits):
     dim = _get_dim(nqubits)
     p = p[0] + nqubits
-    tmp = state[p * dim + q].copy()
-    state[p * dim + q] = False
+    idx_pq = p * dim + q
+    tmp = state[idx_pq].copy()
+    state[idx_pq] = False
     h = state.reshape(dim, dim)[:-1, q].nonzero()[0]
-    state[p * dim + q] = tmp
+    state[idx_pq] = tmp
     if h.shape[0] > 0:
         state = _rowsum(
             state,
@@ -694,12 +679,13 @@ __device__ void random_outcome(bool* state, int& p, int& q, int& nqubits, int& d
 
 
 def _determined_outcome(state, q, nqubits):
-    state[-1, :] = False
-    for i in state[:nqubits, q].nonzero()[0]:
+    dim = _get_dim(nqubits)
+    state.reshape(dim, dim)[-1, :] = False
+    for i in state.reshape(dim, dim)[:nqubits, q].nonzero()[0]:
         state = _rowsum(
             state,
             cp.array([2 * nqubits], dtype=np.uint),
             cp.array([i + nqubits], dtype=np.uint),
             nqubits,
         )
-    return state, cp.uint(state[-1, -1])
+    return state, state[-1, -1].astype(cp.uint)
