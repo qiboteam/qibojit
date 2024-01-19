@@ -551,7 +551,7 @@ def CY(symplectic_matrix, control_q, target_q, nqubits):
 
 # This might be optimized using shared memory and warp reduction
 _apply_rowsum = """
-__device__ void _apply_rowsum(bool* symplectic_matrix, const int* h, const int *i, const int& nqubits, const int& nrows, int* exp, const int& dim) {
+__device__ void _apply_rowsum(bool* symplectic_matrix, const long* h, const long* i, const int& nqubits, const int& nrows, long* exp, const int& dim) {
     unsigned int tid_x = blockIdx.x * blockDim.x + threadIdx.x;
     unsigned int tid_y = blockIdx.y * blockDim.y + threadIdx.y;
     unsigned int ntid_x = gridDim.x * blockDim.x;
@@ -601,7 +601,7 @@ __device__ void _apply_rowsum(bool* symplectic_matrix, const int* h, const int *
 apply_rowsum = f"""
 {_apply_rowsum}
 extern "C"
-__global__ void apply_rowsum(bool* symplectic_matrix, const int* h, const int* i, const int nqubits, const int nrows, int* exp, const int dim) {{
+__global__ void apply_rowsum(bool* symplectic_matrix, const long* h, const long* i, const int nqubits, const int nrows, long* exp, const int dim) {{
     _apply_rowsum(symplectic_matrix, h, i, nqubits, nrows, exp, dim);
 }}
 """
@@ -688,4 +688,4 @@ def _determined_outcome(state, q, nqubits):
             cp.array([i + nqubits], dtype=np.uint),
             nqubits,
         )
-    return state, state[-1, -1].astype(cp.uint)
+    return state, state[dim * dim - 1].astype(cp.uint)
