@@ -22,7 +22,7 @@ classifiers=[
 [tool.poetry.dependencies]
 python=">=3.9.0,<3.12"
 numba=">=0.51.0"
-qibo={ git = "git@github.com:qiboteam/qibo.git", branch = "clifford_simulator_numba" }
+qibo={ git = "https://github.com/qiboteam/qibo.git", branch = "clifford_simulator_numba" }
 scipy = "^1.10.1"
 psutil = "^5.9.5"
 
