@@ -5,7 +5,6 @@ from qibo.backends import clifford_operations
 from qibo.backends.numpy import NumpyBackend
 from qibo.config import log, raise_error
 
-from qibojit.backends import clifford_operations_gpu
 from qibojit.backends.cpu import NumbaBackend
 from qibojit.backends.matrices import CupyMatrices, CuQuantumMatrices, CustomMatrices
 
@@ -101,6 +100,8 @@ class CupyBackend(NumbaBackend):  # pragma: no cover
 
         # number of available GPUs (for multigpu)
         self.ngpus = cp.cuda.runtime.getDeviceCount()
+
+        from qibojit.backends import clifford_operations_gpu
 
         spec = find_spec("qibo.backends.clifford_operations")
         self.clifford_operations = module_from_spec(spec)
