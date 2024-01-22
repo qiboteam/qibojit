@@ -7,7 +7,7 @@ def H(symplectic_matrix, q, nqubits):
     r = symplectic_matrix[:-1, -1]
     x = symplectic_matrix[:-1, :nqubits]
     z = symplectic_matrix[:-1, nqubits:-1]
-    for i in prange(symplectic_matrix.shape[0] - 1):  # pylint: disable=E0401
+    for i in prange(symplectic_matrix.shape[0] - 1):  # pylint: disable=not-an-iterable
         symplectic_matrix[i, -1] = r[i] ^ (x[i, q] & z[i, q])
         tmp = symplectic_matrix[i, q]
         symplectic_matrix[i, q] = symplectic_matrix[i, nqubits + q]
@@ -20,7 +20,7 @@ def CNOT(symplectic_matrix, control_q, target_q, nqubits):
     r = symplectic_matrix[:-1, -1]
     x = symplectic_matrix[:-1, :nqubits]
     z = symplectic_matrix[:-1, nqubits:-1]
-    for i in prange(symplectic_matrix.shape[0] - 1):  # pylint: disable=E0401
+    for i in prange(symplectic_matrix.shape[0] - 1):  # pylint: disable=not-an-iterable
         symplectic_matrix[i, -1] = r[i] ^ (x[i, control_q] & z[i, target_q]) & (
             x[i, target_q] ^ ~z[i, control_q]
         )
@@ -35,7 +35,7 @@ def CZ(symplectic_matrix, control_q, target_q, nqubits):
     r = symplectic_matrix[:-1, -1]
     x = symplectic_matrix[:-1, :nqubits]
     z = symplectic_matrix[:-1, nqubits:-1]
-    for i in prange(symplectic_matrix.shape[0] - 1):  # pylint: disable=E0401
+    for i in prange(symplectic_matrix.shape[0] - 1):  # pylint: disable=not-an-iterable
         symplectic_matrix[i, -1] = (
             r[i]
             ^ (x[i, target_q] & z[i, target_q])
@@ -54,7 +54,7 @@ def S(symplectic_matrix, q, nqubits):
     r = symplectic_matrix[:-1, -1]
     x = symplectic_matrix[:-1, :nqubits]
     z = symplectic_matrix[:-1, nqubits:-1]
-    for i in prange(symplectic_matrix.shape[0] - 1):  # pylint: disable=E0401
+    for i in prange(symplectic_matrix.shape[0] - 1):  # pylint: disable=not-an-iterable
         symplectic_matrix[i, -1] = r[i] ^ (x[i, q] & z[i, q])
         symplectic_matrix[i, nqubits + q] = z[i, q] ^ x[i, q]
     return symplectic_matrix
@@ -66,7 +66,7 @@ def Z(symplectic_matrix, q, nqubits):
     r = symplectic_matrix[:-1, -1]
     x = symplectic_matrix[:-1, :nqubits]
     z = symplectic_matrix[:-1, nqubits:-1]
-    for i in prange(symplectic_matrix.shape[0] - 1):  # pylint: disable=E0401
+    for i in prange(symplectic_matrix.shape[0] - 1):  # pylint: disable=not-an-iterable
         symplectic_matrix[i, -1] = r[i] ^ (
             (x[i, q] & z[i, q]) ^ x[i, q] & (z[i, q] ^ x[i, q])
         )
@@ -79,7 +79,7 @@ def X(symplectic_matrix, q, nqubits):
     r = symplectic_matrix[:-1, -1]
     x = symplectic_matrix[:-1, :nqubits]
     z = symplectic_matrix[:-1, nqubits:-1]
-    for i in prange(symplectic_matrix.shape[0] - 1):  # pylint: disable=E0401
+    for i in prange(symplectic_matrix.shape[0] - 1):  # pylint: disable=not-an-iterable
         symplectic_matrix[i, -1] = (
             r[i] ^ (z[i, q] & (z[i, q] ^ x[i, q])) ^ (z[i, q] & x[i, q])
         )
@@ -92,7 +92,7 @@ def Y(symplectic_matrix, q, nqubits):
     r = symplectic_matrix[:-1, -1]
     x = symplectic_matrix[:-1, :nqubits]
     z = symplectic_matrix[:-1, nqubits:-1]
-    for i in prange(symplectic_matrix.shape[0] - 1):  # pylint: disable=E0401
+    for i in prange(symplectic_matrix.shape[0] - 1):  # pylint: disable=not-an-iterable
         symplectic_matrix[i, -1] = (
             r[i] ^ (z[i, q] & (z[i, q] ^ x[i, q])) ^ (x[i, q] & (z[i, q] ^ x[i, q]))
         )
@@ -105,7 +105,7 @@ def SX(symplectic_matrix, q, nqubits):
     r = symplectic_matrix[:-1, -1]
     x = symplectic_matrix[:-1, :nqubits]
     z = symplectic_matrix[:-1, nqubits:-1]
-    for i in prange(symplectic_matrix.shape[0] - 1):  # pylint: disable=E0401
+    for i in prange(symplectic_matrix.shape[0] - 1):  # pylint: disable=not-an-iterable
         symplectic_matrix[i, -1] = r[i] ^ (z[i, q] & (z[i, q] ^ x[i, q]))
         symplectic_matrix[i, q] = z[i, q] ^ x[i, q]
     return symplectic_matrix
@@ -117,7 +117,7 @@ def SDG(symplectic_matrix, q, nqubits):
     r = symplectic_matrix[:-1, -1]
     x = symplectic_matrix[:-1, :nqubits]
     z = symplectic_matrix[:-1, nqubits:-1]
-    for i in prange(symplectic_matrix.shape[0] - 1):  # pylint: disable=E0401
+    for i in prange(symplectic_matrix.shape[0] - 1):  # pylint: disable=not-an-iterable
         symplectic_matrix[i, -1] = r[i] ^ (x[i, q] & (z[i, q] ^ x[i, q]))
         symplectic_matrix[i, nqubits + q] = z[i, q] ^ x[i, q]
     return symplectic_matrix
@@ -129,7 +129,7 @@ def SXDG(symplectic_matrix, q, nqubits):
     r = symplectic_matrix[:-1, -1]
     x = symplectic_matrix[:-1, :nqubits]
     z = symplectic_matrix[:-1, nqubits:-1]
-    for i in prange(symplectic_matrix.shape[0] - 1):  # pylint: disable=E0401
+    for i in prange(symplectic_matrix.shape[0] - 1):  # pylint: disable=not-an-iterable
         symplectic_matrix[i, -1] = r[i] ^ (z[i, q] & x[i, q])
         symplectic_matrix[i, q] = z[i, q] ^ x[i, q]
     return symplectic_matrix
@@ -141,7 +141,7 @@ def RY_pi(symplectic_matrix, q, nqubits):
     r = symplectic_matrix[:-1, -1]
     x = symplectic_matrix[:-1, :nqubits]
     z = symplectic_matrix[:-1, nqubits:-1]
-    for i in prange(symplectic_matrix.shape[0] - 1):  # pylint: disable=E0401
+    for i in prange(symplectic_matrix.shape[0] - 1):  # pylint: disable=not-an-iterable
         symplectic_matrix[i, -1] = r[i] ^ (x[i, q] & (z[i, q] ^ x[i, q]))
         zq = symplectic_matrix[i, nqubits + q]
         symplectic_matrix[i, nqubits + q] = symplectic_matrix[i, q]
@@ -155,7 +155,7 @@ def RY_3pi_2(symplectic_matrix, q, nqubits):
     r = symplectic_matrix[:-1, -1]
     x = symplectic_matrix[:-1, :nqubits]
     z = symplectic_matrix[:-1, nqubits:-1]
-    for i in prange(symplectic_matrix.shape[0] - 1):  # pylint: disable=E0401
+    for i in prange(symplectic_matrix.shape[0] - 1):  # pylint: disable=not-an-iterable
         symplectic_matrix[i, -1] = r[i] ^ (z[i, q] & (z[i, q] ^ x[i, q]))
         zq = symplectic_matrix[i, nqubits + q]
         symplectic_matrix[i, nqubits + q] = symplectic_matrix[i, q]
@@ -169,7 +169,7 @@ def SWAP(symplectic_matrix, control_q, target_q, nqubits):
     r = symplectic_matrix[:-1, -1]
     x = symplectic_matrix[:-1, :nqubits]
     z = symplectic_matrix[:-1, nqubits:-1]
-    for i in prange(symplectic_matrix.shape[0] - 1):  # pylint: disable=E0401
+    for i in prange(symplectic_matrix.shape[0] - 1):  # pylint: disable=not-an-iterable
         symplectic_matrix[:-1, -1] = (
             r[i]
             ^ (x[i, control_q] & z[i, target_q] & (x[i, target_q] ^ ~z[i, control_q]))
@@ -201,7 +201,7 @@ def iSWAP(symplectic_matrix, control_q, target_q, nqubits):
     r = symplectic_matrix[:-1, -1]
     x = symplectic_matrix[:-1, :nqubits]
     z = symplectic_matrix[:-1, nqubits:-1]
-    for i in prange(symplectic_matrix.shape[0] - 1):  # pylint: disable=E0401
+    for i in prange(symplectic_matrix.shape[0] - 1):  # pylint: disable=not-an-iterable
         symplectic_matrix[i, -1] = (
             r[i]
             ^ (x[i, target_q] & z[i, target_q])
@@ -235,7 +235,7 @@ def CY(symplectic_matrix, control_q, target_q, nqubits):
     r = symplectic_matrix[:-1, -1]
     x = symplectic_matrix[:-1, :nqubits]
     z = symplectic_matrix[:-1, nqubits:-1]
-    for i in prange(symplectic_matrix.shape[0] - 1):  # pylint: disable=E0401
+    for i in prange(symplectic_matrix.shape[0] - 1):  # pylint: disable=not-an-iterable
         symplectic_matrix[i, -1] = (
             r[i]
             ^ (x[i, target_q] & (z[i, target_q] ^ x[i, target_q]))
@@ -259,7 +259,7 @@ def CY(symplectic_matrix, control_q, target_q, nqubits):
 def _rowsum(symplectic_matrix, h, i, nqubits):
     xi, xh = symplectic_matrix[i, :nqubits], symplectic_matrix[h, :nqubits]
     zi, zh = symplectic_matrix[i, nqubits:-1], symplectic_matrix[h, nqubits:-1]
-    for j in prange(len(h)):  # pylint: disable=E0401
+    for j in prange(len(h)):  # pylint: disable=not-an-iterable
         exp = np.zeros(nqubits, dtype=uint64)
         x1_eq_z1 = (xi[j] ^ zi[j]) == False
         x1_neq_z1 = ~x1_eq_z1
