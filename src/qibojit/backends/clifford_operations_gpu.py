@@ -555,7 +555,10 @@ __device__ void _apply_rowsum(bool* symplectic_matrix, const long* h, const long
     unsigned int ntid_x = gridDim.x * blockDim.x;
     unsigned int nbid_y = gridDim.y;
     const int last = dim - 1;
-    __shared__ int exp = 0;
+    __shared__ int exp;
+    if (threadIdx.x == 0) {
+        exp = 0;
+    }
     for(int j = bid_y; j < nrows; j += nbid_y) {
         for(int k = tid_x; k < nqubits; k += ntid_x) {
             unsigned int kz = nqubits + k;
@@ -579,7 +582,7 @@ __device__ void _apply_rowsum(bool* symplectic_matrix, const long* h, const long
             }
         }
         if (threadIdx.x == 0 && tid_x < nqubits) {
-            g_exp[blockIdx.y] += exp;
+            g_exp[j] += exp;
         }
         __syncthreads();
         if (threadIdx.x == 0 && blockIdx.x == 0) {
@@ -615,7 +618,7 @@ __device__ void _apply_rowsum(bool* symplectic_matrix, const long* h, const long
 apply_rowsum = f"""
 {_apply_rowsum}
 extern "C"
-__global__ void apply_rowsum(bool* symplectic_matrix, const long* h, const long* i, const int nqubits, const bool& determined, const int nrows, long* g_exp, const int dim) {{
+__global__ void apply_rowsum(bool* symplectic_matrix, const long* h, const long* i, const int nqubits, const bool determined, const int nrows, long* g_exp, const int dim) {{
     _apply_rowsum(symplectic_matrix, h, i, nqubits, determined, nrows, g_exp, dim);
 }}
 """
@@ -628,12 +631,14 @@ def _get_dim(nqubits):
     return 2 * nqubits + 1
 
 
-def _rowsum(symplectic_matrix, h, i, nqubits):
+def _rowsum(symplectic_matrix, h, i, nqubits, determined=False):
     dim = _get_dim(nqubits)
     nrows = len(h)
     exp = cp.zeros(len(h), dtype=int)
     apply_rowsum(
-        GRIDDIM_2D, BLOCKDIM, (symplectic_matrix, h, i, nqubits, nrows, exp, dim)
+        GRIDDIM_2D,
+        (BLOCKDIM,),
+        (symplectic_matrix, h, i, nqubits, determined, nrows, exp, dim),
     )
     return symplectic_matrix
 
@@ -657,6 +662,7 @@ def _random_outcome(state, p, q, nqubits):
             h,
             p.astype(cp.uint) * cp.ones(h.shape[0], dtype=np.uint),
             nqubits,
+            False,
         )
     state = state.reshape(dim, dim)
     state[p - nqubits, :] = state[p, :]
@@ -705,7 +711,7 @@ def get_h(symplectic_matrix, p, q, nqubits):
 
 __random_outcome = f"""
 #include <stdlib.h>
-{__apply_rowsum}
+{_apply_rowsum}
 __device__ void random_outcome(bool* state, int& p, int& q, int& nqubits, int& dim, int& outcome) {{
     unsigned int tid_y = blockIdx.y;
     unsigned int ntid_y = gridDim.y;
@@ -731,12 +737,14 @@ __device__ void random_outcome(bool* state, int& p, int& q, int& nqubits, int& d
 
 def _determined_outcome(state, q, nqubits):
     dim = _get_dim(nqubits)
-    state.reshape(dim, dim)[-1, :] = False
-    for i in state.reshape(dim, dim)[:nqubits, q].nonzero()[0]:
-        state = _rowsum(
-            state,
-            cp.array([2 * nqubits], dtype=np.uint),
-            cp.array([i + nqubits], dtype=np.uint),
-            nqubits,
-        )
+    state = state.reshape(dim, dim)
+    state[-1, :] = False
+    idx = state[:nqubits, q].nonzero()[0]
+    state = _rowsum(
+        state.ravel(),
+        (2 * nqubits * cp.ones(idx.shape, dtype=np.uint)).astype(np.uint),
+        idx.astype(np.uint),
+        nqubits,
+        True,
+    )
     return state, state[dim * dim - 1].astype(cp.uint)
