@@ -711,25 +711,40 @@ __device__ void _apply_rowsum(bool* symplectic_matrix, const int& h, const int& 
 """
 
 _get_h = """
-__device__ void _get_h(bool* state, int& p, int& q, int& dim, int* g_h, int* g_nrows) {
+__device__ void _get_h(bool* state, int& p, int& q, int& dim, int* g_h, int& g_nrows) {
     const unsigned int tid_x = blockIdx.x * blockDim.x + threadIdx.x;
     const unsigned int ntid = gridDim.x * blockDim.x;
-    __shared__ unsigned int nrows;
-    __shared__ unsigned int h[];
-    unsigned int n_iterations = 1;
+    __shared__ unsigned int nrows = 0;
+    __shared__ unsigned int h[128]; // 128 fixed block dimension
+    unsigned int n_iterations = 0;
     for(int j = tid_x; j < dim - 1; j += ntid_x) {
         if (state[j * dim + q] && j != p) {
-             h[n_iterations * blockIdx.x + nrows + j] = j;
              nrows += 1;
+             h[nrows - 1] = j;
+        }
+        int idx = atomicAdd(&g_nrows, 1);
+        g_h[idx] = h[]
+        if (threadIdx.x == 0) {
+            for(int k = 0; k < nrows; k ++) {
+                g_h[(n_iterations * gridDim.x) + blockIdx.x * blockDim.x + k] = h[k];
+            }
+            g_nrows[(n_iterations * gridDim.x) + blockIdx.x] = nrows;
         }
         n_iterations += 1;
     }
-    for(int j = tid_x; j < dim - 1; j += ntid_x) {
-        if (threadIdx.x == 0) {
-            g_nrows[j]
-        }
-    }
+__global__ void get_h(bool* state, int& p, int& q, int& dim, int* g_h, int* g_nrows) {
+    _get_h(state, p, q, dim, g_h, g_nrows);
+    if threadIdx.x
+}
 """
+
+_get_h = cp.RawKernel(_get_h, "_get_h", options=("--std=c++11",))
+
+
+def get_h(symplectic_matrix, p, q, nqubits):
+    g_h = cp.zeros(_get_dim(nqubits))
+    g_nrows = cp.zeros(math.ceil(_get_dim(nqubits) / 128))
+
 
 __random_outcome = f"""
 #include <stdlib.h>

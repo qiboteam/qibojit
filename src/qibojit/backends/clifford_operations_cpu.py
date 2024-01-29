@@ -255,10 +255,16 @@ def CY(symplectic_matrix, control_q, target_q, nqubits):
     return symplectic_matrix
 
 
-@njit("b1[:,:](b1[:,:], u8[:], u8[:], u8)", parallel=True, cache=True)
-def _rowsum(symplectic_matrix, h, i, nqubits):
+@njit(
+    "b1[:,:](b1[:,:], u8[:], u8[:], u8, b1)", parallel=True, cache=True, fastmath=True
+)
+def _rowsum(symplectic_matrix, h, i, nqubits, determined=False):
     xi, xh = symplectic_matrix[i, :nqubits], symplectic_matrix[h, :nqubits]
     zi, zh = symplectic_matrix[i, nqubits:-1], symplectic_matrix[h, nqubits:-1]
+    if determined:
+        g_r = np.array([False for _ in range(h.shape[0])])
+        g_xi_xh = xi.copy()
+        g_zi_zh = xi.copy()
     for j in prange(len(h)):  # pylint: disable=not-an-iterable
         exp = np.zeros(nqubits, dtype=uint64)
         x1_eq_z1 = (xi[j] ^ zi[j]) == False
@@ -272,29 +278,24 @@ def _rowsum(symplectic_matrix, h, i, nqubits):
         exp[ind3] = zh[j, ind3].astype(uint64) * (2 * xh[j, ind3].astype(uint64) - 1)
         exp[ind4] = xh[j, ind4].astype(uint64) * (1 - 2 * zh[j, ind4].astype(uint64))
 
-        symplectic_matrix[h[j], -1] = (
+        r = (
             2 * symplectic_matrix[h[j], -1]
             + 2 * symplectic_matrix[i[j], -1]
             + np.sum(exp)
         ) % 4 != 0
-        symplectic_matrix[h[j], :nqubits] = xi[j] ^ xh[j]
-        symplectic_matrix[h[j], nqubits:-1] = zi[j] ^ zh[j]
+        xi_xh = xi[j] ^ xh[j]
+        zi_zh = zi[j] ^ zh[j]
+        if determined:  # for some reason xor reduction fails here
+            g_r[j] = r  # thus, I cannot do g_r += r here
+            g_xi_xh[j] = xi_xh
+            g_zi_zh[j] = zi_zh
+        else:
+            symplectic_matrix[h[j], -1] = r
+            symplectic_matrix[h[j], :nqubits] = xi_xh
+            symplectic_matrix[h[j], nqubits:-1] = zi_zh
+    if determined:
+        for j in prange(len(g_r)):
+            symplectic_matrix[h[0], -1] ^= g_r[j]
+            symplectic_matrix[h[0], :nqubits] ^= g_xi_xh[j]
+            symplectic_matrix[h[0], nqubits:-1] ^= g_zi_zh[j]
     return symplectic_matrix
-
-
-"""
-# Not parallelizable?
-@njit("Tuple((b1[:,:], u8))(b1[:,:], u8, u8)", parallel=False, cache=True)
-def _determined_outcome(state, q, nqubits):
-    state[-1, :] = False
-    indices = state[:nqubits, q].nonzero()[0]
-    for i in prange(len(indices)):
-        state = _rowsum(
-            state,
-            np.array([2 * nqubits], dtype=uint64),
-            np.array([indices[i] + nqubits], dtype=uint64),
-            nqubits,
-            include_scratch=True,
-        )
-    return state, uint64(state[-1, -1])
-"""
