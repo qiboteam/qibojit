@@ -590,25 +590,22 @@ __device__ void _apply_rowsum(bool* symplectic_matrix, const long* h, const long
                 2 * symplectic_matrix[h[j] * dim + last] + 2 * symplectic_matrix[i[j] * dim + last] + g_exp[j]
             ) % 4 != 0;
         }
-        if (determined) {
-            for(int k = tid_x; k < nqubits; k += ntid_x) {
-                unsigned int kz = nqubits + k;
-                symplectic_matrix[h[j] * dim + k] ^= (
-                    symplectic_matrix[i[j] * dim + k] ^ symplectic_matrix[h[j] * dim + k]
-                );
-                symplectic_matrix[h[j] * dim + kz] ^= (
-                    symplectic_matrix[i[j] * dim + kz] ^ symplectic_matrix[h[j] * dim + kz]
-                );
-            }
-        } else {
-            for(int k = tid_x; k < nqubits; k += ntid_x) {
-                unsigned int kz = nqubits + k;
-                symplectic_matrix[h[j] * dim + k] = (
-                    symplectic_matrix[i[j] * dim + k] ^ symplectic_matrix[h[j] * dim + k]
-                );
-                symplectic_matrix[h[j] * dim + kz] = (
-                    symplectic_matrix[i[j] * dim + kz] ^ symplectic_matrix[h[j] * dim + kz]
-                );
+        for(int k = tid_x; k < nqubits; k += ntid_x) {
+            unsigned int kz = nqubits + k;
+            unsigned int row_i = i[j] * dim;
+            unsigned int row_h = h[j] * dim;
+            bool xi_xh = (
+                symplectic_matrix[row_i + k] ^ symplectic_matrix[row_h + k]
+            );
+            bool zi_zh = (
+                symplectic_matrix[row_i + kz] ^ symplectic_matrix[row_h + kz]
+            );
+            if (determined) {
+                symplectic_matrix[row_h + k] ^= xi_xh;
+                symplectic_matrix[row_h + kz] ^= zi_zh;
+            } else {
+                symplectic_matrix[row_h + k] = xi_xh;
+                symplectic_matrix[row_h + kz] = zi_zh;
             }
         }
     }
