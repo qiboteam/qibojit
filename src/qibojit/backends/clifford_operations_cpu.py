@@ -170,7 +170,7 @@ def SWAP(symplectic_matrix, control_q, target_q, nqubits):
     x = symplectic_matrix[:-1, :nqubits]
     z = symplectic_matrix[:-1, nqubits:-1]
     for i in prange(symplectic_matrix.shape[0] - 1):  # pylint: disable=not-an-iterable
-        symplectic_matrix[:-1, -1] = (
+        symplectic_matrix[i, -1] = (
             r[i]
             ^ (x[i, control_q] & z[i, target_q] & (x[i, target_q] ^ ~z[i, control_q]))
             ^ (
