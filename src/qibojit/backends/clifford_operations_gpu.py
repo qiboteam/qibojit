@@ -736,7 +736,7 @@ def _determined_outcome(state, q, nqubits):
     dim = _get_dim(nqubits)
     state = state.reshape(dim, dim)
     state[-1, :] = False
-    idx = state[:nqubits, q].nonzero()[0]
+    idx = state[:nqubits, q].nonzero()[0] + nqubits
     state = _rowsum(
         state.ravel(),
         (2 * nqubits * cp.ones(idx.shape, dtype=np.uint)).astype(np.uint),
