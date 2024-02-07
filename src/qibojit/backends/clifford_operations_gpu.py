@@ -670,68 +670,6 @@ def _random_outcome(state, p, q, nqubits):
     return state.ravel(), outcome
 
 
-_get_h = """
-__device__ void _get_h(bool* state, int& p, int& q, int& dim, int* g_h, int& g_nrows) {
-    const unsigned int tid_x = blockIdx.x * blockDim.x + threadIdx.x;
-    const unsigned int ntid = gridDim.x * blockDim.x;
-    __shared__ unsigned int nrows = 0;
-    __shared__ unsigned int h[128]; // 128 fixed block dimension
-    unsigned int n_iterations = 0;
-    for(int j = tid_x; j < dim - 1; j += ntid_x) {
-        if (state[j * dim + q] && j != p) {
-             nrows += 1;
-             h[nrows - 1] = j;
-        }
-        int idx = atomicAdd(&g_nrows, 1);
-        g_h[idx] = h[]
-        if (threadIdx.x == 0) {
-            for(int k = 0; k < nrows; k ++) {
-                g_h[(n_iterations * gridDim.x) + blockIdx.x * blockDim.x + k] = h[k];
-            }
-            g_nrows[(n_iterations * gridDim.x) + blockIdx.x] = nrows;
-        }
-        n_iterations += 1;
-    }
-__global__ void get_h(bool* state, int& p, int& q, int& dim, int* g_h, int* g_nrows) {
-    _get_h(state, p, q, dim, g_h, g_nrows);
-    if threadIdx.x
-}
-"""
-
-_get_h = cp.RawKernel(_get_h, "_get_h", options=("--std=c++11",))
-
-
-def get_h(symplectic_matrix, p, q, nqubits):
-    g_h = cp.zeros(_get_dim(nqubits))
-    g_nrows = cp.zeros(math.ceil(_get_dim(nqubits) / 128))
-
-
-__random_outcome = f"""
-#include <stdlib.h>
-{_apply_rowsum}
-__device__ void random_outcome(bool* state, int& p, int& q, int& nqubits, int& dim, int& outcome) {{
-    unsigned int tid_y = blockIdx.y;
-    unsigned int ntid_y = gridDim.y;
-    __global__ unsigned int global_exp[1024];
-    for(int j = tid_y; j < dim - 1; j += ntid_y) {{
-        if (state[j * dim + q] && j != p) {{
-            _apply_rowsum(state, j, p, nqubits, dim)
-        }}
-    }}
-    unsigned int tid_x = blockIdx.x * blockDim.x + threadIdx.x;
-    for(int j = tid_x * (1 + tid_y); j < dim; j += ntid_y) {{
-        state[(p - nqubits) * dim + j] = state[p * dim + j];
-        state[p * dim + j] = false;
-    }}
-    if (threadIdx.x == 0 && blockIdx.x == 0 && blockIdx.y == 0) {{
-        outcome = rand() % 2;
-        state[p * dim + dim] = (bool) outcome;
-        state[p * dim + nqubits + q] = true;
-    }}
-}}
-"""
-
-
 def _determined_outcome(state, q, nqubits):
     dim = _get_dim(nqubits)
     state = state.reshape(dim, dim)

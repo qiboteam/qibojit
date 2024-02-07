@@ -294,7 +294,7 @@ def _rowsum(symplectic_matrix, h, i, nqubits, determined=False):
             symplectic_matrix[h[j], :nqubits] = xi_xh
             symplectic_matrix[h[j], nqubits:-1] = zi_zh
     if determined:
-        for j in prange(len(g_r)):
+        for j in prange(len(g_r)):  # pylint: disable=not-an-iterable
             symplectic_matrix[h[0], -1] ^= g_r[j]
             symplectic_matrix[h[0], :nqubits] ^= g_xi_xh[j]
             symplectic_matrix[h[0], nqubits:-1] ^= g_zi_zh[j]
