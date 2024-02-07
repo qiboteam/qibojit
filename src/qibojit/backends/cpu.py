@@ -2,7 +2,7 @@ from importlib.util import find_spec, module_from_spec
 
 import numpy as np
 from numba import njit
-from qibo.backends import clifford_operations
+from qibo.backends import _clifford_operations
 from qibo.backends.numpy import NumpyBackend
 from qibo.config import log
 from qibo.gates.abstract import ParametrizedGate
@@ -74,7 +74,7 @@ class NumbaBackend(NumpyBackend):
         else:
             self.set_threads(len(psutil.Process().cpu_affinity()))
 
-        spec = find_spec("qibo.backends.clifford_operations")
+        spec = find_spec("qibo.backends._clifford_operations")
         self.clifford_operations = module_from_spec(spec)
         spec.loader.exec_module(self.clifford_operations)
         for method in dir(clifford_operations_cpu):

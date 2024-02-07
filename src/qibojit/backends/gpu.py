@@ -1,7 +1,7 @@
 from importlib.util import find_spec, module_from_spec
 
 import numpy as np
-from qibo.backends import clifford_operations
+from qibo.backends import _clifford_operations
 from qibo.backends.numpy import NumpyBackend
 from qibo.config import log, raise_error
 
@@ -103,7 +103,7 @@ class CupyBackend(NumbaBackend):  # pragma: no cover
 
         from qibojit.backends import clifford_operations_gpu
 
-        spec = find_spec("qibo.backends.clifford_operations")
+        spec = find_spec("qibo.backends._clifford_operations")
         self.clifford_operations = module_from_spec(spec)
         spec.loader.exec_module(self.clifford_operations)
         for method in dir(clifford_operations_gpu):
@@ -158,10 +158,10 @@ class CupyBackend(NumbaBackend):  # pragma: no cover
     def issparse(self, x):
         return self.sparse.issparse(x) or self.npsparse.issparse(x)
 
-    def clifford_pre_execution_reshape(self, state):
+    def _clifford_pre_execution_reshape(self, state):
         return state.ravel()
 
-    def clifford_post_execution_reshape(self, state, nqubits):
+    def _clifford_post_execution_reshape(self, state, nqubits):
         dim = 2 * nqubits + 1
         return state.reshape(dim, dim)
 
