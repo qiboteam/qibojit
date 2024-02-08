@@ -6,6 +6,12 @@ import numpy as np
 GRIDDIM, BLOCKDIM = 1024, 128
 GRIDDIM_2D = (1024, 1024)
 
+
+@cache
+def _get_dim(nqubits):
+    return 2 * nqubits + 1
+
+
 apply_one_qubit_kernel = """
 extern "C"
 __global__ void apply_{}(bool* symplectic_matrix, const int q, const int nqubits, const int qz, const int dim) {{
@@ -23,14 +29,14 @@ __global__ void apply_{}(bool* symplectic_matrix, const int control_q, const int
 
 def one_qubit_kernel_launcher(kernel, symplectic_matrix, q, nqubits):
     qz = nqubits + q
-    dim = 2 * nqubits + 1
+    dim = _get_dim(nqubits)
     return kernel((GRIDDIM,), (BLOCKDIM,), (symplectic_matrix, q, nqubits, qz, dim))
 
 
 def two_qubits_kernel_launcher(kernel, symplectic_matrix, control_q, target_q, nqubits):
     cqz = nqubits + control_q
     tqz = nqubits + target_q
-    dim = 2 * nqubits + 1
+    dim = _get_dim(nqubits)
     return kernel(
         (GRIDDIM,),
         (BLOCKDIM,),
@@ -621,11 +627,6 @@ __global__ void apply_rowsum(bool* symplectic_matrix, const long* h, const long*
 """
 
 apply_rowsum = cp.RawKernel(apply_rowsum, "apply_rowsum", options=("--std=c++11",))
-
-
-@cache
-def _get_dim(nqubits):
-    return 2 * nqubits + 1
 
 
 def _rowsum(symplectic_matrix, h, i, nqubits, determined=False):
