@@ -1,5 +1,3 @@
-from importlib.util import find_spec, module_from_spec
-
 import numpy as np
 from qibo.backends import _clifford_operations
 from qibo.backends.numpy import NumpyBackend
@@ -103,15 +101,13 @@ class CupyBackend(NumbaBackend):  # pragma: no cover
 
         from qibojit.backends import clifford_operations_gpu
 
-        spec = find_spec("qibo.backends._clifford_operations")
-        self.clifford_operations = module_from_spec(spec)
-        spec.loader.exec_module(self.clifford_operations)
-        for method in dir(clifford_operations_gpu):
-            setattr(
-                self.clifford_operations,
-                method,
-                getattr(clifford_operations_gpu, method),
-            )
+        class CliffordOperations:
+            pass
+
+        self.clifford_operations = CliffordOperations()
+        for operations in (_clifford_operations, clifford_operations_gpu):
+            for method in dir(operations):
+                setattr(self.clifford_operations, method, getattr(operations, method))
 
     def set_precision(self, precision):
         super().set_precision(precision)
