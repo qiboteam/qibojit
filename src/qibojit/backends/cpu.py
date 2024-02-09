@@ -161,7 +161,12 @@ class NumbaBackend(NumpyBackend):
             matrix = getattr(self.custom_matrices, name)
             return matrix(2 ** len(gate.target_qubits)) if callable(matrix) else matrix
 
-    def apply_gate(self, gate, state, nqubits):
+    def apply_gate(self, gate, state, nqubits, batch=False):
+        if batch:
+            raise_error(
+                NotImplementedError,
+                f"Batch execution is not supported by the `{self}` backend. Please use either the `numpy` or `tensorflow` one.",
+            )
         matrix = self._as_custom_matrix(gate)
         qubits = self._create_qubits_tensor(gate, nqubits)
         targets = gate.target_qubits
