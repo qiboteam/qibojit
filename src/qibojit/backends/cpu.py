@@ -1,6 +1,6 @@
 import numpy as np
 from qibo.backends.numpy import NumpyBackend
-from qibo.config import log
+from qibo.config import log, raise_error
 from qibo.gates.abstract import ParametrizedGate
 from qibo.gates.channels import ReadoutErrorChannel
 from qibo.gates.special import FusedGate
