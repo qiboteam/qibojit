@@ -203,6 +203,7 @@ def test_apply_csx(backend, nqubits, targets, dtype):
     state = backend.apply_gate(gate, np.copy(state), nqubits)
     backend.assert_allclose(state, target_state, atol=ATOL.get(dtype))
 
+
 @pytest.mark.parametrize(
     ("nqubits", "targets"),
     [
@@ -225,6 +226,7 @@ def test_apply_csxdg(backend, nqubits, targets, dtype):
     target_state = tbackend.apply_gate(gate, np.copy(state), nqubits)
     state = backend.apply_gate(gate, np.copy(state), nqubits)
     backend.assert_allclose(state, target_state, atol=ATOL.get(dtype))
+
 
 @pytest.mark.parametrize(
     ("nqubits", "targets"),
