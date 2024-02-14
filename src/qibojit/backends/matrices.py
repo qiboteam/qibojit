@@ -33,7 +33,7 @@ class CuQuantumMatrices(NumpyMatrices):
     @cached_property
     def CSX(self):
         return self.SX
-    
+
     @cached_property
     def CSXDG(self):
         return self.SXDG
