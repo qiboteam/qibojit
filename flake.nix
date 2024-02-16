@@ -1,9 +1,12 @@
 {
   inputs = {
-    nixpkgs.url = "github:NixOS/nixpkgs/nixos-23.05";
+    nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
     systems.url = "github:nix-systems/default";
     devenv.url = "github:cachix/devenv";
-    nixpkgs-python.url = "github:cachix/nixpkgs-python";
+    nixpkgs-python = {
+      url = "github:cachix/nixpkgs-python";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
   };
 
   outputs = {
@@ -31,15 +34,17 @@
       in {
         default = devenv.lib.mkShell {
           inherit inputs pkgs;
+
           modules = [
             {
-              packages = with pkgs; [pre-commit];
+              packages = with pkgs; [pre-commit poethepoet stdenv.cc.cc.lib];
 
               languages.python = {
                 enable = true;
                 poetry = {
                   enable = true;
                   install.enable = true;
+                  install.groups = ["dev" "test"];
                   install.allExtras = true;
                 };
                 version = "3.11";
