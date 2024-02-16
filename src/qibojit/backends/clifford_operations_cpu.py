@@ -1,6 +1,10 @@
 import numpy as np
 from numba import njit, prange, uint64
 
+name = "numba"
+
+np = np
+
 
 @njit("b1[:,:](b1[:,:], u8, u8)", parallel=True, cache=True)
 def H(symplectic_matrix, q, nqubits):

@@ -99,16 +99,6 @@ class CupyBackend(NumbaBackend):  # pragma: no cover
         # number of available GPUs (for multigpu)
         self.ngpus = cp.cuda.runtime.getDeviceCount()
 
-        from qibojit.backends import clifford_operations_gpu
-
-        class CliffordOperations:
-            pass
-
-        self.clifford_operations = CliffordOperations()
-        for operations in (_clifford_operations, clifford_operations_gpu):
-            for method in dir(operations):
-                setattr(self.clifford_operations, method, getattr(operations, method))
-
     def set_precision(self, precision):
         super().set_precision(precision)
         if self.dtype == "complex128":
@@ -153,13 +143,6 @@ class CupyBackend(NumbaBackend):  # pragma: no cover
 
     def issparse(self, x):
         return self.sparse.issparse(x) or self.npsparse.issparse(x)
-
-    def _clifford_pre_execution_reshape(self, state):
-        return state.ravel()
-
-    def _clifford_post_execution_reshape(self, state, nqubits):
-        dim = 2 * nqubits + 1
-        return state.reshape(dim, dim)
 
     def zero_state(self, nqubits):
         n = 1 << nqubits

@@ -2,6 +2,11 @@ from functools import cache
 
 import cupy as cp  # pylint: disable=E0401
 import numpy as np
+from scipy import sparse
+
+name = "cupy"
+
+np = cp
 
 GRIDDIM, BLOCKDIM = 1024, 128
 GRIDDIM_2D = (1024, 1024)
@@ -684,3 +689,38 @@ def _determined_outcome(state, q, nqubits):
         True,
     )
     return state, state[dim * dim - 1].astype(cp.uint)
+
+
+def cast(self, x, dtype=None, copy=False):
+    if dtype is None:
+        dtype = "complex128"
+    if cp.sparse.issparse(x):
+        if dtype != x.dtype:
+            return x.astype(dtype)
+        else:
+            return x
+    elif sparse.issparse(x):
+        cls = getattr(cp.sparse, x.__class__.__name__)
+        return cls(x, dtype=dtype)
+    elif isinstance(x, cp.ndarray) and copy:
+        return cp.copy(cp.asarray(x, dtype=dtype))
+    else:
+        return cp.asarray(x, dtype=dtype)
+
+
+def _clifford_pre_execution_reshape(state):
+    return state.ravel()
+
+
+def _clifford_post_execution_reshape(state, nqubits):
+    dim = _get_dim(nqubits)
+    return state.reshape(dim, dim)
+
+
+def identity_density_matrix(nqubits, normalize: bool = True):
+    n = 1 << nqubits
+    state = cp.eye(n, dtype="complex128")
+    cp.cuda.stream.get_current_stream().synchronize()
+    if normalize:
+        state /= 2**nqubits
+    return state.reshape((n, n))

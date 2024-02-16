@@ -72,14 +72,6 @@ class NumbaBackend(NumpyBackend):
         else:
             self.set_threads(len(psutil.Process().cpu_affinity()))
 
-        class CliffordOperations:
-            pass
-
-        self.clifford_operations = CliffordOperations()
-        for operations in (_clifford_operations, clifford_operations_cpu):
-            for method in dir(operations):
-                setattr(self.clifford_operations, method, getattr(operations, method))
-
     def set_precision(self, precision):
         if precision != self.precision:
             super().set_precision(precision)
