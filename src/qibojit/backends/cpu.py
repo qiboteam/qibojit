@@ -1,5 +1,4 @@
 import numpy as np
-from numba import njit
 from qibo.backends.numpy import NumpyBackend
 from qibo.config import log
 from qibo.gates.abstract import ParametrizedGate
