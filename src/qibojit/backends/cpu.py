@@ -1,13 +1,11 @@
 import numpy as np
 from numba import njit
-from qibo.backends import _clifford_operations
 from qibo.backends.numpy import NumpyBackend
 from qibo.config import log
 from qibo.gates.abstract import ParametrizedGate
 from qibo.gates.channels import ReadoutErrorChannel
 from qibo.gates.special import FusedGate
 
-from qibojit.backends import clifford_operations_cpu
 from qibojit.backends.matrices import CustomMatrices
 
 GATE_OPS = {
