@@ -264,7 +264,7 @@ def CY(symplectic_matrix, control_q, target_q, nqubits):
 @njit(
     [
         "b1[:,:](b1[:,:], u8[:], u8[:], u8, b1)",
-        "b1[:,:](b1[:,:], u8[:], u8[:], i8, b1)",
+        "b1[:,:](b1[:,:], u4[:], u4[:], u4, b1)",
     ],
     parallel=True,
     cache=True,
