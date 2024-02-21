@@ -262,7 +262,13 @@ def CY(symplectic_matrix, control_q, target_q, nqubits):
 
 
 @njit(
-    "b1[:,:](b1[:,:], u8[:], u8[:], u8, b1)", parallel=True, cache=True, fastmath=True
+    [
+        "b1[:,:](b1[:,:], u8[:], u8[:], u8, b1)",
+        "b1[:,:](b1[:,:], u8[:], u8[:], i8, b1)",
+    ],
+    parallel=True,
+    cache=True,
+    fastmath=True,
 )
 def _rowsum(symplectic_matrix, h, i, nqubits, determined=False):
     xi, xh = symplectic_matrix[i, :nqubits], symplectic_matrix[h, :nqubits]
