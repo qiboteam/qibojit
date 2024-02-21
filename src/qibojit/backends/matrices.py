@@ -34,6 +34,10 @@ class CuQuantumMatrices(NumpyMatrices):
     def CSX(self):
         return self.SX
 
+    @cached_property
+    def CSXDG(self):
+        return self.SXDG
+
     def CRX(self, theta):
         return self.RX(theta)
 
