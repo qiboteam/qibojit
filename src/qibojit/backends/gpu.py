@@ -502,9 +502,12 @@ class CupyBackend(NumbaBackend):  # pragma: no cover
         if eigenvectors is None or self.issparse(matrix):
             if self.issparse(matrix):
                 from scipy.sparse.linalg import expm
+
+                return self.cast(expm(-1j * a * matrix.get()))
             else:
-                from scipy.linalg import expm
-            return self.cast(expm(-1j * a * matrix.get()))
+                from cupyx.scipy.linalg import expm
+
+                return self.cast(expm(-1j * a * matrix))
         else:
             expd = self.cp.diag(self.cp.exp(-1j * a * eigenvalues))
             ud = self.cp.transpose(self.cp.conj(eigenvectors))
