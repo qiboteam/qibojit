@@ -691,7 +691,7 @@ def _determined_outcome(state, q, nqubits):
     return state, state[dim * dim - 1].astype(cp.uint)
 
 
-def cast(self, x, dtype=None, copy=False):
+def cast(x, dtype=None, copy=False):
     if dtype is None:
         dtype = "complex128"
     if cp.sparse.issparse(x):
