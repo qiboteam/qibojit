@@ -696,18 +696,20 @@ def _determined_outcome(state, q, nqubits):
 def cast(x, dtype=None, copy=False):
     if dtype is None:
         dtype = "complex128"
+
     if cp.sparse.issparse(x):
         if dtype != x.dtype:
             return x.astype(dtype)
-        else:
-            return x
-    elif sparse.issparse(x):
+        return x
+    
+    if sparse.issparse(x):
         cls = getattr(cp.sparse, x.__class__.__name__)
         return cls(x, dtype=dtype)
-    elif isinstance(x, cp.ndarray) and copy:
+    
+    if isinstance(x, cp.ndarray) and copy:
         return cp.copy(cp.asarray(x, dtype=dtype))
-    else:
-        return cp.asarray(x, dtype=dtype)
+    
+    return cp.asarray(x, dtype=dtype)
 
 
 def _clifford_pre_execution_reshape(state):
