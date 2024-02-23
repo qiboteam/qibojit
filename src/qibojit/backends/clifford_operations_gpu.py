@@ -701,14 +701,14 @@ def cast(x, dtype=None, copy=False):
         if dtype != x.dtype:
             return x.astype(dtype)
         return x
-    
+
     if sparse.issparse(x):
         cls = getattr(cp.sparse, x.__class__.__name__)
         return cls(x, dtype=dtype)
-    
+
     if isinstance(x, cp.ndarray) and copy:
         return cp.copy(cp.asarray(x, dtype=dtype))
-    
+
     return cp.asarray(x, dtype=dtype)
 
 
