@@ -1,9 +1,7 @@
+"""Set of custom Numba operations for the Clifford backend."""
+
 import numpy as np
 from numba import njit, prange, uint64
-
-name = "numba"
-
-np = np
 
 
 @njit("b1[:,:](b1[:,:], u8, u8)", parallel=True, cache=True)
@@ -279,9 +277,9 @@ def _rowsum(symplectic_matrix, h, i, nqubits, determined=False):
         g_zi_zh = xi.copy()
     for j in prange(len(h)):  # pylint: disable=not-an-iterable
         exp = np.zeros(nqubits, dtype=uint64)
-        x1_eq_z1 = (xi[j] ^ zi[j]) == False
+        x1_eq_z1 = (xi[j] ^ zi[j]) is False
         x1_neq_z1 = ~x1_eq_z1
-        x1_eq_0 = xi[j] == False
+        x1_eq_0 = xi[j] is False
         x1_eq_1 = ~x1_eq_0
         ind2 = x1_eq_z1 & x1_eq_1
         ind3 = x1_eq_1 & x1_neq_z1

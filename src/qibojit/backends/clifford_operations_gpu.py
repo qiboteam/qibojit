@@ -1,3 +1,5 @@
+"""Set of custom CuPy operations for the Clifford backend."""
+
 from functools import cache
 
 import cupy as cp  # pylint: disable=E0401
