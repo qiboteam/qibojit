@@ -3,10 +3,7 @@
 from functools import cache
 
 import cupy as cp  # pylint: disable=E0401
-import numpy as np
 from scipy import sparse
-
-name = "cupy"
 
 np = cp
 
