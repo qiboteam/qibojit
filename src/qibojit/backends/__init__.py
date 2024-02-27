@@ -3,13 +3,16 @@ from qibo.config import raise_error
 from qibojit.backends.cpu import NumbaBackend
 from qibojit.backends.gpu import CupyBackend, CuQuantumBackend
 
+QibojitBackend = NumbaBackend | CupyBackend | CuQuantumBackend
+
 
 class MetaBackend:
     """Meta-backend class which takes care of loading the qibojit backends."""
 
     PLATFORMS = ("numba", "cupy", "cuquantum")
 
-    def load(self, platform: str) -> NumbaBackend | CupyBackend | CuQuantumBackend:
+    @staticmethod
+    def load(platform: str) -> QibojitBackend:
         """Loads the backend.
 
         Args:
@@ -27,15 +30,15 @@ class MetaBackend:
         else:
             raise_error(
                 ValueError,
-                f"Unsupported platform, please use one among {self.platforms}.",
+                f"Unsupported platform, please use one among {PLATFORMS}.",
             )
 
     def list_available(self) -> dict:
         """Lists all the available qibojit backends."""
         available_backends = {}
-        for platform in self.platforms:
+        for platform in PLATFORMS:
             try:
-                self.load(platform=platform)
+                MetaBackend.load(platform=platform)
                 available = True
             except:
                 available = False
