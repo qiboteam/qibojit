@@ -7,8 +7,10 @@ from qibojit.backends.gpu import CupyBackend, CuQuantumBackend
 class MetaBackend:
     """Meta-backend class which takes care of loading the qibojit backends."""
 
-    @staticmethod
-    def load(platform: str) -> NumbaBackend | CupyBackend | CuQuantumBackend:
+    def __init__(self):
+        self.platforms = ("numba", "cupy", "cuquantum")
+
+    def load(self, platform: str) -> NumbaBackend | CupyBackend | CuQuantumBackend:
         """Loads the backend.
 
         Args:
@@ -26,15 +28,15 @@ class MetaBackend:
         else:
             raise_error(
                 ValueError,
-                "Unsupported platform, please use one among (`numba`, `cupy`, `cuquantum`).",
+                f"Unsupported platform, please use one among {self.platforms}.",
             )
 
     def list_available(self) -> dict:
         """Lists all the available qibojit backends."""
         available_backends = {}
-        for platform in ("numba", "cupy", "cuquantum"):
+        for platform in self.platforms:
             try:
-                MetaBackend.load(platform=platform)
+                self.load(platform=platform)
                 available = True
             except:
                 available = False
