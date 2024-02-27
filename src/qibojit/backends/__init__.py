@@ -5,11 +5,11 @@ from qibojit.backends.gpu import CupyBackend, CuQuantumBackend
 
 QibojitBackend = NumbaBackend | CupyBackend | CuQuantumBackend
 
+PLATFORMS = ("numba", "cupy", "cuquantum")
+
 
 class MetaBackend:
     """Meta-backend class which takes care of loading the qibojit backends."""
-
-    PLATFORMS = ("numba", "cupy", "cuquantum")
 
     @staticmethod
     def load(platform: str) -> QibojitBackend:
