@@ -18,7 +18,7 @@ class MetaBackend:
         Args:
             platform (str): Name of the backend to load: either `numba`, `cupy` or `cuquantum`.
         Returns:
-            qibo.backends.abstract.AbstractBackend: The loaded backend.
+            qibo.backends.abstract.Backend: The loaded backend.
         """
 
         if platform == "numba":
