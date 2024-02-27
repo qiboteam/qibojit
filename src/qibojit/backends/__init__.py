@@ -6,9 +6,7 @@ from qibojit.backends.gpu import CupyBackend, CuQuantumBackend
 
 class MetaBackend:
     """Meta-backend class which takes care of loading the qibojit backends."""
-
-    def __init__(self):
-        self.platforms = ("numba", "cupy", "cuquantum")
+    PLATFORMS = ("numba", "cupy", "cuquantum")
 
     def load(self, platform: str) -> NumbaBackend | CupyBackend | CuQuantumBackend:
         """Loads the backend.
