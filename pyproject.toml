@@ -20,9 +20,9 @@ classifiers = [
 ]
 
 [tool.poetry.dependencies]
-python = "^3.9,<3.12"
-numba = ">=0.51.0"
-qibo = ">=0.2.3"
+python=">=3.9.0,<3.12"
+numba=">=0.51.0"
+qibo=">=0.2.4"
 scipy = "^1.10.1"
 psutil = "^5.9.5"
 
@@ -48,6 +48,11 @@ output-format = "colorized"
 
 [tool.pylint.reports]
 output-format = "colorized"
+
+[tool.coverage.run]
+omit = [
+     "src/qibojit/backends/clifford_operations*",
+]
 
 [tool.pytest.ini_options]
 testpaths = ['src/qibojit/tests/']
