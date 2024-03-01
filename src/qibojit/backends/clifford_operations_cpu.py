@@ -4,7 +4,7 @@ import numpy as np
 from numba import njit, prange, uint64
 
 
-@njit("b1[:,:](b1[:,:], u8, u8)", parallel=True, cache=True)
+@njit("u1[:,:](u1[:,:], u8, u8)", parallel=True, cache=True)
 def H(symplectic_matrix, q, nqubits):
     r = symplectic_matrix[:-1, -1]
     x = symplectic_matrix[:-1, :nqubits]
@@ -17,7 +17,7 @@ def H(symplectic_matrix, q, nqubits):
     return symplectic_matrix
 
 
-@njit("b1[:,:](b1[:,:], u8, u8, u8)", parallel=True, cache=True)
+@njit("u1[:,:](u1[:,:], u8, u8, u8)", parallel=True, cache=True)
 def CNOT(symplectic_matrix, control_q, target_q, nqubits):
     r = symplectic_matrix[:-1, -1]
     x = symplectic_matrix[:-1, :nqubits]
@@ -32,7 +32,7 @@ def CNOT(symplectic_matrix, control_q, target_q, nqubits):
     return symplectic_matrix
 
 
-@njit("b1[:,:](b1[:,:], u8, u8, u8)", parallel=True, cache=True)
+@njit("u1[:,:](u1[:,:], u8, u8, u8)", parallel=True, cache=True)
 def CZ(symplectic_matrix, control_q, target_q, nqubits):
     """Decomposition --> H-CNOT-H"""
     r = symplectic_matrix[:-1, -1]
@@ -53,7 +53,7 @@ def CZ(symplectic_matrix, control_q, target_q, nqubits):
     return symplectic_matrix
 
 
-@njit("b1[:,:](b1[:,:], u8, u8)", parallel=True, cache=True)
+@njit("u1[:,:](u1[:,:], u8, u8)", parallel=True, cache=True)
 def S(symplectic_matrix, q, nqubits):
     r = symplectic_matrix[:-1, -1]
     x = symplectic_matrix[:-1, :nqubits]
@@ -64,7 +64,7 @@ def S(symplectic_matrix, q, nqubits):
     return symplectic_matrix
 
 
-@njit("b1[:,:](b1[:,:], u8, u8)", parallel=True, cache=True)
+@njit("u1[:,:](u1[:,:], u8, u8)", parallel=True, cache=True)
 def Z(symplectic_matrix, q, nqubits):
     """Decomposition --> S-S"""
     r = symplectic_matrix[:-1, -1]
@@ -77,7 +77,7 @@ def Z(symplectic_matrix, q, nqubits):
     return symplectic_matrix
 
 
-@njit("b1[:,:](b1[:,:], u8, u8)", parallel=True, cache=True)
+@njit("u1[:,:](u1[:,:], u8, u8)", parallel=True, cache=True)
 def X(symplectic_matrix, q, nqubits):
     """Decomposition --> H-S-S-H"""
     r = symplectic_matrix[:-1, -1]
@@ -90,7 +90,7 @@ def X(symplectic_matrix, q, nqubits):
     return symplectic_matrix
 
 
-@njit("b1[:,:](b1[:,:], u8, u8)", parallel=True, cache=True)
+@njit("u1[:,:](u1[:,:], u8, u8)", parallel=True, cache=True)
 def Y(symplectic_matrix, q, nqubits):
     """Decomposition --> S-S-H-S-S-H"""
     r = symplectic_matrix[:-1, -1]
@@ -103,7 +103,7 @@ def Y(symplectic_matrix, q, nqubits):
     return symplectic_matrix
 
 
-@njit("b1[:,:](b1[:,:], u8, u8)", parallel=True, cache=True)
+@njit("u1[:,:](u1[:,:], u8, u8)", parallel=True, cache=True)
 def SX(symplectic_matrix, q, nqubits):
     """Decomposition --> H-S-H"""
     r = symplectic_matrix[:-1, -1]
@@ -115,7 +115,7 @@ def SX(symplectic_matrix, q, nqubits):
     return symplectic_matrix
 
 
-@njit("b1[:,:](b1[:,:], u8, u8)", parallel=True, cache=True)
+@njit("u1[:,:](u1[:,:], u8, u8)", parallel=True, cache=True)
 def SDG(symplectic_matrix, q, nqubits):
     """Decomposition --> S-S-S"""
     r = symplectic_matrix[:-1, -1]
@@ -127,7 +127,7 @@ def SDG(symplectic_matrix, q, nqubits):
     return symplectic_matrix
 
 
-@njit("b1[:,:](b1[:,:], u8, u8)", parallel=True, cache=True)
+@njit("u1[:,:](u1[:,:], u8, u8)", parallel=True, cache=True)
 def SXDG(symplectic_matrix, q, nqubits):
     """Decomposition --> H-S-S-S-H"""
     r = symplectic_matrix[:-1, -1]
@@ -139,7 +139,7 @@ def SXDG(symplectic_matrix, q, nqubits):
     return symplectic_matrix
 
 
-@njit("b1[:,:](b1[:,:], u8, u8)", parallel=True, cache=True)
+@njit("u1[:,:](u1[:,:], u8, u8)", parallel=True, cache=True)
 def RY_pi(symplectic_matrix, q, nqubits):
     """Decomposition --> H-S-S"""
     r = symplectic_matrix[:-1, -1]
@@ -153,7 +153,7 @@ def RY_pi(symplectic_matrix, q, nqubits):
     return symplectic_matrix
 
 
-@njit("b1[:,:](b1[:,:], u8, u8)", parallel=True, cache=True)
+@njit("u1[:,:](u1[:,:], u8, u8)", parallel=True, cache=True)
 def RY_3pi_2(symplectic_matrix, q, nqubits):
     """Decomposition --> H-S-S"""
     r = symplectic_matrix[:-1, -1]
@@ -167,7 +167,7 @@ def RY_3pi_2(symplectic_matrix, q, nqubits):
     return symplectic_matrix
 
 
-@njit("b1[:,:](b1[:,:], u8, u8, u8)", parallel=True, cache=True)
+@njit("u1[:,:](u1[:,:], u8, u8, u8)", parallel=True, cache=True)
 def SWAP(symplectic_matrix, control_q, target_q, nqubits):
     """Decomposition --> CNOT-CNOT-CNOT"""
     r = symplectic_matrix[:-1, -1]
@@ -199,7 +199,7 @@ def SWAP(symplectic_matrix, control_q, target_q, nqubits):
     return symplectic_matrix
 
 
-@njit("b1[:,:](b1[:,:], u8, u8, u8)", parallel=True, cache=True)
+@njit("u1[:,:](u1[:,:], u8, u8, u8)", parallel=True, cache=True)
 def iSWAP(symplectic_matrix, control_q, target_q, nqubits):
     """Decomposition --> H-CNOT-CNOT-H-S-S"""
     r = symplectic_matrix[:-1, -1]
@@ -233,7 +233,7 @@ def iSWAP(symplectic_matrix, control_q, target_q, nqubits):
     return symplectic_matrix
 
 
-@njit("b1[:,:](b1[:,:], u8, u8, u8)", parallel=True, cache=True)
+@njit("u1[:,:](u1[:,:], u8, u8, u8)", parallel=True, cache=True)
 def CY(symplectic_matrix, control_q, target_q, nqubits):
     """Decomposition --> S-CNOT-SDG"""
     r = symplectic_matrix[:-1, -1]
