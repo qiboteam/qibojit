@@ -19,14 +19,14 @@ def _get_dim(nqubits):
 
 apply_one_qubit_kernel = """
 extern "C"
-__global__ void apply_{}(bool* symplectic_matrix, const int q, const int nqubits, const int qz, const int dim) {{
+__global__ void apply_{}(char* symplectic_matrix, const int q, const int nqubits, const int qz, const int dim) {{
     _apply_{}(symplectic_matrix, q, nqubits, qz, dim);
 }}
 """
 
 apply_two_qubits_kernel = """
 extern "C"
-__global__ void apply_{}(bool* symplectic_matrix, const int control_q, const int target_q, const int nqubits, const int cqz, const int tqz, const int dim) {{
+__global__ void apply_{}(char* symplectic_matrix, const int control_q, const int target_q, const int nqubits, const int cqz, const int tqz, const int dim) {{
     _apply_{}(symplectic_matrix, control_q, target_q, nqubits, cqz, tqz, dim);
 }}
 """

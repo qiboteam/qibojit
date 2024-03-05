@@ -30,11 +30,11 @@ def CNOT(symplectic_matrix, control_q, target_q, nqubits):
     r, x, z = _get_rxz(symplectic_matrix, nqubits)
 
     for i in prange(symplectic_matrix.shape[0]):  # pylint: disable=not-an-iterable
-        symplectic_matrix[i, -1] = r[i] ^ (x[i, control_q] & z[i, target_q]) & (
+        r[i] = r[i] ^ (x[i, control_q] & z[i, target_q]) & (
             x[i, target_q] ^ ~z[i, control_q]
         )
-        symplectic_matrix[i, target_q] = x[i, target_q] ^ x[i, control_q]
-        symplectic_matrix[i, nqubits + control_q] = z[i, control_q] ^ z[i, target_q]
+        x[i, target_q] = x[i, target_q] ^ x[i, control_q]
+        z[i, control_q] = z[i, control_q] ^ z[i, target_q]
     return symplectic_matrix
 
 
@@ -52,8 +52,8 @@ def CZ(symplectic_matrix, control_q, target_q, nqubits):
         )
         z_control_q = x[i, target_q] ^ z[i, control_q]
         z_target_q = z[i, target_q] ^ x[i, control_q]
-        symplectic_matrix[i, nqubits + control_q] = z_control_q
-        symplectic_matrix[i, nqubits + target_q] = z_target_q
+        z[i, control_q] = z_control_q
+        z[i, target_q] = z_target_q
     return symplectic_matrix
 
 
