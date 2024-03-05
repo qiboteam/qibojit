@@ -19,33 +19,42 @@ def _get_dim(nqubits):
 
 apply_one_qubit_kernel = """
 extern "C"
-__global__ void apply_{}(char* symplectic_matrix, const int q, const int nqubits, const int qz, const int dim) {{
+__global__ void apply_{}(unsigned char* symplectic_matrix, const int q, const int nqubits, const int qz, const int dim) {{
     _apply_{}(symplectic_matrix, q, nqubits, qz, dim);
 }}
 """
 
 apply_two_qubits_kernel = """
 extern "C"
-__global__ void apply_{}(char* symplectic_matrix, const int control_q, const int target_q, const int nqubits, const int cqz, const int tqz, const int dim) {{
+__global__ void apply_{}(unisgned char* symplectic_matrix, const int control_q, const int target_q, const int nqubits, const int cqz, const int tqz, const int dim) {{
     _apply_{}(symplectic_matrix, control_q, target_q, nqubits, cqz, tqz, dim);
 }}
 """
 
 
+@cache
+def _get_nrows(ncolumns):
+    return numpy.ceil(ncolumns / 8)
+
+
 def one_qubit_kernel_launcher(kernel, symplectic_matrix, q, nqubits):
     qz = nqubits + q
-    dim = _get_dim(nqubits)
-    return kernel((GRIDDIM,), (BLOCKDIM,), (symplectic_matrix, q, nqubits, qz, dim))
+    ncolumns = _get_dim(nqubits)
+    nrows = _get_nrows(ncolumns)
+    return kernel(
+        (GRIDDIM,), (BLOCKDIM,), (symplectic_matrix, q, nqubits, qz, nrows, ncolumns)
+    )
 
 
 def two_qubits_kernel_launcher(kernel, symplectic_matrix, control_q, target_q, nqubits):
     cqz = nqubits + control_q
     tqz = nqubits + target_q
-    dim = _get_dim(nqubits)
+    ncolumns = _get_dim(nqubits)
+    nrows = _get_nrows(ncolumns)
     return kernel(
         (GRIDDIM,),
         (BLOCKDIM,),
-        (symplectic_matrix, control_q, target_q, nqubits, cqz, tqz, dim),
+        (symplectic_matrix, control_q, target_q, nqubits, cqz, tqz, nrows, ncolumns),
     )
 
 
@@ -560,7 +569,7 @@ def CY(symplectic_matrix, control_q, target_q, nqubits):
 
 
 _apply_rowsum = """
-__device__ void _apply_rowsum(unsigned char* symplectic_matrix, const long* h, const long* i, const int& nqubits, const unsigned char& determined, const int& nrows, long* g_exp, const int& dim) {
+__device__ void _apply_rowsum(unsigned char* symplectic_matrix, const long* h, const long* i, const int& nqubits, const bool& determined, const int& nrows, long* g_exp, const int& dim) {
     unsigned int tid_x = blockIdx.x * blockDim.x + threadIdx.x;
     unsigned int bid_y = blockIdx.y;
     unsigned int ntid_x = gridDim.x * blockDim.x;
@@ -626,7 +635,7 @@ __device__ void _apply_rowsum(unsigned char* symplectic_matrix, const long* h, c
 apply_rowsum = f"""
 {_apply_rowsum}
 extern "C"
-__global__ void apply_rowsum(unsigned char* symplectic_matrix, const long* h, const long* i, const int nqubits, const unsigned char determined, const int nrows, long* g_exp, const int dim) {{
+__global__ void apply_rowsum(unsigned char* symplectic_matrix, const long* h, const long* i, const int nqubits, const bool determined, const int nrows, long* g_exp, const int dim) {{
     _apply_rowsum(symplectic_matrix, h, i, nqubits, determined, nrows, g_exp, dim);
 }}
 """
