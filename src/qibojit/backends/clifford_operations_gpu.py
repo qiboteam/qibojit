@@ -31,7 +31,7 @@ __global__ void apply_{}(unsigned char* symplectic_matrix, const int q, const in
 
 apply_two_qubits_kernel = """
 extern "C"
-__global__ void apply_{}(unisgned char* symplectic_matrix, const int control_q, const int target_q, const int cqz, const int tqz, const int nrows, const int ncolumns) {{
+__global__ void apply_{}(unsigned char* symplectic_matrix, const int control_q, const int target_q, const int cqz, const int tqz, const int nrows, const int ncolumns) {{
     _apply_{}(symplectic_matrix, control_q, target_q, cqz, tqz, nrows, ncolumns);
 }}
 """
@@ -62,10 +62,11 @@ __device__ void _apply_H(unsigned char* symplectic_matrix, const int& q, const i
     const int ntid = gridDim.x * blockDim.x;
     const int last = ncolumns - 1;
     for(int i = tid; i < nrows; i += ntid) {
-        symplectic_matrix[i * nrows + last] = symplectic_matrix[i * nrows + last] ^ (symplectic_matrix[i * nrows + q] & symplectic_matrix[i * nrows + qz]);
-        const unsigned char tmp = symplectic_matrix[i * nrows + q];
-        symplectic_matrix[i * nrows + q] = symplectic_matrix[i * nrows + qz];
-        symplectic_matrix[i * nrows + qz] = tmp;
+        unsigned int row_idx = i * ncolumns;
+        symplectic_matrix[row_idx + last] = symplectic_matrix[row_idx + last] ^ (symplectic_matrix[row_idx + q] & symplectic_matrix[row_idx + qz]);
+        const unsigned char tmp = symplectic_matrix[row_idx + q];
+        symplectic_matrix[row_idx + q] = symplectic_matrix[row_idx + qz];
+        symplectic_matrix[row_idx + qz] = tmp;
     };
 }
 """ + apply_one_qubit_kernel.format(
@@ -86,14 +87,15 @@ __device__ void _apply_CNOT(unsigned char* symplectic_matrix, const int& control
     const int ntid = gridDim.x * blockDim.x;
     const int last = ncolumns - 1;
     for(int i = tid; i < nrows; i += ntid) {
-        symplectic_matrix[i * nrows + last] = symplectic_matrix[i * nrows + last] ^ (
-            symplectic_matrix[i * nrows + control_q] & symplectic_matrix[i * nrows + tqz]
-        ) & (symplectic_matrix[i * nrows + target_q] ^ symplectic_matrix[i * nrows + cqz] ^ 1);
-        symplectic_matrix[i * nrows + target_q] = (
-            symplectic_matrix[i * nrows + target_q] ^ symplectic_matrix[i * nrows + control_q]
+        unsigned int row_idx = i * ncolumns;
+        symplectic_matrix[row_idx + last] = symplectic_matrix[row_idx + last] ^ (
+            symplectic_matrix[row_idx + control_q] & symplectic_matrix[row_idx + tqz]
+        ) & (symplectic_matrix[row_idx + target_q] ^ symplectic_matrix[row_idx + cqz] ^ 1);
+        symplectic_matrix[row_idx + target_q] = (
+            symplectic_matrix[row_idx + target_q] ^ symplectic_matrix[row_idx + control_q]
         );
-        symplectic_matrix[i * nrows + cqz] = (
-            symplectic_matrix[i * nrows + cqz] ^ symplectic_matrix[i * nrows + tqz]
+        symplectic_matrix[row_idx + cqz] = (
+            symplectic_matrix[row_idx + cqz] ^ symplectic_matrix[row_idx + tqz]
         );
     };
 }
@@ -117,23 +119,24 @@ __device__ void _apply_CZ(unsigned char* symplectic_matrix, const int& control_q
     const int ntid = gridDim.x * blockDim.x;
     const int last = ncolumns - 1;
     for(int i = tid; i < nrows; i += ntid) {
-        symplectic_matrix[i * nrows + last] = (
-            symplectic_matrix[i * nrows + last]
-            ^ (symplectic_matrix[i * nrows + target_q] & symplectic_matrix[i * nrows + tqz])
+        unsigned int row_idx = i * ncolumns;
+        symplectic_matrix[row_idx + last] = (
+            symplectic_matrix[row_idx + last]
+            ^ (symplectic_matrix[row_idx + target_q] & symplectic_matrix[row_idx + tqz])
             ^ (
-                symplectic_matrix[i * nrows + control_q]
-                & symplectic_matrix[i * nrows + target_q]
-                & (symplectic_matrix[i * nrows + tqz] ^ symplectic_matrix[i * nrows + cqz] ^ 1)
+                symplectic_matrix[row_idx + control_q]
+                & symplectic_matrix[row_idx + target_q]
+                & (symplectic_matrix[row_idx + tqz] ^ symplectic_matrix[row_idx + cqz] ^ 1)
             )
             ^ (
-                symplectic_matrix[i * nrows + target_q]
-                & (symplectic_matrix[i * nrows + tqz] ^ symplectic_matrix[i * nrows + control_q])
+                symplectic_matrix[row_idx + target_q]
+                & (symplectic_matrix[row_idx + tqz] ^ symplectic_matrix[row_idx + control_q])
             )
         );
-        const unsigned char z_control_q = symplectic_matrix[i * nrows + target_q] ^ symplectic_matrix[i * nrows + cqz];
-        const unsigned char z_target_q = symplectic_matrix[i * nrows + tqz] ^ symplectic_matrix[i * nrows + control_q];
-        symplectic_matrix[i * nrows + cqz] = z_control_q;
-        symplectic_matrix[i * nrows + tqz] = z_target_q;
+        const unsigned char z_control_q = symplectic_matrix[row_idx + target_q] ^ symplectic_matrix[row_idx + cqz];
+        const unsigned char z_target_q = symplectic_matrix[row_idx + tqz] ^ symplectic_matrix[row_idx + control_q];
+        symplectic_matrix[row_idx + cqz] = z_control_q;
+        symplectic_matrix[row_idx + tqz] = z_target_q;
     };
 }
 """ + apply_two_qubits_kernel.format(
@@ -156,10 +159,11 @@ __device__ void _apply_S(unsigned char* symplectic_matrix, const int& q, const i
     const int ntid = gridDim.x * blockDim.x;
     const int last = ncolumns - 1;
     for(int i = tid; i < nrows; i += ntid) {
-        symplectic_matrix[i * nrows + last] = symplectic_matrix[i * nrows + last] ^ (
-            symplectic_matrix[i * nrows + q] & symplectic_matrix[i * nrows + qz]
+        unsigned int row_idx = i * ncolumns;
+        symplectic_matrix[row_idx + last] = symplectic_matrix[row_idx + last] ^ (
+            symplectic_matrix[row_idx + q] & symplectic_matrix[row_idx + qz]
         );
-        symplectic_matrix[i * nrows + qz] = symplectic_matrix[i * nrows + qz] ^ symplectic_matrix[i * nrows + q];
+        symplectic_matrix[row_idx + qz] = symplectic_matrix[row_idx + qz] ^ symplectic_matrix[row_idx + q];
     };
 }
 """ + apply_one_qubit_kernel.format(
@@ -180,10 +184,11 @@ __device__ void _apply_Z(unsigned char* symplectic_matrix, const int& q, const i
     const int ntid = gridDim.x * blockDim.x;
     const int last = ncolumns - 1;
     for(int i = tid; i < nrows; i += ntid) {
-        symplectic_matrix[i * nrows + last] = symplectic_matrix[i * nrows + last] ^ (
-            (symplectic_matrix[i * nrows + q] & symplectic_matrix[i * nrows + qz])
-            ^ symplectic_matrix[i * nrows + q]
-            & (symplectic_matrix[i * nrows + qz] ^ symplectic_matrix[i * nrows + q])
+        unsigned int row_idx = i * ncolumns;
+        symplectic_matrix[row_idx + last] = symplectic_matrix[row_idx + last] ^ (
+            (symplectic_matrix[row_idx + q] & symplectic_matrix[row_idx + qz])
+            ^ symplectic_matrix[row_idx + q]
+            & (symplectic_matrix[row_idx + qz] ^ symplectic_matrix[row_idx + q])
         );
     };
 }
@@ -205,13 +210,14 @@ __device__ void _apply_X(unsigned char* symplectic_matrix, const int& q, const i
     const int ntid = gridDim.x * blockDim.x;
     const int last = ncolumns - 1;
     for(int i = tid; i < nrows; i += ntid) {
-        symplectic_matrix[i * nrows + last] = (
-            symplectic_matrix[i * nrows + last]
+        unsigned int row_idx = i * ncolumns;
+        symplectic_matrix[row_idx + last] = (
+            symplectic_matrix[row_idx + last]
             ^ (
-                symplectic_matrix[i * nrows + qz]
-                & (symplectic_matrix[i * nrows + qz] ^ symplectic_matrix[i * nrows + q])
+                symplectic_matrix[row_idx + qz]
+                & (symplectic_matrix[row_idx + qz] ^ symplectic_matrix[row_idx + q])
             )
-            ^ (symplectic_matrix[i * nrows + qz] & symplectic_matrix[i * nrows + q])
+            ^ (symplectic_matrix[row_idx + qz] & symplectic_matrix[row_idx + q])
         );
     };
 }
@@ -233,15 +239,16 @@ __device__ void _apply_Y(unsigned char* symplectic_matrix, const int& q, const i
     const int ntid = gridDim.x * blockDim.x;
     const int last = ncolumns - 1;
     for(int i = tid; i < nrows; i += ntid) {
-        symplectic_matrix[i * nrows + last] = (
-            symplectic_matrix[i * nrows + last]
+        unsigned int row_idx = i * ncolumns;
+        symplectic_matrix[row_idx + last] = (
+            symplectic_matrix[row_idx + last]
             ^ (
-                symplectic_matrix[i * nrows + qz]
-                & (symplectic_matrix[i * nrows + qz] ^ symplectic_matrix[i * nrows + q])
+                symplectic_matrix[row_idx + qz]
+                & (symplectic_matrix[row_idx + qz] ^ symplectic_matrix[row_idx + q])
             )
             ^ (
-                symplectic_matrix[i * nrows + q]
-                & (symplectic_matrix[i * nrows + qz] ^ symplectic_matrix[i * nrows + q])
+                symplectic_matrix[row_idx + q]
+                & (symplectic_matrix[row_idx + qz] ^ symplectic_matrix[row_idx + q])
             )
         );
     };
@@ -264,11 +271,12 @@ __device__ void _apply_SX(unsigned char* symplectic_matrix, const int& q, const 
     const int ntid = gridDim.x * blockDim.x;
     const int last = ncolumns - 1;
     for(int i = tid; i < nrows; i += ntid) {
-        symplectic_matrix[i * nrows + last] = symplectic_matrix[i * nrows + last] ^ (
-            symplectic_matrix[i * nrows + qz]
-            & (symplectic_matrix[i * nrows + qz] ^ symplectic_matrix[i * nrows + q])
+        unsigned int row_idx = i * ncolumns;
+        symplectic_matrix[row_idx + last] = symplectic_matrix[row_idx + last] ^ (
+            symplectic_matrix[row_idx + qz]
+            & (symplectic_matrix[row_idx + qz] ^ symplectic_matrix[row_idx + q])
         );
-        symplectic_matrix[i * nrows + q] = symplectic_matrix[i * nrows + qz] ^ symplectic_matrix[i * nrows + q];
+        symplectic_matrix[row_idx + q] = symplectic_matrix[row_idx + qz] ^ symplectic_matrix[row_idx + q];
     };
 }
 """ + apply_one_qubit_kernel.format(
@@ -289,11 +297,12 @@ __device__ void _apply_SDG(unsigned char* symplectic_matrix, const int& q, const
     const int ntid = gridDim.x * blockDim.x;
     const int last = ncolumns - 1;
     for(int i = tid; i < nrows; i += ntid) {
-        symplectic_matrix[i * nrows + last] = symplectic_matrix[i * nrows + last] ^ (
-            symplectic_matrix[i * nrows + q]
-            & (symplectic_matrix[i * nrows + qz] ^ symplectic_matrix[i * nrows + q])
+        unsigned int row_idx = i * ncolumns;
+        symplectic_matrix[row_idx + last] = symplectic_matrix[row_idx + last] ^ (
+            symplectic_matrix[row_idx + q]
+            & (symplectic_matrix[row_idx + qz] ^ symplectic_matrix[row_idx + q])
         );
-        symplectic_matrix[i * nrows + qz] = symplectic_matrix[i * nrows + qz] ^ symplectic_matrix[i * nrows + q];
+        symplectic_matrix[row_idx + qz] = symplectic_matrix[row_idx + qz] ^ symplectic_matrix[row_idx + q];
     };
 }
 """ + apply_one_qubit_kernel.format(
@@ -314,10 +323,11 @@ __device__ void _apply_SXDG(unsigned char* symplectic_matrix, const int& q, cons
     const int ntid = gridDim.x * blockDim.x;
     const int last = ncolumns - 1;
     for(int i = tid; i < nrows; i += ntid) {
-        symplectic_matrix[i * nrows + last] = symplectic_matrix[i * nrows + last] ^ (
-            symplectic_matrix[i * nrows + qz] & symplectic_matrix[i * nrows + q]
+        unsigned int row_idx = i * ncolumns;
+        symplectic_matrix[row_idx + last] = symplectic_matrix[row_idx + last] ^ (
+            symplectic_matrix[row_idx + qz] & symplectic_matrix[row_idx + q]
         );
-        symplectic_matrix[i * nrows + q] = symplectic_matrix[i * nrows + qz] ^ symplectic_matrix[i * nrows + q];
+        symplectic_matrix[row_idx + q] = symplectic_matrix[row_idx + qz] ^ symplectic_matrix[row_idx + q];
     };
 }
 """ + apply_one_qubit_kernel.format(
@@ -338,13 +348,14 @@ __device__ void _apply_RY_pi(unsigned char* symplectic_matrix, const int& q, con
     const int ntid = gridDim.x * blockDim.x;
     const int last = ncolumns - 1;
     for(int i = tid; i < nrows; i += ntid) {
-        symplectic_matrix[i * nrows + last] = symplectic_matrix[i * nrows + last] ^ (
-            symplectic_matrix[i * nrows + q]
-            & (symplectic_matrix[i * nrows + qz] ^ symplectic_matrix[i * nrows + q])
+        unsigned int row_idx = i * ncolumns;
+        symplectic_matrix[row_idx + last] = symplectic_matrix[row_idx + last] ^ (
+            symplectic_matrix[row_idx + q]
+            & (symplectic_matrix[row_idx + qz] ^ symplectic_matrix[row_idx + q])
         );
-        const unsigned char zq = symplectic_matrix[i * nrows + qz];
-        symplectic_matrix[i * nrows + qz] = symplectic_matrix[i * nrows + q];
-        symplectic_matrix[i * nrows + q] = zq;
+        const unsigned char zq = symplectic_matrix[row_idx + qz];
+        symplectic_matrix[row_idx + qz] = symplectic_matrix[row_idx + q];
+        symplectic_matrix[row_idx + q] = zq;
     };
 }
 """ + apply_one_qubit_kernel.format(
@@ -365,13 +376,14 @@ __device__ void _apply_RY_3pi_2(unsigned char* symplectic_matrix, const int& q, 
     const int ntid = gridDim.x * blockDim.x;
     const int last = ncolumns - 1;
     for(int i = tid; i < nrows; i += ntid) {
-        symplectic_matrix[i * nrows + last] = symplectic_matrix[i * nrows + last] ^ (
-            symplectic_matrix[i * nrows + qz]
-            & (symplectic_matrix[i * nrows + qz] ^ symplectic_matrix[i * nrows + q])
+        unsigned int row_idx = i * ncolumns;
+        symplectic_matrix[row_idx + last] = symplectic_matrix[row_idx + last] ^ (
+            symplectic_matrix[row_idx + qz]
+            & (symplectic_matrix[row_idx + qz] ^ symplectic_matrix[row_idx + q])
         );
-        const unsigned char zq = symplectic_matrix[i * nrows + qz];
-        symplectic_matrix[i * nrows + qz] = symplectic_matrix[i * nrows + q];
-        symplectic_matrix[i * nrows + q] = zq;
+        const unsigned char zq = symplectic_matrix[row_idx + qz];
+        symplectic_matrix[row_idx + qz] = symplectic_matrix[row_idx + q];
+        symplectic_matrix[row_idx + q] = zq;
     };
 }
 """ + apply_one_qubit_kernel.format(
@@ -394,37 +406,38 @@ __device__ void _apply_SWAP(unsigned char* symplectic_matrix, const int& control
     const int ntid = gridDim.x * blockDim.x;
     const int last = ncolumns - 1;
     for(int i = tid; i < nrows; i += ntid) {
-        symplectic_matrix[i * nrows + last] = (
-            symplectic_matrix[i * nrows + last]
+        unsigned int row_idx = i * ncolumns;
+        symplectic_matrix[row_idx + last] = (
+            symplectic_matrix[row_idx + last]
             ^ (
-                symplectic_matrix[i * nrows + control_q]
-                & symplectic_matrix[i * nrows + tqz]
-                & (symplectic_matrix[i * nrows + target_q] ^ symplectic_matrix[i * nrows + cqz] ^ 1)
+                symplectic_matrix[row_idx + control_q]
+                & symplectic_matrix[row_idx + tqz]
+                & (symplectic_matrix[row_idx + target_q] ^ symplectic_matrix[row_idx + cqz] ^ 1)
             )
             ^ (
-                (symplectic_matrix[i * nrows + target_q] ^ symplectic_matrix[i * nrows + control_q])
-                & (symplectic_matrix[i * nrows + tqz] ^ symplectic_matrix[i * nrows + cqz])
-                & (symplectic_matrix[i * nrows + tqz] ^ symplectic_matrix[i * nrows + control_q] ^ 1)
+                (symplectic_matrix[row_idx + target_q] ^ symplectic_matrix[row_idx + control_q])
+                & (symplectic_matrix[row_idx + tqz] ^ symplectic_matrix[row_idx + cqz])
+                & (symplectic_matrix[row_idx + tqz] ^ symplectic_matrix[row_idx + control_q] ^ 1)
             )
             ^ (
-                symplectic_matrix[i * nrows + target_q]
-                & symplectic_matrix[i * nrows + cqz]
+                symplectic_matrix[row_idx + target_q]
+                & symplectic_matrix[row_idx + cqz]
                 & (
-                    symplectic_matrix[i * nrows + control_q]
-                    ^ symplectic_matrix[i * nrows + target_q]
-                    ^ symplectic_matrix[i * nrows + cqz]
-                    ^ symplectic_matrix[i * nrows + tqz] ^ 1
+                    symplectic_matrix[row_idx + control_q]
+                    ^ symplectic_matrix[row_idx + target_q]
+                    ^ symplectic_matrix[row_idx + cqz]
+                    ^ symplectic_matrix[row_idx + tqz] ^ 1
                 )
             )
         );
-        const unsigned char x_cq = symplectic_matrix[i * nrows + control_q];
-        const unsigned char x_tq = symplectic_matrix[i * nrows + target_q];
-        const unsigned char z_cq = symplectic_matrix[i * nrows + cqz];
-        const unsigned char z_tq = symplectic_matrix[i * nrows + tqz];
-        symplectic_matrix[i * nrows + control_q] = x_tq;
-        symplectic_matrix[i * nrows + target_q] = x_cq;
-        symplectic_matrix[i * nrows + cqz] = z_tq;
-        symplectic_matrix[i * nrows + tqz] = z_cq;
+        const unsigned char x_cq = symplectic_matrix[row_idx + control_q];
+        const unsigned char x_tq = symplectic_matrix[row_idx + target_q];
+        const unsigned char z_cq = symplectic_matrix[row_idx + cqz];
+        const unsigned char z_tq = symplectic_matrix[row_idx + tqz];
+        symplectic_matrix[row_idx + control_q] = x_tq;
+        symplectic_matrix[row_idx + target_q] = x_cq;
+        symplectic_matrix[row_idx + cqz] = z_tq;
+        symplectic_matrix[row_idx + tqz] = z_cq;
     };
 }
 """ + apply_two_qubits_kernel.format(
@@ -447,61 +460,62 @@ __device__ void _apply_iSWAP(unsigned char* symplectic_matrix, const int& contro
     const int ntid = gridDim.x * blockDim.x;
     const int last = ncolumns - 1;
     for(int i = tid; i < nrows; i += ntid) {
-        symplectic_matrix[i * nrows + last] = (
-            symplectic_matrix[i * nrows + last]
-            ^ (symplectic_matrix[i * nrows + target_q] & symplectic_matrix[i * nrows + tqz])
-            ^ (symplectic_matrix[i * nrows + control_q] & symplectic_matrix[i * nrows + cqz])
+        unsigned int row_idx = i * ncolumns;
+        symplectic_matrix[row_idx + last] = (
+            symplectic_matrix[row_idx + last]
+            ^ (symplectic_matrix[row_idx + target_q] & symplectic_matrix[row_idx + tqz])
+            ^ (symplectic_matrix[row_idx + control_q] & symplectic_matrix[row_idx + cqz])
             ^ (
-                symplectic_matrix[i * nrows + control_q]
-                & (symplectic_matrix[i * nrows + cqz] ^ symplectic_matrix[i * nrows + control_q])
+                symplectic_matrix[row_idx + control_q]
+                & (symplectic_matrix[row_idx + cqz] ^ symplectic_matrix[row_idx + control_q])
             )
             ^ (
-                (symplectic_matrix[i * nrows + cqz] ^ symplectic_matrix[i * nrows + control_q])
-                & (symplectic_matrix[i * nrows + tqz] ^ symplectic_matrix[i * nrows + target_q])
-                & (symplectic_matrix[i * nrows + target_q] ^ symplectic_matrix[i * nrows + control_q] ^ 1)
+                (symplectic_matrix[row_idx + cqz] ^ symplectic_matrix[row_idx + control_q])
+                & (symplectic_matrix[row_idx + tqz] ^ symplectic_matrix[row_idx + target_q])
+                & (symplectic_matrix[row_idx + target_q] ^ symplectic_matrix[row_idx + control_q] ^ 1)
             )
             ^ (
                 (
-                    symplectic_matrix[i * nrows + target_q]
-                    ^ symplectic_matrix[i * nrows + cqz]
-                    ^ symplectic_matrix[i * nrows + control_q]
+                    symplectic_matrix[row_idx + target_q]
+                    ^ symplectic_matrix[row_idx + cqz]
+                    ^ symplectic_matrix[row_idx + control_q]
                 )
                 & (
-                    symplectic_matrix[i * nrows + target_q]
-                    ^ symplectic_matrix[i * nrows + tqz]
-                    ^ symplectic_matrix[i * nrows + control_q]
+                    symplectic_matrix[row_idx + target_q]
+                    ^ symplectic_matrix[row_idx + tqz]
+                    ^ symplectic_matrix[row_idx + control_q]
                 )
                 & (
-                    symplectic_matrix[i * nrows + target_q]
-                    ^ symplectic_matrix[i * nrows + tqz]
-                    ^ symplectic_matrix[i * nrows + control_q]
-                    ^ symplectic_matrix[i * nrows + cqz] ^ 1
+                    symplectic_matrix[row_idx + target_q]
+                    ^ symplectic_matrix[row_idx + tqz]
+                    ^ symplectic_matrix[row_idx + control_q]
+                    ^ symplectic_matrix[row_idx + cqz] ^ 1
                 )
             )
             ^ (
-                symplectic_matrix[i * nrows + control_q]
+                symplectic_matrix[row_idx + control_q]
                 & (
-                    symplectic_matrix[i * nrows + target_q]
-                    ^ symplectic_matrix[i * nrows + control_q]
-                    ^ symplectic_matrix[i * nrows + cqz]
+                    symplectic_matrix[row_idx + target_q]
+                    ^ symplectic_matrix[row_idx + control_q]
+                    ^ symplectic_matrix[row_idx + cqz]
                 )
             )
         );
         const unsigned char z_control_q = (
-            symplectic_matrix[i * nrows + target_q]
-            ^ symplectic_matrix[i * nrows + tqz]
-            ^ symplectic_matrix[i * nrows + control_q]
+            symplectic_matrix[row_idx + target_q]
+            ^ symplectic_matrix[row_idx + tqz]
+            ^ symplectic_matrix[row_idx + control_q]
         );
         const unsigned char z_target_q = (
-            symplectic_matrix[i * nrows + target_q]
-            ^ symplectic_matrix[i * nrows + cqz]
-            ^ symplectic_matrix[i * nrows + control_q]
+            symplectic_matrix[row_idx + target_q]
+            ^ symplectic_matrix[row_idx + cqz]
+            ^ symplectic_matrix[row_idx + control_q]
         );
-        symplectic_matrix[i * nrows + cqz] = z_control_q;
-        symplectic_matrix[i * nrows + tqz] = z_target_q;
-        const unsigned char tmp = symplectic_matrix[i * nrows + control_q];
-        symplectic_matrix[i * nrows + control_q] = symplectic_matrix[i * nrows + target_q];
-        symplectic_matrix[i * nrows + target_q] = tmp;
+        symplectic_matrix[row_idx + cqz] = z_control_q;
+        symplectic_matrix[row_idx + tqz] = z_target_q;
+        const unsigned char tmp = symplectic_matrix[row_idx + control_q];
+        symplectic_matrix[row_idx + control_q] = symplectic_matrix[row_idx + target_q];
+        symplectic_matrix[row_idx + target_q] = tmp;
     };
 }
 """ + apply_two_qubits_kernel.format(
@@ -524,32 +538,33 @@ __device__ void _apply_CY(unsigned char* symplectic_matrix, const int& control_q
     const int ntid = gridDim.x * blockDim.x;
     const int last = ncolumns - 1;
     for(int i = tid; i < nrows; i += ntid) {
-        symplectic_matrix[i * nrows + last] = (
-            symplectic_matrix[i * nrows + last]
+        unsigned int row_idx = i * ncolumns;
+        symplectic_matrix[row_idx + last] = (
+            symplectic_matrix[row_idx + last]
             ^ (
-                symplectic_matrix[i * nrows + target_q]
-                & (symplectic_matrix[i * nrows + tqz] ^ symplectic_matrix[i * nrows + target_q])
+                symplectic_matrix[row_idx + target_q]
+                & (symplectic_matrix[row_idx + tqz] ^ symplectic_matrix[row_idx + target_q])
             )
             ^ (
-                symplectic_matrix[i * nrows + control_q]
-                & (symplectic_matrix[i * nrows + target_q] ^ symplectic_matrix[i * nrows + tqz])
-                & (symplectic_matrix[i * nrows + cqz] ^ symplectic_matrix[i * nrows + target_q] ^ 1)
+                symplectic_matrix[row_idx + control_q]
+                & (symplectic_matrix[row_idx + target_q] ^ symplectic_matrix[row_idx + tqz])
+                & (symplectic_matrix[row_idx + cqz] ^ symplectic_matrix[row_idx + target_q] ^ 1)
             )
             ^ (
-                (symplectic_matrix[i * nrows + target_q] ^ symplectic_matrix[i * nrows + control_q])
-                & (symplectic_matrix[i * nrows + tqz] ^ symplectic_matrix[i * nrows + target_q])
+                (symplectic_matrix[row_idx + target_q] ^ symplectic_matrix[row_idx + control_q])
+                & (symplectic_matrix[row_idx + tqz] ^ symplectic_matrix[row_idx + target_q])
             )
         );
-        const unsigned char x_target_q = symplectic_matrix[i * nrows + control_q] ^ symplectic_matrix[i * nrows + target_q];
+        const unsigned char x_target_q = symplectic_matrix[row_idx + control_q] ^ symplectic_matrix[row_idx + target_q];
         const unsigned char z_control_q = (
-            symplectic_matrix[i * nrows + cqz]
-            ^ symplectic_matrix[i * nrows + tqz]
-            ^ symplectic_matrix[i * nrows + target_q]
+            symplectic_matrix[row_idx + cqz]
+            ^ symplectic_matrix[row_idx + tqz]
+            ^ symplectic_matrix[row_idx + target_q]
         );
-        const unsigned char z_target_q = symplectic_matrix[i * nrows + tqz] ^ symplectic_matrix[i * nrows + control_q];
-        symplectic_matrix[i * nrows + target_q] = x_target_q;
-        symplectic_matrix[i * nrows + cqz] = z_control_q;
-        symplectic_matrix[i * nrows + tqz] = z_target_q;
+        const unsigned char z_target_q = symplectic_matrix[row_idx + tqz] ^ symplectic_matrix[row_idx + control_q];
+        symplectic_matrix[row_idx + target_q] = x_target_q;
+        symplectic_matrix[row_idx + cqz] = z_control_q;
+        symplectic_matrix[row_idx + tqz] = z_target_q;
     };
 }
 """ + apply_two_qubits_kernel.format(
