@@ -19,20 +19,20 @@ def _get_dim(nqubits):
 
 @cache
 def _get_nrows(ncolumns):
-    return numpy.ceil(ncolumns / 8)
+    return numpy.ceil(ncolumns / 8).astype(int)
 
 
 apply_one_qubit_kernel = """
 extern "C"
 __global__ void apply_{}(unsigned char* symplectic_matrix, const int q, const int qz, const int nrows, const int ncolumns) {{
-    _apply_{}(symplectic_matrix, q, qz, nrows);
+    _apply_{}(symplectic_matrix, q, qz, nrows, ncolumns);
 }}
 """
 
 apply_two_qubits_kernel = """
 extern "C"
 __global__ void apply_{}(unisgned char* symplectic_matrix, const int control_q, const int target_q, const int cqz, const int tqz, const int nrows, const int ncolumns) {{
-    _apply_{}(symplectic_matrix, control_q, target_q, cqz, tqz, nrows);
+    _apply_{}(symplectic_matrix, control_q, target_q, cqz, tqz, nrows, ncolumns);
 }}
 """
 
