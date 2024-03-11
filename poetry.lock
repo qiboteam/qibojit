@@ -857,7 +857,7 @@ tensorflow = ["tensorflow (>=2.16.1,<3.0.0)"]
 type = "git"
 url = "https://github.com/qiboteam/qibo.git"
 reference = "py3.12"
-resolved_reference = "b7c8ae6e9c27238d3e23fd105d1246145432931f"
+resolved_reference = "b82478244bd0c51e7da5fe0874c0b404e6f13189"
 
 [[package]]
 name = "scipy"
@@ -1132,4 +1132,4 @@ testing = ["big-O", "jaraco.functools", "jaraco.itertools", "more-itertools", "p
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.9,<3.13"
-content-hash = "c91ca664ae1d002f581218bc9d68e9ff241018a86704d97401ec24b45e18c6e2"
+content-hash = "de2b7fdfb59a35436bcbe48fa5804bdd6abbae80ae7922d2006ea46af502b337"
