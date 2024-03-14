@@ -681,14 +681,17 @@ def _random_outcome(state, p, q, nqubits):
     state[idx_pq] = False
     h = state.reshape(dim, dim)[:-1, q].nonzero()[0]
     state[idx_pq] = tmp
+    packed_dim = _get_packed_dim(state.shape[1])
     if h.shape[0] > 0:
+        state = _pack_for_measurements(state, nqubits)
         state = _rowsum(
             state,
             h,
             p.astype(cp.uint) * cp.ones(h.shape[0], dtype=np.uint),
-            nqubits,
+            packed_dim,
             False,
         )
+        state = _unpack_for_measurements(state, nqubits)
     state = state.reshape(dim, dim)
     state[p - nqubits, :] = state[p, :]
     outcome = cp.random.randint(2, size=None, dtype=cp.uint)
@@ -703,13 +706,16 @@ def _determined_outcome(state, q, nqubits):
     state = state.reshape(dim, dim)
     state[-1, :] = False
     idx = state[:nqubits, q].nonzero()[0] + nqubits
+    packed_dim = _get_packed_dim(state.shape[1])
+    state = _pack_for_measurements(state, nqubits)
     state = _rowsum(
         state.ravel(),
         (2 * nqubits * cp.ones(idx.shape, dtype=np.uint)).astype(np.uint),
         idx.astype(np.uint),
-        nqubits,
+        packed_dim,
         True,
     )
+    state = _unpack_for_measurements(state, nqubits)
     return state, state[dim * dim - 1].astype(cp.uint)
 
 
