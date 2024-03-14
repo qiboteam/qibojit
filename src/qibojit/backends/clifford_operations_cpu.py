@@ -260,11 +260,11 @@ def CY(symplectic_matrix, control_q, target_q, nqubits):
     cache=True,
     fastmath=True,
 )
-def _rowsum(symplectic_matrix, h, i, nqubits, determined=False):
-    xi, xh = symplectic_matrix[i, :nqubits], symplectic_matrix[h, :nqubits]
-    zi, zh = symplectic_matrix[i, nqubits:-1], symplectic_matrix[h, nqubits:-1]
+def _rowsum(symplectic_matrix, h, i, dim, determined=False):
+    xi, zi = symplectic_matrix[i, :dim], symplectic_matrix[i, dim:-1]
+    xh, zh = symplectic_matrix[h, :dim], symplectic_matrix[h, dim:-1]
     if determined:
-        g_r = np.array([False for _ in range(h.shape[0])])
+        g_r = np.zeros(h.shape[0], dtype=np.uint8)
         g_xi_xh = xi.copy()
         g_zi_zh = xi.copy()
     for j in prange(len(h)):  # pylint: disable=not-an-iterable
@@ -286,11 +286,11 @@ def _rowsum(symplectic_matrix, h, i, nqubits, determined=False):
             g_zi_zh[j] = zi_zh
         else:
             symplectic_matrix[h[j], -1] = r
-            symplectic_matrix[h[j], :nqubits] = xi_xh
-            symplectic_matrix[h[j], nqubits:-1] = zi_zh
+            symplectic_matrix[h[j], :dim] = xi_xh
+            symplectic_matrix[h[j], dim:-1] = zi_zh
     if determined:
         for j in prange(len(g_r)):  # pylint: disable=not-an-iterable
             symplectic_matrix[h[0], -1] ^= g_r[j]
-            symplectic_matrix[h[0], :nqubits] ^= g_xi_xh[j]
-            symplectic_matrix[h[0], nqubits:-1] ^= g_zi_zh[j]
+            symplectic_matrix[h[0], :dim] ^= g_xi_xh[j]
+            symplectic_matrix[h[0], dim:-1] ^= g_zi_zh[j]
     return symplectic_matrix
