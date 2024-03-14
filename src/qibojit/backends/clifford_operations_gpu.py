@@ -713,6 +713,15 @@ def _determined_outcome(state, q, nqubits):
     return state, state[dim * dim - 1].astype(cp.uint)
 
 
+def _packbits(array, axis):
+    # cupy.packbits doesn't support axis yet
+    return cp.array(numpy.packbits(array.get(), axis=axis), dtype=cp.uint8)
+
+
+def _unpackbits(array, axis):
+    return cp.array(numpy.unpackbits(array.get(), axis=axis), dtype=cp.uint8)
+
+
 def cast(x, dtype=None, copy=False):
     if dtype is None:
         dtype = "complex128"
@@ -734,17 +743,15 @@ def cast(x, dtype=None, copy=False):
 
 def _clifford_pre_execution_reshape(state, pack=False):
     if pack:
-        state = numpy.packbits(state.get(), axis=0)  # cupy.packbits doesn't support
-        return cp.array(state.ravel(), dtype=cp.uint8)  # axis yet
+        state = _packbits(state, axis=0)
+        return state.ravel()
     else:
         return state.ravel()
 
 
 def _clifford_post_execution_reshape(state, nqubits):
     dim = _get_dim(nqubits)
-    return cp.array(
-        numpy.unpackbits(state.reshape(-1, dim).get(), axis=0)[:dim], dtype=cp.uint8
-    )
+    return _unpackbits(state.reshape(-1, dim).get(), axis=0)[:dim]
 
 
 def identity_density_matrix(nqubits, normalize: bool = True):
