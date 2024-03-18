@@ -657,66 +657,57 @@ apply_rowsum = cp.RawKernel(apply_rowsum, "apply_rowsum", options=("--std=c++11"
 
 
 def _rowsum(symplectic_matrix, h, i, nqubits, determined=False):
-    dim = _get_dim(nqubits)
     nrows = len(h)
     exp = cp.zeros(len(h), dtype=int)
+    packed_nqubits = _get_packed_size(nqubits)
+    row_dim = _get_dim(packed_nqubits)
     apply_rowsum(
         GRIDDIM_2D,
         (BLOCKDIM,),
-        (symplectic_matrix, h, i, nqubits, determined, nrows, exp, dim),
+        (symplectic_matrix, h, i, packed_nqubits, determined, nrows, exp, row_dim),
     )
     return symplectic_matrix
-
-
-def _get_p(state, q, nqubits):
-    dim = _get_dim(nqubits)
-    return state.reshape(dim, dim)[nqubits:-1, q].nonzero()[0]
 
 
 def _random_outcome(state, p, q, nqubits):
     dim = _get_dim(nqubits)
     p = p[0] + nqubits
-    idx_pq = p * dim + q
-    tmp = state[idx_pq].copy()
-    state[idx_pq] = False
-    h = state.reshape(dim, dim)[:-1, q].nonzero()[0]
-    state[idx_pq] = tmp
-    packed_dim = _get_packed_dim(state.shape[1])
+    tmp = state[p, q].copy()
+    state[p, q] = 0
+    h = state[:-1, q].nonzero()[0]
+    state[p, q] = tmp
     if h.shape[0] > 0:
         state = _pack_for_measurements(state, nqubits)
         state = _rowsum(
-            state,
+            state.ravel(),
             h,
             p.astype(cp.uint) * cp.ones(h.shape[0], dtype=np.uint),
-            packed_dim,
+            _get_packed_size(nqubits),
             False,
         )
-        state = _unpack_for_measurements(state, nqubits)
-    state = state.reshape(dim, dim)
+        state = _unpack_for_measurements(state.reshape(dim, dim), nqubits)
     state[p - nqubits, :] = state[p, :]
     outcome = cp.random.randint(2, size=None, dtype=cp.uint)
-    state[p, :] = False
+    state[p, :] = 0
     state[p, -1] = outcome.astype(cp.uint8)
-    state[p, nqubits + q] = True
-    return state.ravel(), outcome
+    state[p, nqubits + q] = 1
+    return state, outcome
 
 
 def _determined_outcome(state, q, nqubits):
+    state[-1, :] = 0
+    idx = (state[:nqubits, q].nonzero()[0] + nqubits).astype(np.uint)
     dim = _get_dim(nqubits)
-    state = state.reshape(dim, dim)
-    state[-1, :] = False
-    idx = state[:nqubits, q].nonzero()[0] + nqubits
-    packed_dim = _get_packed_dim(state.shape[1])
     state = _pack_for_measurements(state, nqubits)
     state = _rowsum(
         state.ravel(),
         (2 * nqubits * cp.ones(idx.shape, dtype=np.uint)).astype(np.uint),
         idx.astype(np.uint),
-        packed_dim,
+        _get_packed_size(nqubits),
         True,
     )
-    state = _unpack_for_measurements(state, nqubits)
-    return state, state[dim * dim - 1].astype(cp.uint)
+    state = _unpack_for_measurements(state.reshape(dim, dim), nqubits)
+    return state, state[-1, -1]
 
 
 def _packbits(array, axis):
@@ -726,6 +717,14 @@ def _packbits(array, axis):
 
 def _unpackbits(array, axis):
     return cp.array(numpy.unpackbits(array.get(), axis=axis), dtype=cp.uint8)
+
+
+def _init_state_for_measurements(state, nqubits, collapse):
+    dim = _get_dim(nqubits)
+    if collapse:
+        return _unpackbits(state.reshape(dim, dim), axis=0)[:dim]
+    else:
+        return state.copy()
 
 
 def cast(x, dtype=None, copy=False):
