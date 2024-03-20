@@ -756,7 +756,7 @@ def _clifford_pre_execution_reshape(state, pack=False):
 
 def _clifford_post_execution_reshape(state, nqubits):
     dim = _get_dim(nqubits)
-    return _unpackbits(state.reshape(-1, dim).get(), axis=0)[:dim]
+    return _unpackbits(state.reshape(-1, dim), axis=0)[:dim]
 
 
 def identity_density_matrix(nqubits, normalize: bool = True):
