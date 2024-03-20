@@ -18,8 +18,8 @@ def _get_dim(nqubits):
 
 
 @cache
-def _get_nrows(ncolumns):
-    return numpy.ceil(ncolumns / 8).astype(int)
+def _get_packed_size(n):
+    return numpy.ceil(n / 8).astype(int)
 
 
 apply_one_qubit_kernel = """
@@ -40,7 +40,7 @@ __global__ void apply_{}(unsigned char* symplectic_matrix, const int control_q, 
 def one_qubit_kernel_launcher(kernel, symplectic_matrix, q, nqubits):
     qz = nqubits + q
     ncolumns = _get_dim(nqubits)
-    nrows = _get_nrows(ncolumns)
+    nrows = _get_packed_size(ncolumns)
     return kernel((GRIDDIM,), (BLOCKDIM,), (symplectic_matrix, q, qz, nrows, ncolumns))
 
 
@@ -48,7 +48,7 @@ def two_qubits_kernel_launcher(kernel, symplectic_matrix, control_q, target_q, n
     cqz = nqubits + control_q
     tqz = nqubits + target_q
     ncolumns = _get_dim(nqubits)
-    nrows = _get_nrows(ncolumns)
+    nrows = _get_packed_size(ncolumns)
     return kernel(
         (GRIDDIM,),
         (BLOCKDIM,),
