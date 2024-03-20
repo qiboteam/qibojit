@@ -90,7 +90,7 @@ __device__ void _apply_CNOT(unsigned char* symplectic_matrix, const int& control
         unsigned int row_idx = i * ncolumns;
         symplectic_matrix[row_idx + last] = symplectic_matrix[row_idx + last] ^ (
             symplectic_matrix[row_idx + control_q] & symplectic_matrix[row_idx + tqz]
-        ) & (symplectic_matrix[row_idx + target_q] ^ symplectic_matrix[row_idx + cqz] ^ 1);
+        ) & (symplectic_matrix[row_idx + target_q] ^ ~symplectic_matrix[row_idx + cqz]);
         symplectic_matrix[row_idx + target_q] = (
             symplectic_matrix[row_idx + target_q] ^ symplectic_matrix[row_idx + control_q]
         );
@@ -126,7 +126,7 @@ __device__ void _apply_CZ(unsigned char* symplectic_matrix, const int& control_q
             ^ (
                 symplectic_matrix[row_idx + control_q]
                 & symplectic_matrix[row_idx + target_q]
-                & (symplectic_matrix[row_idx + tqz] ^ symplectic_matrix[row_idx + cqz] ^ 1)
+                & (symplectic_matrix[row_idx + tqz] ^ ~symplectic_matrix[row_idx + cqz])
             )
             ^ (
                 symplectic_matrix[row_idx + target_q]
@@ -412,12 +412,12 @@ __device__ void _apply_SWAP(unsigned char* symplectic_matrix, const int& control
             ^ (
                 symplectic_matrix[row_idx + control_q]
                 & symplectic_matrix[row_idx + tqz]
-                & (symplectic_matrix[row_idx + target_q] ^ symplectic_matrix[row_idx + cqz] ^ 1)
+                & (symplectic_matrix[row_idx + target_q] ^ ~symplectic_matrix[row_idx + cqz])
             )
             ^ (
                 (symplectic_matrix[row_idx + target_q] ^ symplectic_matrix[row_idx + control_q])
                 & (symplectic_matrix[row_idx + tqz] ^ symplectic_matrix[row_idx + cqz])
-                & (symplectic_matrix[row_idx + tqz] ^ symplectic_matrix[row_idx + control_q] ^ 1)
+                & (symplectic_matrix[row_idx + tqz] ^ ~symplectic_matrix[row_idx + control_q])
             )
             ^ (
                 symplectic_matrix[row_idx + target_q]
@@ -426,7 +426,7 @@ __device__ void _apply_SWAP(unsigned char* symplectic_matrix, const int& control
                     symplectic_matrix[row_idx + control_q]
                     ^ symplectic_matrix[row_idx + target_q]
                     ^ symplectic_matrix[row_idx + cqz]
-                    ^ symplectic_matrix[row_idx + tqz] ^ 1
+                    ^ ~symplectic_matrix[row_idx + tqz]
                 )
             )
         );
@@ -472,7 +472,7 @@ __device__ void _apply_iSWAP(unsigned char* symplectic_matrix, const int& contro
             ^ (
                 (symplectic_matrix[row_idx + cqz] ^ symplectic_matrix[row_idx + control_q])
                 & (symplectic_matrix[row_idx + tqz] ^ symplectic_matrix[row_idx + target_q])
-                & (symplectic_matrix[row_idx + target_q] ^ symplectic_matrix[row_idx + control_q] ^ 1)
+                & (symplectic_matrix[row_idx + target_q] ^ ~symplectic_matrix[row_idx + control_q])
             )
             ^ (
                 (
@@ -489,7 +489,7 @@ __device__ void _apply_iSWAP(unsigned char* symplectic_matrix, const int& contro
                     symplectic_matrix[row_idx + target_q]
                     ^ symplectic_matrix[row_idx + tqz]
                     ^ symplectic_matrix[row_idx + control_q]
-                    ^ symplectic_matrix[row_idx + cqz] ^ 1
+                    ^ ~symplectic_matrix[row_idx + cqz]
                 )
             )
             ^ (
@@ -548,7 +548,7 @@ __device__ void _apply_CY(unsigned char* symplectic_matrix, const int& control_q
             ^ (
                 symplectic_matrix[row_idx + control_q]
                 & (symplectic_matrix[row_idx + target_q] ^ symplectic_matrix[row_idx + tqz])
-                & (symplectic_matrix[row_idx + cqz] ^ symplectic_matrix[row_idx + target_q] ^ 1)
+                & (symplectic_matrix[row_idx + cqz] ^ ~symplectic_matrix[row_idx + target_q])
             )
             ^ (
                 (symplectic_matrix[row_idx + target_q] ^ symplectic_matrix[row_idx + control_q])
