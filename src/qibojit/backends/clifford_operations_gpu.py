@@ -676,7 +676,6 @@ def _rowsum(symplectic_matrix, h, i, nqubits, determined=False):
 
 
 def _random_outcome(state, p, q, nqubits):
-    dim = _get_dim(nqubits)
     p = p[0] + nqubits
     tmp = state[p, q].copy()
     state[p, q] = 0
@@ -684,6 +683,7 @@ def _random_outcome(state, p, q, nqubits):
     state[p, q] = tmp
     if h.shape[0] > 0:
         state = _pack_for_measurements(state, nqubits)
+        dim = state.shape[1]
         state = _rowsum(
             state.ravel(),
             h,
@@ -691,7 +691,9 @@ def _random_outcome(state, p, q, nqubits):
             _get_packed_size(nqubits),
             False,
         )
-        state = _unpack_for_measurements(state.reshape(dim, dim), nqubits)
+        state = _unpack_for_measurements(
+            state.reshape(_get_packed_size(_get_dim(nqubits)), dim), nqubits
+        )
     state[p - nqubits, :] = state[p, :]
     outcome = cp.random.randint(2, size=None, dtype=cp.uint)
     state[p, :] = 0
