@@ -4,6 +4,12 @@ from functools import cache
 
 import cupy as cp  # pylint: disable=E0401
 import numpy
+from qibo.backends._clifford_operations import (
+    _get_dim,
+    _get_packed_size,
+    _get_pad_size,
+    _get_rxz,
+)
 from scipy import sparse
 
 np = cp
@@ -717,6 +723,25 @@ def _packbits(array, axis):
 
 def _unpackbits(array, axis):
     return cp.array(numpy.unpackbits(array.get(), axis=axis), dtype=cp.uint8)
+
+
+def _pack_for_measurements(state, nqubits):
+    r, x, z = _get_rxz(state, nqubits)
+    x = _packbits(x, axis=1)
+    z = _packbits(z, axis=1)
+    return np.hstack((x, z, r[:, None]))
+
+
+@cache
+def _get_pad_size(nqubits):
+    return 8 - (nqubits % 8)
+
+
+def _unpack_for_measurements(state, nqubits):
+    xz = _unpackbits(state[:, :-1], axis=1)
+    padding_size = _get_pad_size(nqubits)
+    x, z = xz[:, :nqubits], xz[:, nqubits + padding_size : -padding_size]
+    return np.hstack((x, z, state[:, -1][:, None]))
 
 
 def _init_state_for_measurements(state, nqubits, collapse):
