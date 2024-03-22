@@ -677,9 +677,7 @@ def _random_outcome(state, p, q, nqubits):
             _get_packed_size(nqubits),
             False,
         )
-        state = _unpack_for_measurements(
-            state.reshape(_get_packed_size(_get_dim(nqubits)), dim), nqubits
-        )
+        state = _unpack_for_measurements(state.reshape(-1, dim), nqubits)
     state[p - nqubits, :] = state[p, :]
     outcome = cp.random.randint(2, size=None, dtype=cp.uint)
     state[p, :] = 0
@@ -700,7 +698,7 @@ def _determined_outcome(state, q, nqubits):
         _get_packed_size(nqubits),
         True,
     )
-    state = _unpack_for_measurements(state.reshape(dim, dim), nqubits)
+    state = _unpack_for_measurements(state.reshape(-1, dim), nqubits)
     return state, state[-1, -1]
 
 
