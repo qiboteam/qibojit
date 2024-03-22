@@ -595,44 +595,29 @@ __device__ void _apply_rowsum(unsigned char* symplectic_matrix, const long* h, c
     unsigned int nbid_y = gridDim.y;
     const int last = dim - 1;
     __shared__ int exp;
-    if (threadIdx.x == 0) {
-        exp = 0;
-    }
     for(int j = bid_y; j < nrows; j += nbid_y) {
+        unsigned int row_i = i[j] * dim;
+        unsigned int row_h = h[j] * dim;
         for(int k = tid_x; k < nqubits; k += ntid_x) {
             unsigned int kz = nqubits + k;
-            unsigned char x1_eq_z1 = symplectic_matrix[i[j] * dim + k] == symplectic_matrix[i[j] * dim + kz];
-            unsigned char x1_eq_0 = symplectic_matrix[i[j] * dim + k] == false;
-            if (x1_eq_z1) {
-                if (not x1_eq_0) {
-                    exp += ((int) symplectic_matrix[h[j] * dim + kz]) -
-                        (int) symplectic_matrix[h[j] * dim + k];
-                }
-            } else {
-                if (x1_eq_0) {
-                    exp += ((int) symplectic_matrix[h[j] * dim + k]) * (
-                        1 - 2 * (int) symplectic_matrix[h[j] * dim + kz]
-                    );
-                } else {
-                    exp += ((int) symplectic_matrix[h[j] * dim + kz]) * (
-                        2 * (int) symplectic_matrix[h[j] * dim + k] - 1
-                    );
-                }
-            }
+            exp = (
+                2 * (symplectic_matrix[row_i + k] * symplectic_matrix[row_h + k] * (symplectic_matrix[row_h + kz] - symplectic_matrix[row_i + kz]) +
+                symplectic_matrix[row_i + kz] * symplectic_matrix[row_h + kz] * (symplectic_matrix[row_i + k] - symplectic_matrix[row_h + k]))
+                - symplectic_matrix[row_i + k] * symplectic_matrix[row_h + kz]
+                + symplectic_matrix[row_h + k] * symplectic_matrix[row_i + kz]
+            );
         }
         if (threadIdx.x == 0 && tid_x < nqubits) {
             g_exp[j] += exp;
         }
         __syncthreads();
         if (threadIdx.x == 0 && blockIdx.x == 0) {
-            symplectic_matrix[h[j] * dim + last] = (
-                2 * symplectic_matrix[h[j] * dim + last] + 2 * symplectic_matrix[i[j] * dim + last] + g_exp[j]
+            symplectic_matrix[row_h + last] = (
+                2 * symplectic_matrix[row_h + last] + 2 * symplectic_matrix[row_i + last] + g_exp[j]
             ) % 4 != 0;
         }
         for(int k = tid_x; k < nqubits; k += ntid_x) {
             unsigned int kz = nqubits + k;
-            unsigned int row_i = i[j] * dim;
-            unsigned int row_h = h[j] * dim;
             unsigned char xi_xh = (
                 symplectic_matrix[row_i + k] ^ symplectic_matrix[row_h + k]
             );
@@ -682,6 +667,7 @@ def _random_outcome(state, p, q, nqubits):
     h = state[:-1, q].nonzero()[0]
     state[p, q] = tmp
     if h.shape[0] > 0:
+        dim = state.shape[1]
         state = _pack_for_measurements(state, nqubits)
         dim = state.shape[1]
         state = _rowsum(
@@ -705,8 +691,8 @@ def _random_outcome(state, p, q, nqubits):
 def _determined_outcome(state, q, nqubits):
     state[-1, :] = 0
     idx = (state[:nqubits, q].nonzero()[0] + nqubits).astype(np.uint)
-    dim = _get_dim(nqubits)
     state = _pack_for_measurements(state, nqubits)
+    dim = state.shape[1]
     state = _rowsum(
         state.ravel(),
         (2 * nqubits * cp.ones(idx.shape, dtype=np.uint)).astype(np.uint),
@@ -749,7 +735,7 @@ def _unpack_for_measurements(state, nqubits):
 def _init_state_for_measurements(state, nqubits, collapse):
     dim = _get_dim(nqubits)
     if collapse:
-        return _unpackbits(state.reshape(dim, dim), axis=0)[:dim]
+        return _unpackbits(state[None, :], axis=0)[:dim]
     else:
         return state.copy()
 
