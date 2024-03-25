@@ -1,7 +1,5 @@
 """Set of custom CuPy operations for the Clifford backend."""
 
-from functools import cache
-
 import cupy as cp  # pylint: disable=E0401
 import numpy
 from qibo.backends._clifford_operations import (
@@ -16,16 +14,6 @@ np = cp
 
 GRIDDIM, BLOCKDIM = 1024, 128
 GRIDDIM_2D = (1024, 1024)
-
-
-@cache
-def _get_dim(nqubits):
-    return 2 * nqubits + 1
-
-
-@cache
-def _get_packed_size(n):
-    return numpy.ceil(n / 8).astype(int)
 
 
 apply_one_qubit_kernel = """
@@ -716,11 +704,6 @@ def _pack_for_measurements(state, nqubits):
     x = _packbits(x, axis=1)
     z = _packbits(z, axis=1)
     return np.hstack((x, z, r[:, None]))
-
-
-@cache
-def _get_pad_size(nqubits):
-    return 8 - (nqubits % 8)
 
 
 def _unpack_for_measurements(state, nqubits):
