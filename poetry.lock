@@ -855,7 +855,7 @@ torch = ["torch (>=2.1.1,<3.0.0)"]
 
 [package.source]
 type = "git"
-url = "git@github.com:qiboteam/qibo.git"
+url = "https://github.com/qiboteam/qibo.git"
 reference = "clifford_simulator_numba"
 resolved_reference = "9785030bd1e62e2f9ccf3497ab148591c4c037f2"
 
@@ -1132,4 +1132,4 @@ testing = ["big-O", "jaraco.functools", "jaraco.itertools", "more-itertools", "p
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.9.0,<3.12"
-content-hash = "7bfe525581fc87fcc701179386f2ebad8e8d1a0e7da024fa2bcc7665472622b7"
+content-hash = "be14d2d005b22042bdc40b5ca6bff74e1cc2efc66ef4f569be5b15e3f66b78c1"
