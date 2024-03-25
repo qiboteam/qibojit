@@ -1,9 +1,11 @@
+from typing import Union
+
 from qibo.config import raise_error
 
 from qibojit.backends.cpu import NumbaBackend
 from qibojit.backends.gpu import CupyBackend, CuQuantumBackend
 
-QibojitBackend = NumbaBackend | CupyBackend | CuQuantumBackend
+QibojitBackend = Union[NumbaBackend, CupyBackend, CuQuantumBackend]
 
 PLATFORMS = ("numba", "cupy", "cuquantum")
 
