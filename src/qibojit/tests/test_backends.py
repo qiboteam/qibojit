@@ -1,6 +1,8 @@
 import numpy as np
 import pytest
 
+from qibojit.backends import MetaBackend
+
 
 def test_device_setter(backend):
     if backend.platform == "numba":
@@ -114,3 +116,8 @@ def test_backend_eigh_sparse(backend, sparse_type, k):
     eigvals1 = backend.to_numpy(eigvals1)
     eigvals2 = backend.to_numpy(eigvals2)
     backend.assert_allclose(sorted(eigvals1), sorted(eigvals2))
+
+
+def test_metabackend_list_available():
+    available_backends = dict(zip(("numba", "cupy", "cuquantum"), (True, False, False)))
+    assert MetaBackend().list_available() == available_backends
