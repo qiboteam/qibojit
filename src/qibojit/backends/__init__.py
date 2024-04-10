@@ -14,7 +14,7 @@ class MetaBackend:
     """Meta-backend class which takes care of loading the qibojit backends."""
 
     @staticmethod
-    def load(platform: str) -> QibojitBackend:
+    def load(platform: str = None) -> QibojitBackend:
         """Loads the backend.
 
         Args:
@@ -29,11 +29,11 @@ class MetaBackend:
             return CupyBackend()
         elif platform == "cuquantum":
             return CuQuantumBackend()
-        else:
-            raise_error(
-                ValueError,
-                f"Unsupported platform, please use one among {PLATFORMS}.",
-            )
+        else:  # pragma: no cover
+            try:
+                return CupyBackend()
+            except (ModuleNotFoundError, ImportError):
+                return NumbaBackend()
 
     def list_available(self) -> dict:
         """Lists all the available qibojit backends."""
