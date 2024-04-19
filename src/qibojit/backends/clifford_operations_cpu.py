@@ -37,13 +37,6 @@ def CNOT(symplectic_matrix, control_q, target_q, nqubits):
         )
         x[i, target_q] = x[i, target_q] ^ x[i, control_q]
         z[i, control_q] = z[i, control_q] ^ z[i, target_q]
-    """
-    r[:] = r    ^ (x[:, control_q] & z[:, target_q]) & (
-        x[:, target_q] ^ ~z[:, control_q]
-    )
-    x[:, target_q] = x[:, target_q] ^ x[:, control_q]
-    z[:, control_q] = z[:, control_q] ^ z[:, target_q]
-    """
     return symplectic_matrix
 
 
@@ -63,18 +56,6 @@ def CZ(symplectic_matrix, control_q, target_q, nqubits):
         z_target_q = z[i, target_q] ^ x[i, control_q]
         z[i, control_q] = z_control_q
         z[i, target_q] = z_target_q
-    """
-    r[:] = (
-        r
-        ^ (x[:, target_q] & z[:, target_q])
-        ^ (x[:, control_q] & x[:, target_q] & (z[:, target_q] ^ ~z[:, control_q]))
-        ^ (x[:, target_q] & (z[:, target_q] ^ x[:, control_q]))
-    )
-    z_control_q = x[:, target_q] ^ z[:, control_q]
-    z_target_q = z[:, target_q] ^ x[:, control_q]
-    z[:, control_q] = z_control_q
-    z[:, target_q] = z_target_q
-    """
     return symplectic_matrix
 
 
