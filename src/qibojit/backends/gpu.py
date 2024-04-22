@@ -505,7 +505,7 @@ class CupyBackend(NumbaBackend):  # pragma: no cover
 
                 return self.cast(expm(-1j * a * matrix.get()))
             else:
-                from cupyx.scipy.linalg import expm
+                from cupyx.scipy.linalg import expm  # pylint: disable=import-error
 
                 return self.cast(expm(-1j * a * matrix))
         else:
