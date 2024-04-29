@@ -809,7 +809,7 @@ torch = ["torch (>=2.1.1,<3.0.0)"]
 type = "git"
 url = "https://github.com/qiboteam/qibo.git"
 reference = "clifford_simulator_numba"
-resolved_reference = "f591f2fe21ff3fdd71ecb4b29bb9f12030addb7b"
+resolved_reference = "7d472318627a0d1da6f11c33b0e415f5cf8cc68c"
 
 [[package]]
 name = "scipy"

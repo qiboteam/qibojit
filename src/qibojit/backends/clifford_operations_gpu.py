@@ -2,12 +2,7 @@
 
 import cupy as cp  # pylint: disable=E0401
 import numpy
-from qibo.backends._clifford_operations import (
-    _get_dim,
-    _get_packed_size,
-    _get_pad_size,
-    _get_rxz,
-)
+from qibo.backends._clifford_operations import _dim, _get_rxz, _packed_size, _pad_size
 from scipy import sparse
 
 np = cp
@@ -33,16 +28,16 @@ __global__ void apply_{}(unsigned char* symplectic_matrix, const int control_q, 
 
 def one_qubit_kernel_launcher(kernel, symplectic_matrix, q, nqubits):
     qz = nqubits + q
-    ncolumns = _get_dim(nqubits)
-    nrows = _get_packed_size(ncolumns)
+    ncolumns = _dim(nqubits)
+    nrows = _packed_size(ncolumns)
     return kernel((GRIDDIM,), (BLOCKDIM,), (symplectic_matrix, q, qz, nrows, ncolumns))
 
 
 def two_qubits_kernel_launcher(kernel, symplectic_matrix, control_q, target_q, nqubits):
     cqz = nqubits + control_q
     tqz = nqubits + target_q
-    ncolumns = _get_dim(nqubits)
-    nrows = _get_packed_size(ncolumns)
+    ncolumns = _dim(nqubits)
+    nrows = _packed_size(ncolumns)
     return kernel(
         (GRIDDIM,),
         (BLOCKDIM,),
@@ -638,8 +633,8 @@ apply_rowsum = cp.RawKernel(apply_rowsum, "apply_rowsum", options=("--std=c++11"
 def _rowsum(symplectic_matrix, h, i, nqubits, determined=False):
     nrows = len(h)
     exp = cp.zeros(len(h), dtype=int)
-    packed_nqubits = _get_packed_size(nqubits)
-    row_dim = _get_dim(packed_nqubits)
+    packed_nqubits = _packed_size(nqubits)
+    row_dim = _dim(packed_nqubits)
     apply_rowsum(
         GRIDDIM_2D,
         (BLOCKDIM,),
@@ -662,7 +657,7 @@ def _random_outcome(state, p, q, nqubits):
             state.ravel(),
             h,
             p.astype(cp.uint) * cp.ones(h.shape[0], dtype=np.uint),
-            _get_packed_size(nqubits),
+            _packed_size(nqubits),
             False,
         )
         state = _unpack_for_measurements(state.reshape(-1, dim), nqubits)
@@ -683,7 +678,7 @@ def _determined_outcome(state, q, nqubits):
         state.ravel(),
         (2 * nqubits * cp.ones(idx.shape, dtype=np.uint)).astype(np.uint),
         idx.astype(np.uint),
-        _get_packed_size(nqubits),
+        _packed_size(nqubits),
         True,
     )
     state = _unpack_for_measurements(state.reshape(-1, dim), nqubits)
@@ -708,13 +703,13 @@ def _pack_for_measurements(state, nqubits):
 
 def _unpack_for_measurements(state, nqubits):
     xz = _unpackbits(state[:, :-1], axis=1)
-    padding_size = _get_pad_size(nqubits)
+    padding_size = _pad_size(nqubits)
     x, z = xz[:, :nqubits], xz[:, nqubits + padding_size : -padding_size]
     return np.hstack((x, z, state[:, -1][:, None]))
 
 
 def _init_state_for_measurements(state, nqubits, collapse):
-    dim = _get_dim(nqubits)
+    dim = _dim(nqubits)
     if collapse:
         return _unpackbits(state[None, :], axis=0)[:dim]
     else:
@@ -749,7 +744,7 @@ def _clifford_pre_execution_reshape(state, pack=False):
 
 
 def _clifford_post_execution_reshape(state, nqubits):
-    dim = _get_dim(nqubits)
+    dim = _dim(nqubits)
     return _unpackbits(state.reshape(-1, dim), axis=0)[:dim]
 
 
