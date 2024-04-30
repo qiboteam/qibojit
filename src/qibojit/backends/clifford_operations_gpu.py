@@ -735,12 +735,8 @@ def cast(x, dtype=None, copy=False):
     return cp.asarray(x, dtype=dtype)
 
 
-def _clifford_pre_execution_reshape(state, pack=False):
-    if pack:
-        state = _packbits(state, axis=0)
-        return state.ravel()
-    else:
-        return state.ravel()
+def _clifford_pre_execution_reshape(state):
+    return _packbits(state, axis=0).ravel()
 
 
 def _clifford_post_execution_reshape(state, nqubits):
