@@ -22,7 +22,7 @@ classifiers = [
 [tool.poetry.dependencies]
 python = "^3.9,<3.13"
 numba = ">=0.59.0"
-qibo = { git = "https://github.com/qiboteam/qibo.git" }
+qibo = { git="https://github.com/qiboteam/qibo.git" }
 scipy = "^1.10.1"
 psutil = "^5.9.5"
 
