@@ -808,8 +808,8 @@ torch = ["torch (>=2.1.1,<3.0.0)"]
 [package.source]
 type = "git"
 url = "https://github.com/qiboteam/qibo.git"
-reference = "clifford_simulator_numba"
-resolved_reference = "7d472318627a0d1da6f11c33b0e415f5cf8cc68c"
+reference = "HEAD"
+resolved_reference = "953852301abce89eae60ac4195e167678bf6de9d"
 
 [[package]]
 name = "scipy"
@@ -1005,4 +1005,4 @@ testing = ["big-O", "jaraco.functools", "jaraco.itertools", "more-itertools", "p
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.9,<3.13"
-content-hash = "6c6b57e0923e4c137dd9fd07658f985376b03620bc274a382982150727518efc"
+content-hash = "db9b42481764b779219af70186a2d469b2bf2b888dd52c5a7bde3d9770d5470b"
