@@ -3,12 +3,22 @@
 import numpy as np
 from numba import njit, prange, uint64
 
+PARALLEL = False
 
-@njit("b1[:,:](b1[:,:], u8, u8)", parallel=True, cache=True)
+
+@njit("Tuple((u1[:], u1[:,:], u1[:,:]))(u1[:,:], u8)", parallel=PARALLEL, cache=True)
+def _get_rxz(symplectic_matrix, nqubits):
+    return (
+        symplectic_matrix[:, -1],
+        symplectic_matrix[:, :nqubits],
+        symplectic_matrix[:, nqubits:-1],
+    )
+
+
+@njit("u1[:,:](u1[:,:], u8, u8)", parallel=PARALLEL, cache=True)
 def H(symplectic_matrix, q, nqubits):
-    r = symplectic_matrix[:-1, -1]
-    x = symplectic_matrix[:-1, :nqubits]
-    z = symplectic_matrix[:-1, nqubits:-1]
+    r, x, z = _get_rxz(symplectic_matrix, nqubits)
+
     for i in prange(symplectic_matrix.shape[0]):  # pylint: disable=not-an-iterable
         symplectic_matrix[i, -1] = r[i] ^ (x[i, q] & z[i, q])
         tmp = symplectic_matrix[i, q]
@@ -17,27 +27,23 @@ def H(symplectic_matrix, q, nqubits):
     return symplectic_matrix
 
 
-@njit("b1[:,:](b1[:,:], u8, u8, u8)", parallel=True, cache=True)
+@njit("u1[:,:](u1[:,:], u8, u8, u8)", parallel=PARALLEL, cache=True)
 def CNOT(symplectic_matrix, control_q, target_q, nqubits):
-    r = symplectic_matrix[:-1, -1]
-    x = symplectic_matrix[:-1, :nqubits]
-    z = symplectic_matrix[:-1, nqubits:-1]
+    r, x, z = _get_rxz(symplectic_matrix, nqubits)
 
     for i in prange(symplectic_matrix.shape[0]):  # pylint: disable=not-an-iterable
-        symplectic_matrix[i, -1] = r[i] ^ (x[i, control_q] & z[i, target_q]) & (
+        r[i] = r[i] ^ (x[i, control_q] & z[i, target_q]) & (
             x[i, target_q] ^ ~z[i, control_q]
         )
-        symplectic_matrix[i, target_q] = x[i, target_q] ^ x[i, control_q]
-        symplectic_matrix[i, nqubits + control_q] = z[i, control_q] ^ z[i, target_q]
+        x[i, target_q] = x[i, target_q] ^ x[i, control_q]
+        z[i, control_q] = z[i, control_q] ^ z[i, target_q]
     return symplectic_matrix
 
 
-@njit("b1[:,:](b1[:,:], u8, u8, u8)", parallel=True, cache=True)
+@njit("u1[:,:](u1[:,:], u8, u8, u8)", parallel=PARALLEL, cache=True)
 def CZ(symplectic_matrix, control_q, target_q, nqubits):
     """Decomposition --> H-CNOT-H"""
-    r = symplectic_matrix[:-1, -1]
-    x = symplectic_matrix[:-1, :nqubits]
-    z = symplectic_matrix[:-1, nqubits:-1]
+    r, x, z = _get_rxz(symplectic_matrix, nqubits)
 
     for i in prange(symplectic_matrix.shape[0]):  # pylint: disable=not-an-iterable
         symplectic_matrix[i, -1] = (
@@ -48,28 +54,26 @@ def CZ(symplectic_matrix, control_q, target_q, nqubits):
         )
         z_control_q = x[i, target_q] ^ z[i, control_q]
         z_target_q = z[i, target_q] ^ x[i, control_q]
-        symplectic_matrix[i, nqubits + control_q] = z_control_q
-        symplectic_matrix[i, nqubits + target_q] = z_target_q
+        z[i, control_q] = z_control_q
+        z[i, target_q] = z_target_q
     return symplectic_matrix
 
 
-@njit("b1[:,:](b1[:,:], u8, u8)", parallel=True, cache=True)
+@njit("u1[:,:](u1[:,:], u8, u8)", parallel=PARALLEL, cache=True)
 def S(symplectic_matrix, q, nqubits):
-    r = symplectic_matrix[:-1, -1]
-    x = symplectic_matrix[:-1, :nqubits]
-    z = symplectic_matrix[:-1, nqubits:-1]
+    r, x, z = _get_rxz(symplectic_matrix, nqubits)
+
     for i in prange(symplectic_matrix.shape[0]):  # pylint: disable=not-an-iterable
         symplectic_matrix[i, -1] = r[i] ^ (x[i, q] & z[i, q])
         symplectic_matrix[i, nqubits + q] = z[i, q] ^ x[i, q]
     return symplectic_matrix
 
 
-@njit("b1[:,:](b1[:,:], u8, u8)", parallel=True, cache=True)
+@njit("u1[:,:](u1[:,:], u8, u8)", parallel=PARALLEL, cache=True)
 def Z(symplectic_matrix, q, nqubits):
     """Decomposition --> S-S"""
-    r = symplectic_matrix[:-1, -1]
-    x = symplectic_matrix[:-1, :nqubits]
-    z = symplectic_matrix[:-1, nqubits:-1]
+    r, x, z = _get_rxz(symplectic_matrix, nqubits)
+
     for i in prange(symplectic_matrix.shape[0]):  # pylint: disable=not-an-iterable
         symplectic_matrix[i, -1] = r[i] ^ (
             (x[i, q] & z[i, q]) ^ x[i, q] & (z[i, q] ^ x[i, q])
@@ -77,12 +81,11 @@ def Z(symplectic_matrix, q, nqubits):
     return symplectic_matrix
 
 
-@njit("b1[:,:](b1[:,:], u8, u8)", parallel=True, cache=True)
+@njit("u1[:,:](u1[:,:], u8, u8)", parallel=PARALLEL, cache=True)
 def X(symplectic_matrix, q, nqubits):
     """Decomposition --> H-S-S-H"""
-    r = symplectic_matrix[:-1, -1]
-    x = symplectic_matrix[:-1, :nqubits]
-    z = symplectic_matrix[:-1, nqubits:-1]
+    r, x, z = _get_rxz(symplectic_matrix, nqubits)
+
     for i in prange(symplectic_matrix.shape[0]):  # pylint: disable=not-an-iterable
         symplectic_matrix[i, -1] = (
             r[i] ^ (z[i, q] & (z[i, q] ^ x[i, q])) ^ (z[i, q] & x[i, q])
@@ -90,12 +93,11 @@ def X(symplectic_matrix, q, nqubits):
     return symplectic_matrix
 
 
-@njit("b1[:,:](b1[:,:], u8, u8)", parallel=True, cache=True)
+@njit("u1[:,:](u1[:,:], u8, u8)", parallel=PARALLEL, cache=True)
 def Y(symplectic_matrix, q, nqubits):
     """Decomposition --> S-S-H-S-S-H"""
-    r = symplectic_matrix[:-1, -1]
-    x = symplectic_matrix[:-1, :nqubits]
-    z = symplectic_matrix[:-1, nqubits:-1]
+    r, x, z = _get_rxz(symplectic_matrix, nqubits)
+
     for i in prange(symplectic_matrix.shape[0]):  # pylint: disable=not-an-iterable
         symplectic_matrix[i, -1] = (
             r[i] ^ (z[i, q] & (z[i, q] ^ x[i, q])) ^ (x[i, q] & (z[i, q] ^ x[i, q]))
@@ -103,48 +105,44 @@ def Y(symplectic_matrix, q, nqubits):
     return symplectic_matrix
 
 
-@njit("b1[:,:](b1[:,:], u8, u8)", parallel=True, cache=True)
+@njit("u1[:,:](u1[:,:], u8, u8)", parallel=PARALLEL, cache=True)
 def SX(symplectic_matrix, q, nqubits):
     """Decomposition --> H-S-H"""
-    r = symplectic_matrix[:-1, -1]
-    x = symplectic_matrix[:-1, :nqubits]
-    z = symplectic_matrix[:-1, nqubits:-1]
+    r, x, z = _get_rxz(symplectic_matrix, nqubits)
+
     for i in prange(symplectic_matrix.shape[0]):  # pylint: disable=not-an-iterable
         symplectic_matrix[i, -1] = r[i] ^ (z[i, q] & (z[i, q] ^ x[i, q]))
         symplectic_matrix[i, q] = z[i, q] ^ x[i, q]
     return symplectic_matrix
 
 
-@njit("b1[:,:](b1[:,:], u8, u8)", parallel=True, cache=True)
+@njit("u1[:,:](u1[:,:], u8, u8)", parallel=PARALLEL, cache=True)
 def SDG(symplectic_matrix, q, nqubits):
     """Decomposition --> S-S-S"""
-    r = symplectic_matrix[:-1, -1]
-    x = symplectic_matrix[:-1, :nqubits]
-    z = symplectic_matrix[:-1, nqubits:-1]
+    r, x, z = _get_rxz(symplectic_matrix, nqubits)
+
     for i in prange(symplectic_matrix.shape[0]):  # pylint: disable=not-an-iterable
         symplectic_matrix[i, -1] = r[i] ^ (x[i, q] & (z[i, q] ^ x[i, q]))
         symplectic_matrix[i, nqubits + q] = z[i, q] ^ x[i, q]
     return symplectic_matrix
 
 
-@njit("b1[:,:](b1[:,:], u8, u8)", parallel=True, cache=True)
+@njit("u1[:,:](u1[:,:], u8, u8)", parallel=PARALLEL, cache=True)
 def SXDG(symplectic_matrix, q, nqubits):
     """Decomposition --> H-S-S-S-H"""
-    r = symplectic_matrix[:-1, -1]
-    x = symplectic_matrix[:-1, :nqubits]
-    z = symplectic_matrix[:-1, nqubits:-1]
+    r, x, z = _get_rxz(symplectic_matrix, nqubits)
+
     for i in prange(symplectic_matrix.shape[0]):  # pylint: disable=not-an-iterable
         symplectic_matrix[i, -1] = r[i] ^ (z[i, q] & x[i, q])
         symplectic_matrix[i, q] = z[i, q] ^ x[i, q]
     return symplectic_matrix
 
 
-@njit("b1[:,:](b1[:,:], u8, u8)", parallel=True, cache=True)
+@njit("u1[:,:](u1[:,:], u8, u8)", parallel=PARALLEL, cache=True)
 def RY_pi(symplectic_matrix, q, nqubits):
     """Decomposition --> H-S-S"""
-    r = symplectic_matrix[:-1, -1]
-    x = symplectic_matrix[:-1, :nqubits]
-    z = symplectic_matrix[:-1, nqubits:-1]
+    r, x, z = _get_rxz(symplectic_matrix, nqubits)
+
     for i in prange(symplectic_matrix.shape[0]):  # pylint: disable=not-an-iterable
         symplectic_matrix[i, -1] = r[i] ^ (x[i, q] & (z[i, q] ^ x[i, q]))
         zq = symplectic_matrix[i, nqubits + q]
@@ -153,12 +151,11 @@ def RY_pi(symplectic_matrix, q, nqubits):
     return symplectic_matrix
 
 
-@njit("b1[:,:](b1[:,:], u8, u8)", parallel=True, cache=True)
+@njit("u1[:,:](u1[:,:], u8, u8)", parallel=PARALLEL, cache=True)
 def RY_3pi_2(symplectic_matrix, q, nqubits):
     """Decomposition --> H-S-S"""
-    r = symplectic_matrix[:-1, -1]
-    x = symplectic_matrix[:-1, :nqubits]
-    z = symplectic_matrix[:-1, nqubits:-1]
+    r, x, z = _get_rxz(symplectic_matrix, nqubits)
+
     for i in prange(symplectic_matrix.shape[0]):  # pylint: disable=not-an-iterable
         symplectic_matrix[i, -1] = r[i] ^ (z[i, q] & (z[i, q] ^ x[i, q]))
         zq = symplectic_matrix[i, nqubits + q]
@@ -167,12 +164,11 @@ def RY_3pi_2(symplectic_matrix, q, nqubits):
     return symplectic_matrix
 
 
-@njit("b1[:,:](b1[:,:], u8, u8, u8)", parallel=True, cache=True)
+@njit("u1[:,:](u1[:,:], u8, u8, u8)", parallel=PARALLEL, cache=True)
 def SWAP(symplectic_matrix, control_q, target_q, nqubits):
     """Decomposition --> CNOT-CNOT-CNOT"""
-    r = symplectic_matrix[:-1, -1]
-    x = symplectic_matrix[:-1, :nqubits]
-    z = symplectic_matrix[:-1, nqubits:-1]
+    r, x, z = _get_rxz(symplectic_matrix, nqubits)
+
     for i in prange(symplectic_matrix.shape[0]):  # pylint: disable=not-an-iterable
         symplectic_matrix[i, -1] = (
             r[i]
@@ -199,12 +195,11 @@ def SWAP(symplectic_matrix, control_q, target_q, nqubits):
     return symplectic_matrix
 
 
-@njit("b1[:,:](b1[:,:], u8, u8, u8)", parallel=True, cache=True)
+@njit("u1[:,:](u1[:,:], u8, u8, u8)", parallel=PARALLEL, cache=True)
 def iSWAP(symplectic_matrix, control_q, target_q, nqubits):
     """Decomposition --> H-CNOT-CNOT-H-S-S"""
-    r = symplectic_matrix[:-1, -1]
-    x = symplectic_matrix[:-1, :nqubits]
-    z = symplectic_matrix[:-1, nqubits:-1]
+    r, x, z = _get_rxz(symplectic_matrix, nqubits)
+
     for i in prange(symplectic_matrix.shape[0]):  # pylint: disable=not-an-iterable
         symplectic_matrix[i, -1] = (
             r[i]
@@ -233,12 +228,11 @@ def iSWAP(symplectic_matrix, control_q, target_q, nqubits):
     return symplectic_matrix
 
 
-@njit("b1[:,:](b1[:,:], u8, u8, u8)", parallel=True, cache=True)
+@njit("u1[:,:](u1[:,:], u8, u8, u8)", parallel=PARALLEL, cache=True)
 def CY(symplectic_matrix, control_q, target_q, nqubits):
     """Decomposition --> S-CNOT-SDG"""
-    r = symplectic_matrix[:-1, -1]
-    x = symplectic_matrix[:-1, :nqubits]
-    z = symplectic_matrix[:-1, nqubits:-1]
+    r, x, z = _get_rxz(symplectic_matrix, nqubits)
+
     for i in prange(symplectic_matrix.shape[0]):  # pylint: disable=not-an-iterable
         symplectic_matrix[i, -1] = (
             r[i]
@@ -261,33 +255,26 @@ def CY(symplectic_matrix, control_q, target_q, nqubits):
 
 @njit(
     [
-        "b1[:,:](b1[:,:], u8[:], u8[:], u8, b1)",
-        "b1[:,:](b1[:,:], u4[:], u4[:], u4, b1)",
+        "u1[:,:](u1[:,:], u8[:], u8[:], u8, b1)",
+        "u1[:,:](u1[:,:], u4[:], u4[:], u4, b1)",
     ],
-    parallel=True,
+    parallel=PARALLEL,
     cache=True,
     fastmath=True,
 )
 def _rowsum(symplectic_matrix, h, i, nqubits, determined=False):
-    xi, xh = symplectic_matrix[i, :nqubits], symplectic_matrix[h, :nqubits]
-    zi, zh = symplectic_matrix[i, nqubits:-1], symplectic_matrix[h, nqubits:-1]
+    xi, zi = symplectic_matrix[i, :nqubits], symplectic_matrix[i, nqubits:-1]
+    xh, zh = symplectic_matrix[h, :nqubits], symplectic_matrix[h, nqubits:-1]
     if determined:
-        g_r = np.array([False for _ in range(h.shape[0])])
+        g_r = np.zeros(h.shape[0], dtype=np.uint8)
         g_xi_xh = xi.copy()
         g_zi_zh = xi.copy()
     for j in prange(len(h)):  # pylint: disable=not-an-iterable
-        exp = np.zeros(nqubits, dtype=uint64)
-        x1_eq_z1 = (xi[j] ^ zi[j]) == False
-        x1_neq_z1 = ~x1_eq_z1
-        x1_eq_0 = xi[j] == False
-        x1_eq_1 = ~x1_eq_0
-        ind2 = x1_eq_z1 & x1_eq_1
-        ind3 = x1_eq_1 & x1_neq_z1
-        ind4 = x1_eq_0 & x1_neq_z1
-        exp[ind2] = zh[j, ind2].astype(uint64) - xh[j, ind2].astype(uint64)
-        exp[ind3] = zh[j, ind3].astype(uint64) * (2 * xh[j, ind3].astype(uint64) - 1)
-        exp[ind4] = xh[j, ind4].astype(uint64) * (1 - 2 * zh[j, ind4].astype(uint64))
-
+        exp = (
+            2 * (xi[j] * xh[j] * (zh[j] - zi[j]) + zi[j] * zh[j] * (xi[j] - xh[j]))
+            - xi[j] * zh[j]
+            + xh[j] * zi[j]
+        )
         r = (
             2 * symplectic_matrix[h[j], -1]
             + 2 * symplectic_matrix[i[j], -1]
