@@ -60,6 +60,10 @@ class CuQuantumMatrices(NumpyMatrices):
     def TOFFOLI(self):
         return self.X
 
+    @cached_property
+    def CCZ(self):
+        return self.Z
+
     def DEUTSCH(self, theta):
         return 1j * self.RX(2 * theta)
 
