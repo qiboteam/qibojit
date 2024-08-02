@@ -140,7 +140,7 @@ class CupyBackend(NumbaBackend):  # pragma: no cover
             return x.toarray()
         return np.array(x, copy=False)
 
-    def issparse(self, x):
+    def is_sparse(self, x):
         return self.sparse.issparse(x) or self.npsparse.issparse(x)
 
     def zero_state(self, nqubits):
@@ -474,7 +474,7 @@ class CupyBackend(NumbaBackend):  # pragma: no cover
         return ev
 
     def calculate_eigenvalues(self, matrix, k=6):
-        if self.issparse(matrix):
+        if self.is_sparse(matrix):
             log.warning(
                 "Calculating sparse matrix eigenvectors because "
                 "sparse modules do not provide ``eigvals`` method."
@@ -483,7 +483,7 @@ class CupyBackend(NumbaBackend):  # pragma: no cover
         return self.cp.linalg.eigvalsh(matrix)
 
     def calculate_eigenvectors(self, matrix, k=6):
-        if self.issparse(matrix):
+        if self.is_sparse(matrix):
             if k < matrix.shape[0]:
                 # Fallback to numpy because cupy's ``sparse.eigh`` does not support 'SA'
                 from scipy.sparse.linalg import eigsh  # pylint: disable=import-error
@@ -499,8 +499,8 @@ class CupyBackend(NumbaBackend):  # pragma: no cover
             return self.cp.linalg.eigh(matrix)
 
     def calculate_matrix_exp(self, a, matrix, eigenvectors=None, eigenvalues=None):
-        if eigenvectors is None or self.issparse(matrix):
-            if self.issparse(matrix):
+        if eigenvectors is None or self.is_sparse(matrix):
+            if self.is_sparse(matrix):
                 from scipy.sparse.linalg import expm
 
                 return self.cast(expm(-1j * a * matrix.get()))

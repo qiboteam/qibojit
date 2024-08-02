@@ -35,13 +35,13 @@ def test_sparse_cast(backend, array_type, format):
     from scipy import sparse
 
     sptarget = sparse.rand(512, 512, dtype=array_type, format=format)
-    assert backend.issparse(sptarget)
+    assert backend.is_sparse(sptarget)
     final = backend.to_numpy(backend.cast(sptarget))
     target = sptarget.toarray()
     backend.assert_allclose(final, target)
     if backend.platform != "numba":  # pragma: no cover
         sptarget = getattr(backend.sparse, sptarget.__class__.__name__)(sptarget)
-        assert backend.issparse(sptarget)
+        assert backend.is_sparse(sptarget)
         final = backend.to_numpy(backend.cast(sptarget))
         backend.assert_allclose(final, target)
 
