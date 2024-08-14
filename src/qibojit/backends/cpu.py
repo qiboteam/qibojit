@@ -156,7 +156,7 @@ class NumbaBackend(NumpyBackend):
 
         if isinstance(gate, ParametrizedGate):
             if name == "GeneralizedRBS":  # pragma: no cover
-                # this is tests in qibo tests
+                # this is tested in qibo tests
                 theta = gate.init_kwargs["theta"]
                 phi = gate.init_kwargs["phi"]
                 return _matrix(gate.init_args[0], gate.init_args[1], theta, phi)
