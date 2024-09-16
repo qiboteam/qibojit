@@ -473,7 +473,14 @@ class CupyBackend(NumbaBackend):  # pragma: no cover
             ev = ev / norm
         return ev
 
-    def calculate_eigenvalues(self, matrix, k=6):
+    def calculate_eigenvalues(self, matrix, k: int = 6, hermitian: bool = True):
+        if not hermitian:
+            raise_error(
+                NotImplementedError,
+                "GPU backends do not support `np.linalg.eig` "
+                + "or `np.linalg.eigvals` for non-Hermitian matrices.",
+            )
+
         if self.is_sparse(matrix):
             log.warning(
                 "Calculating sparse matrix eigenvectors because "
@@ -482,7 +489,14 @@ class CupyBackend(NumbaBackend):  # pragma: no cover
             return self.calculate_eigenvectors(matrix, k=k)[0]
         return self.cp.linalg.eigvalsh(matrix)
 
-    def calculate_eigenvectors(self, matrix, k=6):
+    def calculate_eigenvectors(self, matrix, k: int = 6, hermitian: bool = True):
+        if not hermitian:
+            raise_error(
+                NotImplementedError,
+                "GPU backends do not support `np.linalg.eig` "
+                + "or `np.linalg.eigvals` for non-Hermitian matrices.",
+            )
+
         if self.is_sparse(matrix):
             if k < matrix.shape[0]:
                 # Fallback to numpy because cupy's ``sparse.eigh`` does not support 'SA'
@@ -495,8 +509,8 @@ class CupyBackend(NumbaBackend):  # pragma: no cover
             # Fallback to numpy because eigh is not implemented in rocblas
             result = self.np.linalg.eigh(self.to_numpy(matrix))
             return self.cast(result[0]), self.cast(result[1])
-        else:
-            return self.cp.linalg.eigh(matrix)
+
+        return self.cp.linalg.eigh(matrix)
 
     def calculate_matrix_exp(self, a, matrix, eigenvectors=None, eigenvalues=None):
         if eigenvectors is None or self.is_sparse(matrix):
