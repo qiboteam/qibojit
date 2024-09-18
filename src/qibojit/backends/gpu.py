@@ -1,4 +1,7 @@
+from typing import Union
+
 import numpy as np
+
 from qibo.backends.numpy import NumpyBackend
 from qibo.config import log, raise_error
 
@@ -503,7 +506,7 @@ class CupyBackend(NumbaBackend):  # pragma: no cover
             if self.is_sparse(matrix):
                 from scipy.sparse.linalg import expm
 
-                return self.cast(expm(-1j * a * matrix.get()))
+                return self.cast(expm(-1j * a * self.to_numpy(matrix)))
             else:
                 from cupyx.scipy.linalg import expm  # pylint: disable=import-error
 
@@ -512,6 +515,15 @@ class CupyBackend(NumbaBackend):  # pragma: no cover
             expd = self.cp.diag(self.cp.exp(-1j * a * eigenvalues))
             ud = self.cp.transpose(self.cp.conj(eigenvectors))
             return self.cp.matmul(eigenvectors, self.cp.matmul(expd, ud))
+
+    def calculate_matrix_power(self, matrix, power: Union[float, int]):
+        if isinstance(power, int):
+            return self.cp.linalg.matrix_power(matrix, power)
+
+        copied = self.to_numpy(matrix)
+        copied = super().calculate_matrix_power(copied, power)
+
+        return self.cast(copied, dtype=copied.dtype)
 
 
 class CuQuantumBackend(CupyBackend):  # pragma: no cover
