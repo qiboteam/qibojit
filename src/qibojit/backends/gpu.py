@@ -1,7 +1,6 @@
 from typing import Union
 
 import numpy as np
-
 from qibo.backends.numpy import NumpyBackend
 from qibo.config import log, raise_error
 
