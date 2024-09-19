@@ -475,11 +475,14 @@ class CupyBackend(NumbaBackend):  # pragma: no cover
 
     def calculate_eigenvalues(self, matrix, k: int = 6, hermitian: bool = True):
         if not hermitian:
-            raise_error(
-                NotImplementedError,
-                "GPU backends do not support `np.linalg.eig` "
-                + "or `np.linalg.eigvals` for non-Hermitian matrices.",
+            log.warning(
+                "Falling back to CPU for eigenvalue calculation of a non-Hermitian operator."
             )
+            
+            matrix_cpu = self.to_numpy(matrix)
+            eigenvalues = super().calculate_eigenvalues(matrix_cpu, k, hermitian)
+
+            return self.cast(eigenvalues, dtype=eigenvalues.dtype)
 
         if self.is_sparse(matrix):
             log.warning(
