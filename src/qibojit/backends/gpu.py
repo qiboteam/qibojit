@@ -478,7 +478,7 @@ class CupyBackend(NumbaBackend):  # pragma: no cover
             log.warning(
                 "Falling back to CPU for eigenvalue calculation of a non-Hermitian operator."
             )
-            
+
             matrix_cpu = self.to_numpy(matrix)
             eigenvalues = super().calculate_eigenvalues(matrix_cpu, k, hermitian)
 
