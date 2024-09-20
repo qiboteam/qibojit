@@ -1145,7 +1145,6 @@ pytest = ">=7.3.1"
 test = ["coverage (>=7.2.7)", "pytest-mock (>=3.10)"]
 
 [[package]]
-<<<<<<< HEAD
 name = "pyyaml"
 version = "6.0.2"
 description = "YAML parser and emitter for Python"
@@ -1218,30 +1217,12 @@ develop = false
 
 [package.dependencies]
 cma = "^3.3.0"
-=======
-name = "qibo"
-version = "0.2.12"
-description = "A framework for quantum computing with hardware acceleration."
-optional = false
-python-versions = ">=3.9,<3.13"
-files = []
-develop = false
-
-[package.dependencies]
-cma = "^3.3.0"
-hyperopt = "^0.2.7"
->>>>>>> main
 joblib = "^1.2.0"
 networkx = "^3.2.1"
 numpy = "^1.26.4"
 openqasm3 = {version = ">=0.5.0", extras = ["parser"]}
-<<<<<<< HEAD
 optuna = "^4.0.0"
 scipy = "^1.10.1"
-=======
-scipy = "^1.10.1"
-setuptools = ">=69.1.1,<71.0.0"
->>>>>>> main
 sympy = "^1.11.1"
 tabulate = "^0.9.0"
 
@@ -1253,15 +1234,9 @@ torch = ["torch (>=2.1.1,<2.4)"]
 
 [package.source]
 type = "git"
-<<<<<<< HEAD
 url = "https://github.com/qiboteam/qibo"
 reference = "clifford_unpack_fix"
-resolved_reference = "ea307f92bf3f747f4da46c552a9ffe5ee20b057d"
-=======
-url = "https://github.com/qiboteam/qibo.git"
-reference = "matrix_power"
-resolved_reference = "749ede7576a0f372aaceda40c256a4d5e56a06c3"
->>>>>>> main
+resolved_reference = "43f62390fa0354517370829ff2dc2dff6f9cc981"
 
 [[package]]
 name = "scipy"
@@ -1414,22 +1389,13 @@ sqlcipher = ["sqlcipher3_binary"]
 
 [[package]]
 name = "sympy"
-<<<<<<< HEAD
 version = "1.13.3"
-=======
-version = "1.13.2"
->>>>>>> main
 description = "Computer algebra system (CAS) in Python"
 optional = false
 python-versions = ">=3.8"
 files = [
-<<<<<<< HEAD
     {file = "sympy-1.13.3-py3-none-any.whl", hash = "sha256:54612cf55a62755ee71824ce692986f23c88ffa77207b30c1368eda4a7060f73"},
     {file = "sympy-1.13.3.tar.gz", hash = "sha256:b27fd2c6530e0ab39e275fc9b683895367e51d5da91baa8d3d64db2565fec4d9"},
-=======
-    {file = "sympy-1.13.2-py3-none-any.whl", hash = "sha256:c51d75517712f1aed280d4ce58506a4a88d635d6b5dd48b39102a7ae1f3fcfe9"},
-    {file = "sympy-1.13.2.tar.gz", hash = "sha256:401449d84d07be9d0c7a46a64bd54fe097667d5e7181bfe67ec777be9e01cb13"},
->>>>>>> main
 ]
 
 [package.dependencies]
@@ -1557,8 +1523,4 @@ cuquantum = ["cuquantum-python-cu12"]
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.9,<3.13"
-<<<<<<< HEAD
 content-hash = "c7a406deb9a16b08d1f24de6480a5da8ce33c880621301a6e9c832c2d77c61ef"
-=======
-content-hash = "97bb44335163d42128812fc8a6b37ce53d308a504e42f29a4c691034ed45e681"
->>>>>>> main
