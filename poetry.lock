@@ -1235,8 +1235,8 @@ torch = ["torch (>=2.1.1,<2.4)"]
 [package.source]
 type = "git"
 url = "https://github.com/qiboteam/qibo"
-reference = "clifford_unpack_fix"
-resolved_reference = "43f62390fa0354517370829ff2dc2dff6f9cc981"
+reference = "HEAD"
+resolved_reference = "4a24b6c9ddd3f744326e016f4b29c430e17c04dc"
 
 [[package]]
 name = "scipy"
@@ -1523,4 +1523,4 @@ cuquantum = ["cuquantum-python-cu12"]
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.9,<3.13"
-content-hash = "c7a406deb9a16b08d1f24de6480a5da8ce33c880621301a6e9c832c2d77c61ef"
+content-hash = "22d050c5116b2ff32ca311f519d193f6fedf3576995298c4bf8d776d599af21d"
