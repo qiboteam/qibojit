@@ -1236,7 +1236,7 @@ torch = ["torch (>=2.1.1,<2.4)"]
 type = "git"
 url = "https://github.com/qiboteam/qibo"
 reference = "HEAD"
-resolved_reference = "4a24b6c9ddd3f744326e016f4b29c430e17c04dc"
+resolved_reference = "22d51946add6739a3e970f32ee8cdd0bd70f5d2d"
 
 [[package]]
 name = "scipy"
