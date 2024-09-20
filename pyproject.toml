@@ -22,7 +22,7 @@ classifiers = [
 [tool.poetry.dependencies]
 python = "^3.9,<3.13"
 numba = ">=0.59.0"
-qibo = { git = "https://github.com/qiboteam/qibo.git" , branch = "matrix_power" }
+qibo = "^0.2.12"
 scipy = "^1.10.1"
 psutil = "^5.9.5"
 cupy-cuda12x = { version = "^13.1.0", optional = true }

@@ -2,7 +2,7 @@
 
 import cupy as cp  # pylint: disable=E0401
 import numpy
-from qibo.backends._clifford_operations import _dim, _get_rxz, _packed_size, _pad_size
+from qibo.backends._clifford_operations import _dim, _dim_xz, _get_rxz, _packed_size
 from scipy import sparse
 
 np = cp
@@ -690,8 +690,10 @@ def _packbits(array, axis):
     return cp.array(numpy.packbits(array.get(), axis=axis), dtype=cp.uint8)
 
 
-def _unpackbits(array, axis):
-    return cp.array(numpy.unpackbits(array.get(), axis=axis), dtype=cp.uint8)
+def _unpackbits(array, axis, count):
+    return cp.array(
+        numpy.unpackbits(array.get(), axis=axis, count=count), dtype=cp.uint8
+    )
 
 
 def _pack_for_measurements(state, nqubits):
@@ -702,16 +704,15 @@ def _pack_for_measurements(state, nqubits):
 
 
 def _unpack_for_measurements(state, nqubits):
-    xz = _unpackbits(state[:, :-1], axis=1)
-    padding_size = _pad_size(nqubits)
-    x, z = xz[:, :nqubits], xz[:, nqubits + padding_size : -padding_size]
+    xz = _unpackbits(state[:, :-1], axis=1, count=_dim_xz(nqubits))
+    x, z = xz[:, :nqubits], xz[:, nqubits:]
     return np.hstack((x, z, state[:, -1][:, None]))
 
 
 def _init_state_for_measurements(state, nqubits, collapse):
     dim = _dim(nqubits)
     if collapse:
-        return _unpackbits(state[None, :], axis=0)[:dim]
+        return _unpackbits(state[None, :], axis=0, count=_dim_xz(nqubits))[:dim]
     else:
         return state.copy()
 
@@ -741,7 +742,7 @@ def _clifford_pre_execution_reshape(state):
 
 def _clifford_post_execution_reshape(state, nqubits):
     dim = _dim(nqubits)
-    return _unpackbits(state.reshape(-1, dim), axis=0)[:dim]
+    return _unpackbits(state.reshape(-1, dim), axis=0, count=dim)[:dim]
 
 
 def identity_density_matrix(nqubits, normalize: bool = True):
