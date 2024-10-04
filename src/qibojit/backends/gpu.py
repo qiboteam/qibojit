@@ -539,12 +539,15 @@ class CupyBackend(NumbaBackend):  # pragma: no cover
             ud = self.cp.transpose(self.cp.conj(eigenvectors))
             return self.cp.matmul(eigenvectors, self.cp.matmul(expd, ud))
 
-    def calculate_matrix_power(self, matrix, power: Union[float, int]):
+    def calculate_matrix_power(
+        self, matrix, power: Union[float, int], precision_singularity: float = 1e-14
+    ):
+
         if isinstance(power, int):
             return self.cp.linalg.matrix_power(matrix, power)
 
         copied = self.to_numpy(matrix)
-        copied = super().calculate_matrix_power(copied, power)
+        copied = super().calculate_matrix_power(copied, power, precision_singularity)
 
         return self.cast(copied, dtype=copied.dtype)
 
