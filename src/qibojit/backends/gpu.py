@@ -543,8 +543,20 @@ class CupyBackend(NumbaBackend):  # pragma: no cover
         self, matrix, power: Union[float, int], precision_singularity: float = 1e-14
     ):
 
-        if isinstance(power, int):
+        if isinstance(power, int) and power >= 0.0:
             return self.cp.linalg.matrix_power(matrix, power)
+
+        if power < 0.0:
+            # negative powers of singular matrices via SVD
+            determinant = self.cp.linalg.det(matrix)
+            if abs(determinant) < precision_singularity:
+                U, S, Vh = self.cp.linalg.svd(matrix)
+                S_inv = self.cp.where(
+                    self.cp.abs(S) < precision_singularity, 0.0, S**power
+                )
+                return (
+                    self.cp.linalg.inv(Vh) @ self.cp.diag(S_inv) @ self.cp.linalg.inv(U)
+                )
 
         copied = self.to_numpy(matrix)
         copied = super().calculate_matrix_power(copied, power, precision_singularity)
