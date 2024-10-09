@@ -1243,8 +1243,8 @@ torch = ["torch (>=2.1.1,<2.4)"]
 [package.source]
 type = "git"
 url = "https://github.com/qiboteam/qibo.git"
-reference = "matrix_power"
-resolved_reference = "2358c3f2b39e13bd50c16402212ac39a92d5903c"
+reference = "HEAD"
+resolved_reference = "36ed3fe6ceebdf044fa8f9c115f8586c91e3597a"
 
 [[package]]
 name = "scipy"
@@ -1531,4 +1531,4 @@ cuquantum = ["cuquantum-python-cu12"]
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.9,<3.13"
-content-hash = "97bb44335163d42128812fc8a6b37ce53d308a504e42f29a4c691034ed45e681"
+content-hash = "bc38d881d34e9ced1140c3360fe8b56c68a146fd5bf1d7338cc13294e0cfd71f"
