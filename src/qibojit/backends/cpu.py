@@ -275,9 +275,9 @@ class NumbaBackend(NumpyBackend):
         dm_qubits = [q + nqubits for q in qubits]
         state = self.collapse_state(state.ravel(), dm_qubits, shot, 2 * nqubits, False)
         state = self.collapse_state(state, qubits, shot, 2 * nqubits, False)
-        state = self.np.reshape(state, shape)
+        state = self.reshape(state, shape)
         if normalize:
-            state = state / self.np.trace(state)
+            state = state / self.trace(state)
         return state
 
     # def calculate_probabilities(self, state, qubits, nqubits): Inherited from ``NumpyBackend``
