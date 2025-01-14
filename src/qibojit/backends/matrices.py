@@ -5,6 +5,16 @@ from qibo.backends.npmatrices import NumpyMatrices
 
 
 class CupyMatrices(NumpyMatrices):  # pragma: no cover
+
+    def __init__(self, dtype):
+        super().__init__(dtype)
+        import cupy as cp
+
+        self.cp = cp
+
+    def _cast(self, x, dtype):
+        return self.cp.array(x, dtype=dtype)
+
     # Necessary to avoid https://github.com/qiboteam/qibo/issues/928
     def Unitary(self, u):
         import cupy as cp  # pylint: disable=import-error
