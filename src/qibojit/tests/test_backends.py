@@ -1,6 +1,8 @@
 import numpy as np
 import pytest
 
+from qibojit.backends import MetaBackend
+
 
 def test_device_setter(backend):
     if backend.platform == "numba":
@@ -33,13 +35,13 @@ def test_sparse_cast(backend, array_type, format):
     from scipy import sparse
 
     sptarget = sparse.rand(512, 512, dtype=array_type, format=format)
-    assert backend.issparse(sptarget)
+    assert backend.is_sparse(sptarget)
     final = backend.to_numpy(backend.cast(sptarget))
     target = sptarget.toarray()
     backend.assert_allclose(final, target)
     if backend.platform != "numba":  # pragma: no cover
         sptarget = getattr(backend.sparse, sptarget.__class__.__name__)(sptarget)
-        assert backend.issparse(sptarget)
+        assert backend.is_sparse(sptarget)
         final = backend.to_numpy(backend.cast(sptarget))
         backend.assert_allclose(final, target)
 
@@ -114,3 +116,8 @@ def test_backend_eigh_sparse(backend, sparse_type, k):
     eigvals1 = backend.to_numpy(eigvals1)
     eigvals2 = backend.to_numpy(eigvals2)
     backend.assert_allclose(sorted(eigvals1), sorted(eigvals2))
+
+
+def test_metabackend_list_available():
+    available_backends = dict(zip(("numba", "cupy", "cuquantum"), (True, False, False)))
+    assert MetaBackend().list_available() == available_backends

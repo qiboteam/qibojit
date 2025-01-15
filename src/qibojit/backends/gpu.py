@@ -1,5 +1,7 @@
+from typing import Union
+
 import numpy as np
-from qibo.backends.numpy import NumpyBackend
+from qibo.backends.numpy import NumpyBackend, _calculate_negative_power_singular_matrix
 from qibo.config import log, raise_error
 
 from qibojit.backends.cpu import NumbaBackend
@@ -140,7 +142,7 @@ class CupyBackend(NumbaBackend):  # pragma: no cover
             return x.toarray()
         return np.array(x, copy=False)
 
-    def issparse(self, x):
+    def is_sparse(self, x):
         return self.sparse.issparse(x) or self.npsparse.issparse(x)
 
     def zero_state(self, nqubits):
@@ -473,8 +475,18 @@ class CupyBackend(NumbaBackend):  # pragma: no cover
             ev = ev / norm
         return ev
 
-    def calculate_eigenvalues(self, matrix, k=6):
-        if self.issparse(matrix):
+    def calculate_eigenvalues(self, matrix, k: int = 6, hermitian: bool = True):
+        if not hermitian:
+            log.warning(
+                "Falling back to CPU for eigenvalue calculation of a non-Hermitian operator."
+            )
+
+            matrix_cpu = self.to_numpy(matrix)
+            eigenvalues = super().calculate_eigenvalues(matrix_cpu, k, hermitian)
+
+            return self.cast(eigenvalues, dtype=eigenvalues.dtype)
+
+        if self.is_sparse(matrix):
             log.warning(
                 "Calculating sparse matrix eigenvectors because "
                 "sparse modules do not provide ``eigvals`` method."
@@ -482,8 +494,22 @@ class CupyBackend(NumbaBackend):  # pragma: no cover
             return self.calculate_eigenvectors(matrix, k=k)[0]
         return self.cp.linalg.eigvalsh(matrix)
 
-    def calculate_eigenvectors(self, matrix, k=6):
-        if self.issparse(matrix):
+    def calculate_eigenvectors(self, matrix, k: int = 6, hermitian: bool = True):
+        if not hermitian:
+            log.warning(
+                "Falling back to CPU for eigenvector calculation of a non-Hermitian operator."
+            )
+
+            matrix_cpu = self.to_numpy(matrix)
+            eigenvalues, eigenvectors = super().calculate_eigenvectors(
+                matrix_cpu, k, hermitian
+            )
+            eigenvalues = self.cast(eigenvalues, dtype=eigenvalues.dtype)
+            eigenvectors = self.cast(eigenvectors, dtype=eigenvectors.dtype)
+
+            return eigenvalues, eigenvectors
+
+        if self.is_sparse(matrix):
             if k < matrix.shape[0]:
                 # Fallback to numpy because cupy's ``sparse.eigh`` does not support 'SA'
                 from scipy.sparse.linalg import eigsh  # pylint: disable=import-error
@@ -495,20 +521,43 @@ class CupyBackend(NumbaBackend):  # pragma: no cover
             # Fallback to numpy because eigh is not implemented in rocblas
             result = self.np.linalg.eigh(self.to_numpy(matrix))
             return self.cast(result[0]), self.cast(result[1])
-        else:
-            return self.cp.linalg.eigh(matrix)
+
+        return self.cp.linalg.eigh(matrix)
 
     def calculate_matrix_exp(self, a, matrix, eigenvectors=None, eigenvalues=None):
-        if eigenvectors is None or self.issparse(matrix):
-            if self.issparse(matrix):
+        if eigenvectors is None or self.is_sparse(matrix):
+            if self.is_sparse(matrix):
                 from scipy.sparse.linalg import expm
+
+                return self.cast(expm(-1j * a * self.to_numpy(matrix)))
             else:
-                from scipy.linalg import expm
-            return self.cast(expm(-1j * a * matrix.get()))
+                from cupyx.scipy.linalg import expm  # pylint: disable=import-error
+
+                return self.cast(expm(-1j * a * matrix))
         else:
             expd = self.cp.diag(self.cp.exp(-1j * a * eigenvalues))
             ud = self.cp.transpose(self.cp.conj(eigenvectors))
             return self.cp.matmul(eigenvectors, self.cp.matmul(expd, ud))
+
+    def calculate_matrix_power(
+        self, matrix, power: Union[float, int], precision_singularity: float = 1e-14
+    ):
+
+        if isinstance(power, int) and power >= 0.0:
+            return self.cp.linalg.matrix_power(matrix, power)
+
+        if power < 0.0:
+            # negative powers of singular matrices via SVD
+            determinant = self.cp.linalg.det(matrix)
+            if abs(determinant) < precision_singularity:
+                return _calculate_negative_power_singular_matrix(
+                    matrix, power, precision_singularity, self.cp, self
+                )
+
+        copied = self.to_numpy(matrix)
+        copied = super().calculate_matrix_power(copied, power, precision_singularity)
+
+        return self.cast(copied, dtype=copied.dtype)
 
 
 class CuQuantumBackend(CupyBackend):  # pragma: no cover

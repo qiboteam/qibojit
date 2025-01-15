@@ -4,7 +4,7 @@ build-backend = "poetry.core.masonry.api"
 
 [tool.poetry]
 name = "qibojit"
-version = "0.1.4"
+version = "0.1.8"
 description = "Simulation tools based on numba and cupy."
 authors = ["The Qibo team"]
 license = "Apache License 2.0"
@@ -22,9 +22,11 @@ classifiers = [
 [tool.poetry.dependencies]
 python = "^3.9,<3.13"
 numba = ">=0.59.0"
-qibo = { git="https://github.com/qiboteam/qibo.git" }
+qibo = "^0.2.13"
 scipy = "^1.10.1"
 psutil = "^5.9.5"
+cupy-cuda12x = { version = "^13.1.0", optional = true }
+cuquantum-python-cu12 = { version = "^23.10.0", optional = true }
 
 [tool.poetry.group.dev.dependencies]
 ipython = "^7.0"
@@ -37,6 +39,10 @@ pytest = "^7.3.1"
 pylint = "^3.0.3"
 pytest-cov = "^4.1.0"
 pytest-env = "^0.8.1"
+
+[tool.poetry.extras]
+cupy = ["cupy-cuda12x"]
+cuquantum = ["cuquantum-python-cu12"]
 
 [tool.poe.tasks]
 test = "pytest"

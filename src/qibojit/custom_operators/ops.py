@@ -109,10 +109,11 @@ def measure_frequencies(frequencies, probs, nshots, nqubits, seed, nthreads):
     for n in prange(nthreads):  # pylint: disable=not-an-iterable
         frequencies_private = thread_frequencies[n]
         np.random.seed(thread_seed[n])
+        shot = probs.argmax()
         for i in range(thread_nshots[n]):
-            if i == 0:
-                # Initial bitstring is the one with the maximum probability
-                shot = probs.argmax()
+            # if i == 0:
+            #     # Initial bitstring is the one with the maximum probability
+            #     shot = probs.argmax()
             new_shot = (shot + np.random.randint(0, nstates)) % nstates
             # accept or reject move
             if probs[new_shot] / probs[shot] > np.random.random():
