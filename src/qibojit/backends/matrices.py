@@ -118,7 +118,7 @@ class CustomCupyMatrices(CustomMatrices):
 
     def __init__(self, dtype):
         super().__init__(dtype)
-        import cupy as cp
+        import cupy as cp  # pylint: disable=E0401
 
         self.cp = cp
 
