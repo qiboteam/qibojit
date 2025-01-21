@@ -114,7 +114,7 @@ class CustomMatrices(CuQuantumMatrices):
         return np.array([u[0, 0], u[0, 1], u[1, 0], u[1, 1], phase], dtype=self.dtype)
 
 
-class CustomCupyMatrices(CustomMatrices):
+class CustomCupyMatrices(CustomMatrices):  # pragma: no cover
 
     def __init__(self, dtype):
         super().__init__(dtype)
@@ -141,17 +141,10 @@ class CustomCupyMatrices(CustomMatrices):
         return self.cp.array(x, dtype=dtype)
 
     def U1(self, theta):
-        dtype = getattr(self.cp, self.dtype)
-        return dtype(self.cp.exp(1j * theta))
+        return self.cp.array(super().U1(theta), dtype=self.dtype)
 
     def fSim(self, theta, phi):
-        cost = self.cp.cos(theta) + 0j
-        isint = -1j * self.cp.sin(theta)
-        phase = self.cp.exp(-1j * phi)
-        return self.cp.array([cost, isint, isint, cost, phase], dtype=self.dtype)
+        return self.cp.array(super().fSim(theta, phi), dtype=self.dtype)
 
     def GeneralizedfSim(self, u, phi):
-        phase = self.cp.exp(-1j * phi)
-        return self.cp.array(
-            [u[0, 0], u[0, 1], u[1, 0], u[1, 1], phase], dtype=self.dtype
-        )
+        return self.cp.array(super().GeneralizedfSim(u, phi), dtype=self.dtype)
