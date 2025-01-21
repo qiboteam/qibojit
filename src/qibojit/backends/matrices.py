@@ -13,13 +13,15 @@ class CupyMatrices(NumpyMatrices):  # pragma: no cover
         self.cp = cp
 
     def _cast(self, x, dtype):
+        if any(isinstance(item, self.cp.ndarray) for sublist in x for item in sublist):
+            return self.cp.hstack(
+                self.cp.array(item, dtype) for sublist in x for item in sublist
+            ).reshape(len(x), len(x))
         return self.cp.array(x, dtype=dtype)
 
     # Necessary to avoid https://github.com/qiboteam/qibo/issues/928
     def Unitary(self, u):
-        import cupy as cp  # pylint: disable=import-error
-
-        if isinstance(u, cp.ndarray):
+        if isinstance(u, self.cp.ndarray):
             u = u.get()
         return super().Unitary(u)
 
