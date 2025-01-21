@@ -13,17 +13,32 @@ class CupyMatrices(NumpyMatrices):  # pragma: no cover
         self.cp = cp
 
     def _cast(self, x, dtype):
-        if any(isinstance(item, self.cp.ndarray) for sublist in x for item in sublist):
-            return self.cp.hstack(
-                self.cp.array(item, dtype) for sublist in x for item in sublist
-            ).reshape(len(x), len(x))
+        is_cupy = [
+            isinstance(item, self.cp.ndarray) for sublist in x for item in sublist
+        ]
+        if any(is_cupy) and not all(is_cupy):
+            # for parametrized gates x is a mixed list of cp.arrays and floats
+            # thus a simple cp.array(x) fails
+            # first convert the cp.arrays to numpy, then build the numpy array and move it
+            # back to GPU
+            dim = len(x)
+            return self.cp.array(
+                np.array(
+                    [
+                        item.get() if isinstance(item, self.cp.ndarray) else item
+                        for sublist in x
+                        for item in sublist
+                    ]
+                ).reshape(dim, dim),
+                dtype=dtype,
+            )
         return self.cp.array(x, dtype=dtype)
 
     # Necessary to avoid https://github.com/qiboteam/qibo/issues/928
     def Unitary(self, u):
         if isinstance(u, self.cp.ndarray):
             u = u.get()
-        return self.super().Unitary(u)
+        return super().Unitary(u)
 
 
 class CuQuantumMatrices(NumpyMatrices):
@@ -108,10 +123,21 @@ class CustomCupyMatrices(CustomMatrices):
         self.cp = cp
 
     def _cast(self, x, dtype):
-        if any(isinstance(item, self.cp.ndarray) for sublist in x for item in sublist):
-            return self.cp.hstack(
-                self.cp.array(item, dtype) for sublist in x for item in sublist
-            ).reshape(len(x), len(x))
+        is_cupy = [
+            isinstance(item, self.cp.ndarray) for sublist in x for item in sublist
+        ]
+        if any(is_cupy) and not all(is_cupy):
+            dim = len(x)
+            return self.cp.array(
+                np.array(
+                    [
+                        item.get() if isinstance(item, self.cp.ndarray) else item
+                        for sublist in x
+                        for item in sublist
+                    ]
+                ).reshape(dim, dim),
+                dtype=dtype,
+            )
         return self.cp.array(x, dtype=dtype)
 
     def U1(self, theta):
