@@ -23,7 +23,7 @@ class CupyMatrices(NumpyMatrices):  # pragma: no cover
     def Unitary(self, u):
         if isinstance(u, self.cp.ndarray):
             u = u.get()
-        return super().Unitary(u)
+        return self.super().Unitary(u)
 
 
 class CuQuantumMatrices(NumpyMatrices):
@@ -97,3 +97,35 @@ class CustomMatrices(CuQuantumMatrices):
     def GeneralizedfSim(self, u, phi):
         phase = np.exp(-1j * phi)
         return np.array([u[0, 0], u[0, 1], u[1, 0], u[1, 1], phase], dtype=self.dtype)
+
+
+class CustomCupyMatrices(CustomMatrices):
+
+    def __init__(self, dtype):
+        super().__init__(dtype)
+        import cupy as cp
+
+        self.cp = cp
+
+    def _cast(self, x, dtype):
+        if any(isinstance(item, self.cp.ndarray) for sublist in x for item in sublist):
+            return self.cp.hstack(
+                self.cp.array(item, dtype) for sublist in x for item in sublist
+            ).reshape(len(x), len(x))
+        return self.cp.array(x, dtype=dtype)
+
+    def U1(self, theta):
+        dtype = getattr(self.cp, self.dtype)
+        return dtype(self.cp.exp(1j * theta))
+
+    def fSim(self, theta, phi):
+        cost = self.cp.cos(theta) + 0j
+        isint = -1j * self.cp.sin(theta)
+        phase = self.cp.exp(-1j * phi)
+        return self.cp.array([cost, isint, isint, cost, phase], dtype=self.dtype)
+
+    def GeneralizedfSim(self, u, phi):
+        phase = self.cp.exp(-1j * phi)
+        return self.cp.array(
+            [u[0, 0], u[0, 1], u[1, 0], u[1, 1], phase], dtype=self.dtype
+        )
