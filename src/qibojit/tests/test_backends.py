@@ -15,11 +15,12 @@ def test_device_setter(backend):
 
 
 def test_thread_setter(backend):
-    import numba
+    # import numba
 
-    original_threads = numba.get_num_threads()
-    backend.set_threads(1)
-    assert numba.get_num_threads() == 1
+    # original_threads = numba.get_num_threads()
+    with pytest.raises(RuntimeError):
+        backend.set_threads(1)
+    # assert numba.get_num_threads() == 1
 
 
 @pytest.mark.parametrize("array_type", [None, "float32", "float64"])

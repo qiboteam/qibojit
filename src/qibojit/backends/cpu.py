@@ -86,6 +86,12 @@ class NumbaBackend(NumpyBackend):
         numba.set_num_threads(nthreads)
         self.nthreads = nthreads
     """
+
+    def set_threads(self, nthreads):
+        raise RuntimeError(
+            "Unable to change the number threads. Use the global variable ``NUMBA_NUM_THREADS`` instead."
+        )
+
     # def cast(self, x, dtype=None, copy=False): Inherited from ``NumpyBackend``
 
     # def to_numpy(self, x): Inherited from ``NumpyBackend``

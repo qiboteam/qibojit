@@ -12,7 +12,7 @@ NTHREADS = (
 )
 MAX_THREADS = os.environ.get("NUMBA_NUM_THREADS")
 if MAX_THREADS is not None:
-    NTHREADS = min(NTHREADS, MAX_THREADS)
+    NTHREADS = min(NTHREADS, int(MAX_THREADS))
 set_num_threads(NTHREADS)
 
 
