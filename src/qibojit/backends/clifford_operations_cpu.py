@@ -1,8 +1,9 @@
 """Set of custom Numba operations for the Clifford backend."""
 
 import numpy as np
-from numba import njit, prange, uint64
+from numba import njit, prange, set_num_threads, uint64
 
+set_num_threads(1)
 PARALLEL = True
 
 
