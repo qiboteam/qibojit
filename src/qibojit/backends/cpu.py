@@ -1,4 +1,8 @@
+import os
+import sys
+
 import numpy as np
+import psutil
 from qibo.backends.numpy import NumpyBackend
 from qibo.config import log
 from qibo.gates.abstract import ParametrizedGate
@@ -22,15 +26,23 @@ GATE_OPS = {
     "GeneralizedfSim": "apply_fsim",
 }
 
+if os.environ.get("NUMBA_NUM_THREADS") is None:
+    NTHREADS = (
+        psutil.cpu_count(logical=False)
+        if sys.platform == "darwin"
+        else len(psutil.Process().cpu_affinity())
+    )
+
+    os.environ["NUMBA_NUM_THREADS"] = str(NTHREADS)
+
 
 class NumbaBackend(NumpyBackend):
     def __init__(self):
         super().__init__()
-        # import sys
+        import sys
 
-        # import psutil
+        import psutil
         from numba import __version__ as numba_version
-        from numba import get_num_threads
 
         from qibojit import __version__ as qibojit_version
         from qibojit.custom_operators import gates, ops
@@ -65,13 +77,11 @@ class NumbaBackend(NumpyBackend):
             4: self.gates.apply_four_qubit_gate_kernel,
             5: self.gates.apply_five_qubit_gate_kernel,
         }
-        """
+
         if sys.platform == "darwin":  # pragma: no cover
             self.set_threads(psutil.cpu_count(logical=False))
         else:
             self.set_threads(len(psutil.Process().cpu_affinity()))
-        """
-        self.nthreads = get_num_threads()
 
     def set_precision(self, precision):
         if precision != self.precision:
@@ -79,18 +89,11 @@ class NumbaBackend(NumpyBackend):
             if self.custom_matrices:
                 self.custom_matrices = CustomMatrices(self.dtype)
 
-    """
     def set_threads(self, nthreads):
         import numba
 
         numba.set_num_threads(nthreads)
         self.nthreads = nthreads
-    """
-
-    def set_threads(self, nthreads):
-        raise RuntimeError(
-            "Unable to change the number threads. Use the global variable ``NUMBA_NUM_THREADS`` instead."
-        )
 
     # def cast(self, x, dtype=None, copy=False): Inherited from ``NumpyBackend``
 
