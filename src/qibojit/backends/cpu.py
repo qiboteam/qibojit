@@ -1,7 +1,4 @@
-import sys
-
 import numpy as np
-import psutil
 from qibo.backends.numpy import NumpyBackend
 from qibo.config import log
 from qibo.gates.abstract import ParametrizedGate
