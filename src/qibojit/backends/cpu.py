@@ -1,4 +1,3 @@
-import os
 import sys
 
 import numpy as np
@@ -25,15 +24,6 @@ GATE_OPS = {
     "fSim": "apply_fsim",
     "GeneralizedfSim": "apply_fsim",
 }
-
-if os.environ.get("NUMBA_NUM_THREADS") is None:
-    NTHREADS = (
-        psutil.cpu_count(logical=False)
-        if sys.platform == "darwin"
-        else len(psutil.Process().cpu_affinity())
-    )
-
-    os.environ["NUMBA_NUM_THREADS"] = str(NTHREADS)
 
 
 class NumbaBackend(NumpyBackend):
