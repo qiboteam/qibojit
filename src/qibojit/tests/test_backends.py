@@ -20,6 +20,7 @@ def test_thread_setter(backend):
     original_threads = numba.get_num_threads()
     backend.set_threads(1)
     assert numba.get_num_threads() == 1
+    backend.set_threads(original_threads)
 
 
 @pytest.mark.parametrize("array_type", [None, "float32", "float64"])

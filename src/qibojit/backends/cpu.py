@@ -64,6 +64,7 @@ class NumbaBackend(NumpyBackend):
             4: self.gates.apply_four_qubit_gate_kernel,
             5: self.gates.apply_five_qubit_gate_kernel,
         }
+
         if sys.platform == "darwin":  # pragma: no cover
             self.set_threads(psutil.cpu_count(logical=False))
         else:
