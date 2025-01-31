@@ -5,11 +5,7 @@ from qibo.backends.numpy import NumpyBackend, _calculate_negative_power_singular
 from qibo.config import log, raise_error
 
 from qibojit.backends.cpu import NumbaBackend
-from qibojit.backends.matrices import (
-    CupyMatrices,
-    CuQuantumMatrices,
-    CustomCupyMatrices,
-)
+from qibojit.backends.matrices import CupyMatrices, CuQuantumMatrices
 
 
 class CupyBackend(NumbaBackend):  # pragma: no cover
@@ -47,8 +43,7 @@ class CupyBackend(NumbaBackend):  # pragma: no cover
         self.sparse = cp.sparse
         self.device = "/GPU:0"
         self.kernel_type = "double"
-        self.matrices = CupyMatrices(self.dtype)
-        self.custom_matrices = CustomCupyMatrices(self.dtype)
+        self.custom_matrices = CupyMatrices(self.dtype)
         try:
             if not cp.cuda.runtime.getDeviceCount():  # pragma: no cover
                 raise RuntimeError("Cannot use cupy backend if GPU is not available.")
