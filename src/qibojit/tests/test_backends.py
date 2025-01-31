@@ -3,7 +3,7 @@ import pytest
 
 from qibojit.backends import MetaBackend
 
-from .conftest import AVAILABLE_BACKENDS
+from .conftest import AVAILABLE_BACKENDS, BACKENDS
 
 
 def test_device_setter(backend):
@@ -122,5 +122,7 @@ def test_backend_eigh_sparse(backend, sparse_type, k):
 
 
 def test_metabackend_list_available():
-    available_backends = {backend: True for backend in AVAILABLE_BACKENDS}
+    available_backends = {
+        backend: backend in AVAILABLE_BACKENDS for backend in BACKENDS
+    }
     assert MetaBackend().list_available() == available_backends
