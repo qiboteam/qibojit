@@ -5,12 +5,10 @@ from qibo.backends.npmatrices import NumpyMatrices
 
 
 class CustomMatrices(NumpyMatrices):
-    """
-    TODO: explain why this class is neeeded.
-    """
+    """Matrices used by custom operators.
 
-    # These matrices are used by the custom operators and may
-    # not correspond to the mathematical representation of each gate
+    They may not correspond to the mathematical representation of each gate.
+    """
 
     def CRX(self, theta):
         return self.RX(theta)
@@ -56,10 +54,8 @@ class CustomMatrices(NumpyMatrices):
         return np.array([u[0, 0], u[0, 1], u[1, 0], u[1, 1], phase], dtype=self.dtype)
 
 
-class CupyMatrices(CustomMatrices):  # pragma: no cover
-    """
-    TODO: explain why this class is needed
-    """
+class CupyMatrices(NumpyMatrices):  # pragma: no cover
+    """Casting NumpyMatrices to Cupy arrays."""
 
     def __init__(self, dtype):
         super().__init__(dtype)
@@ -96,10 +92,8 @@ class CupyMatrices(CustomMatrices):  # pragma: no cover
         return super().Unitary(u)
 
 
-class CuQuantumMatrices(CupyMatrices):
-    """
-    TODO: explain why this class is needed
-    """
+class CustomCuQuantumMatrices(CustomMatrices):
+    """Matrices used by CuQuantum custom operators."""
 
     @cached_property
     def CNOT(self):
@@ -118,10 +112,10 @@ class CuQuantumMatrices(CupyMatrices):
         return self.Z
 
     def U1(self, theta):
-        return self._cast(NumpyMatrices.U1(self, theta), self.dtype)
+        return NumpyMatrices.U1(self, theta)
 
     def fSim(self, theta, phi):
-        return self._cast(NumpyMatrices.fSim(self, theta, phi), self.dtype)
+        return NumpyMatrices.fSim(self, theta, phi)
 
     def GeneralizedfSim(self, u, phi):
-        return self._cast(NumpyMatrices.GeneralizedfSim(self, u, phi), self.dtype)
+        return NumpyMatrices.GeneralizedfSim(self, u, phi)

@@ -5,7 +5,11 @@ from qibo.backends.numpy import NumpyBackend, _calculate_negative_power_singular
 from qibo.config import log, raise_error
 
 from qibojit.backends.cpu import NumbaBackend
-from qibojit.backends.matrices import CupyMatrices, CuQuantumMatrices
+from qibojit.backends.matrices import (
+    CupyMatrices,
+    CustomCuQuantumMatrices,
+    CustomMatrices,
+)
 
 
 class CupyBackend(NumbaBackend):  # pragma: no cover
@@ -43,7 +47,8 @@ class CupyBackend(NumbaBackend):  # pragma: no cover
         self.sparse = cp.sparse
         self.device = "/GPU:0"
         self.kernel_type = "double"
-        self.custom_matrices = CupyMatrices(self.dtype)
+        self.matrices = CupyMatrices(self.dtype)
+        self.custom_matrices = CustomMatrices(self.dtype)
         try:
             if not cp.cuda.runtime.getDeviceCount():  # pragma: no cover
                 raise RuntimeError("Cannot use cupy backend if GPU is not available.")
@@ -573,7 +578,7 @@ class CuQuantumBackend(CupyBackend):  # pragma: no cover
         self.versions["cuquantum"] = self.cuquantum.__version__
         self.supports_multigpu = True
         self.handle = self.cusv.create()
-        self.custom_matrices = CuQuantumMatrices(self.dtype)
+        self.custom_matrices = CustomCuQuantumMatrices(self.dtype)
 
     def __del__(self):
         if hasattr(self, "cusv"):
@@ -583,7 +588,7 @@ class CuQuantumBackend(CupyBackend):  # pragma: no cover
         if precision != self.precision:
             super().set_precision(precision)
             if self.custom_matrices:
-                self.custom_matrices = CuQuantumMatrices(self.dtype)
+                self.custom_matrices = CustomCuQuantumMatrices(self.dtype)
 
     def get_cuda_type(self, dtype="complex64"):
         if dtype == "complex128":
