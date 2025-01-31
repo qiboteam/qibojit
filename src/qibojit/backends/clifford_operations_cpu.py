@@ -3,7 +3,7 @@
 import numpy as np
 from numba import njit, prange, uint64
 
-PARALLEL = False
+PARALLEL = True
 
 
 @njit("Tuple((u1[:], u1[:,:], u1[:,:]))(u1[:,:], u8)", parallel=PARALLEL, cache=True)

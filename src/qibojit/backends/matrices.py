@@ -5,11 +5,38 @@ from qibo.backends.npmatrices import NumpyMatrices
 
 
 class CupyMatrices(NumpyMatrices):  # pragma: no cover
+
+    def __init__(self, dtype):
+        super().__init__(dtype)
+        import cupy as cp  # pylint: disable=E0401
+
+        self.cp = cp
+
+    def _cast(self, x, dtype):
+        is_cupy = [
+            isinstance(item, self.cp.ndarray) for sublist in x for item in sublist
+        ]
+        if any(is_cupy) and not all(is_cupy):
+            # for parametrized gates x is a mixed list of cp.arrays and floats
+            # thus a simple cp.array(x) fails
+            # first convert the cp.arrays to numpy, then build the numpy array and move it
+            # back to GPU
+            dim = len(x)
+            return self.cp.array(
+                np.array(
+                    [
+                        item.get() if isinstance(item, self.cp.ndarray) else item
+                        for sublist in x
+                        for item in sublist
+                    ]
+                ).reshape(dim, dim),
+                dtype=dtype,
+            )
+        return self.cp.array(x, dtype=dtype)
+
     # Necessary to avoid https://github.com/qiboteam/qibo/issues/928
     def Unitary(self, u):
-        import cupy as cp  # pylint: disable=import-error
-
-        if isinstance(u, cp.ndarray):
+        if isinstance(u, self.cp.ndarray):
             u = u.get()
         return super().Unitary(u)
 
@@ -85,3 +112,39 @@ class CustomMatrices(CuQuantumMatrices):
     def GeneralizedfSim(self, u, phi):
         phase = np.exp(-1j * phi)
         return np.array([u[0, 0], u[0, 1], u[1, 0], u[1, 1], phase], dtype=self.dtype)
+
+
+class CustomCupyMatrices(CustomMatrices):  # pragma: no cover
+
+    def __init__(self, dtype):
+        super().__init__(dtype)
+        import cupy as cp  # pylint: disable=E0401
+
+        self.cp = cp
+
+    def _cast(self, x, dtype):
+        is_cupy = [
+            isinstance(item, self.cp.ndarray) for sublist in x for item in sublist
+        ]
+        if any(is_cupy) and not all(is_cupy):
+            dim = len(x)
+            return self.cp.array(
+                np.array(
+                    [
+                        item.get() if isinstance(item, self.cp.ndarray) else item
+                        for sublist in x
+                        for item in sublist
+                    ]
+                ).reshape(dim, dim),
+                dtype=dtype,
+            )
+        return self.cp.array(x, dtype=dtype)
+
+    def U1(self, theta):
+        return self.cp.array(super().U1(theta), dtype=self.dtype)
+
+    def fSim(self, theta, phi):
+        return self.cp.array(super().fSim(theta, phi), dtype=self.dtype)
+
+    def GeneralizedfSim(self, u, phi):
+        return self.cp.array(super().GeneralizedfSim(u, phi), dtype=self.dtype)
