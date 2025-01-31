@@ -33,6 +33,18 @@ class CustomMatrices(NumpyMatrices):
         return self.U1(theta)
 
     @cached_property
+    def CZ(self):
+        return self.Z
+
+    @cached_property
+    def CCZ(self):
+        return self.Z
+
+    @cached_property
+    def CY(self):
+        return self.Y
+
+    @cached_property
     def CSX(self):
         return self.SX
 
