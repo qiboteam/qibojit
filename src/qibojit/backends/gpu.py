@@ -700,7 +700,7 @@ class CuQuantumBackend(CupyBackend):  # pragma: no cover
             nBitSwaps = 1
             bitSwaps = [(target1, target2)]
             maskLen = ncontrols
-            maskBitString = self.np.ones(ncontrols)
+            maskBitString = self.cp.ones(ncontrols)
             maskOrdering = controls
 
             self.cusv.swap_index_bits(
