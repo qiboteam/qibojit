@@ -99,9 +99,8 @@ class CupyMatrices(NumpyMatrices):  # pragma: no cover
 
     # Necessary to avoid https://github.com/qiboteam/qibo/issues/928
     def Unitary(self, u):
-        if isinstance(u, self.cp.ndarray):
-            u = u.get()
-        return super().Unitary(u)
+        dtype = getattr(np, self.dtype)
+        return self._cast(u, dtype=dtype)
 
 
 class CustomCuQuantumMatrices(CustomMatrices):  # pragma: no cover
