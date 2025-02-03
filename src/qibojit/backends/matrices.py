@@ -27,7 +27,7 @@ class CustomMatrices(NumpyMatrices):
 
     def U1(self, theta):
         dtype = getattr(np, self.dtype)
-        return dtype(np.exp(1j * theta))
+        return self._cast(np.exp(1j * theta), dtype=dtype)
 
     def CU1(self, theta):
         return self.U1(theta)
