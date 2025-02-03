@@ -104,7 +104,7 @@ class CupyMatrices(NumpyMatrices):  # pragma: no cover
         return super().Unitary(u)
 
 
-class CustomCuQuantumMatrices(CustomMatrices):
+class CustomCuQuantumMatrices(CustomMatrices):  # pragma: no cover
     """Matrices used by CuQuantum custom operators."""
 
     @cached_property
