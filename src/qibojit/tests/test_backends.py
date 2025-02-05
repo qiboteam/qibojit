@@ -3,6 +3,8 @@ import pytest
 
 from qibojit.backends import MetaBackend
 
+from .conftest import AVAILABLE_BACKENDS, BACKENDS
+
 
 def test_device_setter(backend):
     if backend.platform == "numba":
@@ -20,6 +22,7 @@ def test_thread_setter(backend):
     original_threads = numba.get_num_threads()
     backend.set_threads(1)
     assert numba.get_num_threads() == 1
+    backend.set_threads(original_threads)
 
 
 @pytest.mark.parametrize("array_type", [None, "float32", "float64"])
@@ -119,5 +122,7 @@ def test_backend_eigh_sparse(backend, sparse_type, k):
 
 
 def test_metabackend_list_available():
-    available_backends = dict(zip(("numba", "cupy", "cuquantum"), (True, False, False)))
+    available_backends = {
+        backend: backend in AVAILABLE_BACKENDS for backend in BACKENDS
+    }
     assert MetaBackend().list_available() == available_backends

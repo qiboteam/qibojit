@@ -22,7 +22,7 @@ classifiers = [
 [tool.poetry.dependencies]
 python = "^3.9,<3.13"
 numba = ">=0.59.0"
-qibo = "^0.2.13"
+qibo = "^0.2.14"
 scipy = "^1.10.1"
 psutil = "^5.9.5"
 cupy-cuda12x = { version = "^13.1.0", optional = true }
@@ -40,9 +40,19 @@ pylint = "^3.0.3"
 pytest-cov = "^4.1.0"
 pytest-env = "^0.8.1"
 
-[tool.poetry.extras]
-cupy = ["cupy-cuda12x"]
-cuquantum = ["cuquantum-python-cu12"]
+[tool.poetry.group.cuda11]
+optional = true
+
+[tool.poetry.group.cuda11.dependencies]
+cupy-cuda11x = "^13.1.0"
+cuquantum-python-cu11 = "^23.3.0"
+
+[tool.poetry.group.cuda12]
+optional = true
+
+[tool.poetry.group.cuda12.dependencies]
+cupy-cuda12x = "^13.1.0"
+cuquantum-python-cu12 = "^23.3.0"
 
 [tool.poe.tasks]
 test = "pytest"
@@ -60,5 +70,5 @@ omit = ["src/qibojit/backends/clifford_operations*"]
 
 [tool.pytest.ini_options]
 testpaths = ['src/qibojit/tests/']
-addopts = ['--cov=qibojit', '--cov-report=xml']
+addopts = ['--cov=qibojit', '--cov-report=xml', '--cov-report=html']
 env = ["D:NUMBA_DISABLE_JIT=1"]
