@@ -201,13 +201,43 @@ tomli = {version = "*", optional = true, markers = "python_full_version <= \"3.1
 toml = ["tomli"]
 
 [[package]]
+name = "cupy-cuda11x"
+version = "13.3.0"
+description = "CuPy: NumPy & SciPy for GPU"
+optional = false
+python-versions = ">=3.9"
+groups = ["cuda11"]
+files = [
+    {file = "cupy_cuda11x-13.3.0-cp310-cp310-manylinux2014_aarch64.whl", hash = "sha256:ef854f0c63525d8163ab7af19f503d964de9dde0dd1cf9ea806a6ecb302cdce3"},
+    {file = "cupy_cuda11x-13.3.0-cp310-cp310-manylinux2014_x86_64.whl", hash = "sha256:54bf12a6663d0471e3e37e62972add348c5263ce803688f48bbfab1b20ebdb02"},
+    {file = "cupy_cuda11x-13.3.0-cp310-cp310-win_amd64.whl", hash = "sha256:972d133efa2af80bb8ef321858ffe7cabc3abf8f58bcc4f13541dd497c05077d"},
+    {file = "cupy_cuda11x-13.3.0-cp311-cp311-manylinux2014_aarch64.whl", hash = "sha256:766ef1558a3ed967d5f092829bfb99edbcfaf75224925e1fb1a9f531e1e79f36"},
+    {file = "cupy_cuda11x-13.3.0-cp311-cp311-manylinux2014_x86_64.whl", hash = "sha256:77a81fa48d1a392b731885555a53cf2febde39cc33db55f2d78ba64b5ef4689b"},
+    {file = "cupy_cuda11x-13.3.0-cp311-cp311-win_amd64.whl", hash = "sha256:a8e8b7f7f73677afe2f70c38562f01f82688e43147550b3e192a5a2206e17fe1"},
+    {file = "cupy_cuda11x-13.3.0-cp312-cp312-manylinux2014_aarch64.whl", hash = "sha256:199f1b24bcd568b41705cb46870ee7086088932c78d46037fdf05d195636ab70"},
+    {file = "cupy_cuda11x-13.3.0-cp312-cp312-manylinux2014_x86_64.whl", hash = "sha256:ffe153d5c32bc033c1cd94460c04d90219367d7283fcaefa9f1cf7b461fbdd7d"},
+    {file = "cupy_cuda11x-13.3.0-cp312-cp312-win_amd64.whl", hash = "sha256:85df9054ed023adb5db04c4e9138cf4eff99746e7f3fb47479232da009ef8839"},
+    {file = "cupy_cuda11x-13.3.0-cp39-cp39-manylinux2014_aarch64.whl", hash = "sha256:72136c4cbd17adc665fd0831c1b8805ed3d61b643ba6d587344c62466c072d91"},
+    {file = "cupy_cuda11x-13.3.0-cp39-cp39-manylinux2014_x86_64.whl", hash = "sha256:e0b4434c36658c7a40754bd90d372bfe21f2a38ee703f9a412eca6e8709bef3f"},
+    {file = "cupy_cuda11x-13.3.0-cp39-cp39-win_amd64.whl", hash = "sha256:969e1d7af1f506e1f439b70385df0ffc4a8c75dcbbddace4b1aa203bffcfc1c8"},
+]
+
+[package.dependencies]
+fastrlock = ">=0.5"
+numpy = ">=1.22,<2.3"
+
+[package.extras]
+all = ["Cython (>=0.29.22,<3)", "optuna (>=2.0)", "scipy (>=1.7,<1.14)"]
+stylecheck = ["autopep8 (==1.5.5)", "flake8 (==3.8.4)", "mypy (==1.4.1)", "pbr (==5.5.1)", "pycodestyle (==2.6.0)", "types-setuptools (==57.4.14)"]
+test = ["hypothesis (>=6.37.2,<6.55.0)", "mpmath", "packaging", "pytest (>=7.2)"]
+
+[[package]]
 name = "cupy-cuda12x"
 version = "13.3.0"
 description = "CuPy: NumPy & SciPy for GPU"
-optional = true
+optional = false
 python-versions = ">=3.9"
-groups = ["main"]
-markers = "extra == \"cupy\" or extra == \"cuquantum\""
+groups = ["main", "cuda12"]
 files = [
     {file = "cupy_cuda12x-13.3.0-cp310-cp310-manylinux2014_aarch64.whl", hash = "sha256:674488e990998042cc54d2486d3c37cae80a12ba3787636be5a10b9446dd6914"},
     {file = "cupy_cuda12x-13.3.0-cp310-cp310-manylinux2014_x86_64.whl", hash = "sha256:cf4a2a0864364715881b50012927e88bd7ec1e6f1de3987970870861ae5ed25e"},
@@ -233,13 +263,33 @@ stylecheck = ["autopep8 (==1.5.5)", "flake8 (==3.8.4)", "mypy (==1.4.1)", "pbr (
 test = ["hypothesis (>=6.37.2,<6.55.0)", "mpmath", "packaging", "pytest (>=7.2)"]
 
 [[package]]
+name = "cuquantum-python-cu11"
+version = "23.10.0"
+description = "NVIDIA cuQuantum Python"
+optional = false
+python-versions = ">=3.9"
+groups = ["cuda11"]
+files = [
+    {file = "cuquantum_python_cu11-23.10.0-cp310-cp310-manylinux2014_aarch64.whl", hash = "sha256:a0f0dfcb6239ec5fce836fa2f641820d3235ac7d83f391eac90952cf481da03f"},
+    {file = "cuquantum_python_cu11-23.10.0-cp310-cp310-manylinux2014_x86_64.whl", hash = "sha256:ad5e38501cb53d50ba19fc48790f2c79fbc14c22e101d51a0b338f6c6971e6a0"},
+    {file = "cuquantum_python_cu11-23.10.0-cp311-cp311-manylinux2014_aarch64.whl", hash = "sha256:f5bd44f0a50b38fa778836577e11515fb820c98217d2958fdedfc861a701f604"},
+    {file = "cuquantum_python_cu11-23.10.0-cp311-cp311-manylinux2014_x86_64.whl", hash = "sha256:01e6b210ed66a1fda172884f1eca68b4763f676f81949af8f0d6b16d798f1881"},
+    {file = "cuquantum_python_cu11-23.10.0-cp39-cp39-manylinux2014_aarch64.whl", hash = "sha256:0f658d3c83a8f05b81749a1fecc232ca23650147f53d82fe61dae987e544fb9c"},
+    {file = "cuquantum_python_cu11-23.10.0-cp39-cp39-manylinux2014_x86_64.whl", hash = "sha256:997e47861bab2c5e183a3b7439ba7fe4dd777cbf4d24f2234ac4ad7936cbc699"},
+]
+
+[package.dependencies]
+custatevec-cu11 = ">=1.5,<2.0"
+cutensornet-cu11 = ">=2.3,<3.0"
+numpy = ">=1.21,<2.0"
+
+[[package]]
 name = "cuquantum-python-cu12"
 version = "23.10.0"
 description = "NVIDIA cuQuantum Python"
-optional = true
+optional = false
 python-versions = ">=3.9"
-groups = ["main"]
-markers = "extra == \"cuquantum\""
+groups = ["main", "cuda12"]
 files = [
     {file = "cuquantum_python_cu12-23.10.0-cp310-cp310-manylinux2014_aarch64.whl", hash = "sha256:56a043951348a868957405103d8a0fb24da496c330876480958d371c040c371a"},
     {file = "cuquantum_python_cu12-23.10.0-cp310-cp310-manylinux2014_x86_64.whl", hash = "sha256:171f5cb136c9db0e3520c99a9c4a55c8f8c84440b725e3e5511e7d9b6373ba1e"},
@@ -256,26 +306,49 @@ cutensornet-cu12 = ">=2.3,<3.0"
 numpy = ">=1.21,<2.0"
 
 [[package]]
+name = "custatevec-cu11"
+version = "1.7.0"
+description = "cuStateVec - a component of NVIDIA cuQuantum SDK"
+optional = false
+python-versions = "*"
+groups = ["cuda11"]
+files = [
+    {file = "custatevec_cu11-1.7.0-py3-none-manylinux2014_aarch64.whl", hash = "sha256:dabdd80bab8e19413904c8377268dcfbc0468b3a8438a04cca422502c70b34d0"},
+    {file = "custatevec_cu11-1.7.0-py3-none-manylinux2014_x86_64.whl", hash = "sha256:11b3a2a79de52afaab1acc970e3d810d219e90170405aaded78ac6dcfa1bb389"},
+]
+
+[[package]]
 name = "custatevec-cu12"
 version = "1.7.0"
 description = "cuStateVec - a component of NVIDIA cuQuantum SDK"
-optional = true
+optional = false
 python-versions = "*"
-groups = ["main"]
-markers = "extra == \"cuquantum\""
+groups = ["main", "cuda12"]
 files = [
     {file = "custatevec_cu12-1.7.0-py3-none-manylinux2014_aarch64.whl", hash = "sha256:0e9c5d810285ddcdf97c980725580a0f549fccec4475a76d28779c112c79c2aa"},
     {file = "custatevec_cu12-1.7.0-py3-none-manylinux2014_x86_64.whl", hash = "sha256:df81b4eeeadc841b4c3ac4816e6b9e3dde6b288f13a2c0005fecbd0501f9ea6d"},
 ]
 
 [[package]]
+name = "cutensor-cu11"
+version = "2.0.2"
+description = "NVIDIA cuTENSOR"
+optional = false
+python-versions = "*"
+groups = ["cuda11"]
+files = [
+    {file = "cutensor_cu11-2.0.2-py3-none-manylinux2014_aarch64.whl", hash = "sha256:e17003e5f5cf0e83292e9e7e380b64c87a311f8096b3a287a630cbab743ef52f"},
+    {file = "cutensor_cu11-2.0.2-py3-none-manylinux2014_x86_64.whl", hash = "sha256:6d37a1164cb02d74322b35b09f018ce51aff078dedee10823820b9d878ebb8c3"},
+    {file = "cutensor_cu11-2.0.2-py3-none-win_amd64.whl", hash = "sha256:4576723d94b81bdc733e1cdb30808551ed1ddeb7d0440df58f56b2555d639f02"},
+]
+
+[[package]]
 name = "cutensor-cu12"
 version = "2.0.2"
 description = "NVIDIA cuTENSOR"
-optional = true
+optional = false
 python-versions = "*"
-groups = ["main"]
-markers = "extra == \"cuquantum\""
+groups = ["main", "cuda12"]
 files = [
     {file = "cutensor_cu12-2.0.2-py3-none-manylinux2014_aarch64.whl", hash = "sha256:1db559bdfe4345ac19ee66ab7ee49a54e98b1529fc96de812ade3dbc0a90ef47"},
     {file = "cutensor_cu12-2.0.2-py3-none-manylinux2014_x86_64.whl", hash = "sha256:18c96a4f1e8a559eec626527f5928d5f5b575f6c2b9c45e87309a025ae682334"},
@@ -283,13 +356,27 @@ files = [
 ]
 
 [[package]]
+name = "cutensornet-cu11"
+version = "2.6.0"
+description = "cuTensorNet - a component of NVIDIA cuQuantum SDK"
+optional = false
+python-versions = "*"
+groups = ["cuda11"]
+files = [
+    {file = "cutensornet_cu11-2.6.0-py3-none-manylinux2014_aarch64.whl", hash = "sha256:ded8b2b3124fd2acd6ce9c13060b0ea17692bcbca727314b2930c6ab341035ef"},
+    {file = "cutensornet_cu11-2.6.0-py3-none-manylinux2014_x86_64.whl", hash = "sha256:f7be9781de96cd897b59ac81cfb5c407a79a9781d236a25358656e24c9e81b71"},
+]
+
+[package.dependencies]
+cutensor-cu11 = ">=2.0.2,<3"
+
+[[package]]
 name = "cutensornet-cu12"
 version = "2.6.0"
 description = "cuTensorNet - a component of NVIDIA cuQuantum SDK"
-optional = true
+optional = false
 python-versions = "*"
-groups = ["main"]
-markers = "extra == \"cuquantum\""
+groups = ["main", "cuda12"]
 files = [
     {file = "cutensornet_cu12-2.6.0-py3-none-manylinux2014_aarch64.whl", hash = "sha256:39b6f50b8bd47e5a4fcb745472c1005fc9d3889b907c92a91ea76e30a91e11cd"},
     {file = "cutensornet_cu12-2.6.0-py3-none-manylinux2014_x86_64.whl", hash = "sha256:64b582679c4e16faecd9143103272376e847e4b7ff02c97cde72f39ea6243f5e"},
@@ -346,10 +433,9 @@ test = ["pytest (>=6)"]
 name = "fastrlock"
 version = "0.8.3"
 description = "Fast, re-entrant optimistic lock implemented in Cython"
-optional = true
+optional = false
 python-versions = "*"
-groups = ["main"]
-markers = "extra == \"cupy\" or extra == \"cuquantum\""
+groups = ["main", "cuda11", "cuda12"]
 files = [
     {file = "fastrlock-0.8.3-cp27-cp27m-manylinux_2_5_i686.manylinux1_i686.whl", hash = "sha256:bbbe31cb60ec32672969651bf68333680dacaebe1a1ec7952b8f5e6e23a70aa5"},
     {file = "fastrlock-0.8.3-cp27-cp27m-manylinux_2_5_x86_64.manylinux1_x86_64.whl", hash = "sha256:45055702fe9bff719cdc62caa849aa7dbe9e3968306025f639ec62ef03c65e88"},
@@ -858,7 +944,7 @@ version = "1.26.4"
 description = "Fundamental package for array computing in Python"
 optional = false
 python-versions = ">=3.9"
-groups = ["main"]
+groups = ["main", "cuda11", "cuda12"]
 files = [
     {file = "numpy-1.26.4-cp310-cp310-macosx_10_9_x86_64.whl", hash = "sha256:9ff0f4f29c51e2803569d7a51c2304de5554655a60c5d776e35b4a41413830d0"},
     {file = "numpy-1.26.4-cp310-cp310-macosx_11_0_arm64.whl", hash = "sha256:2e4ee3380d6de9c9ec04745830fd9e2eccb3e6cf790d39d7b98ffd19b0dd754a"},
@@ -1621,11 +1707,7 @@ enabler = ["pytest-enabler (>=2.2)"]
 test = ["big-O", "importlib-resources", "jaraco.functools", "jaraco.itertools", "jaraco.test", "more-itertools", "pytest (>=6,!=8.1.*)", "pytest-ignore-flaky"]
 type = ["pytest-mypy"]
 
-[extras]
-cupy = ["cupy-cuda12x"]
-cuquantum = ["cuquantum-python-cu12"]
-
 [metadata]
 lock-version = "2.1"
 python-versions = "^3.9,<3.13"
-content-hash = "0d8408837a099a9a4e710f0cd4324120c9566b19bc5315ee4f64cce16d794351"
+content-hash = "99812dd8d9ee76c1e48cc474fd45dd678010818596a6b93784452d049c4ff94f"
