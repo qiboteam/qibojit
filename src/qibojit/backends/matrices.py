@@ -75,6 +75,9 @@ class CupyMatrices(NumpyMatrices):  # pragma: no cover
 
         self.cp = cp
 
+    def I(self, n=2):
+        return self.cp.eye(n, dtype=self.dtype)
+
     def _cast(self, x, dtype):
         is_cupy = [
             isinstance(item, self.cp.ndarray) for sublist in x for item in sublist
