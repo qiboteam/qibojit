@@ -4,7 +4,7 @@ import numpy as np
 import pytest
 from qibo.quantum_info import random_density_matrix, random_statevector
 
-from qibojit.tests.utils import qubits_tensor, random_complex, set_precision
+from .utils import qubits_tensor, random_complex, set_precision
 
 
 @pytest.mark.parametrize("is_matrix", [False, True])

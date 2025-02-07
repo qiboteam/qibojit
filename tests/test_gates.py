@@ -11,7 +11,7 @@ from qibo.quantum_info import (
     random_unitary,
 )
 
-from qibojit.tests.utils import qubits_tensor, random_complex, set_precision
+from .utils import qubits_tensor, random_complex, set_precision
 
 ATOL = {"complex64": 1e-4, "complex128": 1e-10}
 
