@@ -11,7 +11,7 @@ cd "$TMP_DIR/tests"
 
 source /nfs/users/github/actions-runner/_work/qibojit/qibojit/testenv/bin/activate
 
-pytest --gpu_only
+pytest --gpu-only
 
 pytest_status=$?
 
