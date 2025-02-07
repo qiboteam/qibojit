@@ -9,6 +9,8 @@ if [ -d "$TMP_DIR" ]; then
     rm -rf "$TMP_DIR"
 fi
 
+mkdir -p "$TMP_DIR"
+
 cp -r src/qibojit/tests "$TMP_DIR"
 cp pyproject.toml "$TMP_DIR/"
 cd "$TMP_DIR/tests"
