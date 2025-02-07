@@ -5,7 +5,7 @@
 
 TMP_DIR=$(mktemp -d selfhosted.qibojit.XXXXXXX)
 
-cp -r src/qibojit/tests "$TMP_DIR"
+cp -r tests "$TMP_DIR"
 cp pyproject.toml "$TMP_DIR/"
 cd "$TMP_DIR/tests"
 

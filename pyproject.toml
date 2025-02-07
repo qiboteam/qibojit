@@ -69,6 +69,6 @@ output-format = "colorized"
 omit = ["src/qibojit/backends/clifford_operations*"]
 
 [tool.pytest.ini_options]
-testpaths = ['src/qibojit/tests/']
+testpaths = ['tests/']
 addopts = ['--cov=qibojit', '--cov-report=xml', '--cov-report=html']
 env = ["D:NUMBA_DISABLE_JIT=1"]

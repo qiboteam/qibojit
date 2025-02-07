@@ -9,8 +9,7 @@ from .conftest import AVAILABLE_BACKENDS, BACKENDS
 def test_device_setter(backend):
     if backend.platform == "numba":
         device = "/CPU:0"
-    else:  # pragma: no cover
-        # CI does not have GPUs
+    else:
         device = "/GPU:0"
     backend.set_device(device)
     assert backend.device == device
@@ -42,7 +41,7 @@ def test_sparse_cast(backend, array_type, format):
     final = backend.to_numpy(backend.cast(sptarget))
     target = sptarget.toarray()
     backend.assert_allclose(final, target)
-    if backend.platform != "numba":  # pragma: no cover
+    if backend.platform != "numba":
         sptarget = getattr(backend.sparse, sptarget.__class__.__name__)(sptarget)
         assert backend.is_sparse(sptarget)
         final = backend.to_numpy(backend.cast(sptarget))
@@ -54,7 +53,7 @@ def test_to_numpy(backend):
     target = backend.to_numpy(backend.cast(x))
     if backend.platform == "numba":
         final = backend.to_numpy(x)
-    else:  # pragma: no cover
+    else:
         final = backend.to_numpy(np.array(x))
     backend.assert_allclose(final, target)
 
