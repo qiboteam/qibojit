@@ -3,13 +3,7 @@
 # Script for running the selfhosted tests on QPUs directly from GitHub
 # Tests need to be copied to /tmp/ because coverage does not work with NFS
 
-TMP_DIR="/tmp/qibojit"
-
-if [ -d "$TMP_DIR" ]; then
-    rm -rf "$TMP_DIR"
-fi
-
-mkdir -p "$TMP_DIR"
+TMP_DIR=$(mktemp -d)
 
 cp -r src/qibojit/tests "$TMP_DIR"
 cp pyproject.toml "$TMP_DIR/"
