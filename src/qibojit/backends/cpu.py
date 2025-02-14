@@ -72,6 +72,7 @@ class NumbaBackend(NumpyBackend):
         else:
             self.set_threads(len(psutil.Process().cpu_affinity()))
 
+        # load the quantum info custom operators
         for method in dir(QINFO):
             if method[:2] != "__":
                 setattr(self.qinfo, method, getattr(QINFO, method))
