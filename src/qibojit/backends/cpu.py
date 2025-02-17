@@ -74,6 +74,7 @@ class NumbaBackend(NumpyBackend):
 
         # load the quantum info custom operators
         for method in dir(QINFO):
+            print(method)
             if method[:2] != "__":
                 setattr(self.qinfo, method, getattr(QINFO, method))
 
