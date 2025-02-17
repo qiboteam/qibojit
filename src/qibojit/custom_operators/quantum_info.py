@@ -28,9 +28,9 @@ def _pauli_basis_inner(
 ):
     dim = 2**nqubits
     basis = np.empty((len(prod), dim, dim), dtype=np.complex128)
-    for i in prange(len(prod)):
+    for i in prange(len(prod)):  # pylint: disable=not-an-iterable
         elem = prod[i][0]
-        for j in prange(1, len(prod[i])):
+        for j in prange(1, len(prod[i])):  # pylint: disable=not-an-iterable
             elem = np.kron(elem, prod[i][j])
         basis[i] = elem
     return basis
@@ -54,7 +54,7 @@ def _cartesian_product(arrays, n):
             temp //= num_arrays
 
         # Fill the result array with selected elements
-        for j in prange(n):
+        for j in range(n):  # pylint: disable=not-an-iterable
             result[i, j] = arrays[indices[j]]
 
     return result

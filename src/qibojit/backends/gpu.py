@@ -104,6 +104,9 @@ class CupyBackend(NumbaBackend):  # pragma: no cover
         # number of available GPUs (for multigpu)
         self.ngpus = cp.cuda.runtime.getDeviceCount()
 
+        # set the engine of the quantum info operators
+        self.qinfo.ENGINE = cp
+
     def set_precision(self, precision):
         super().set_precision(precision)
         if self.dtype == "complex128":
