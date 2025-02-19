@@ -1,3 +1,5 @@
+# pylint: disable-all
+
 import numba.types as nbt
 import numpy as np
 import qibo.quantum_info.quantum_info as qinfo
@@ -31,6 +33,12 @@ class QinfoNumba:
 
 
 QINFO = QinfoNumba()
+
+for function, signature in SIGNATURES.items():
+    print(function)
+    jitted = jit_function(signature[0], function, **signature[1])
+    globals()[function] = jitted
+    setattr(QINFO, function, jitted)
 
 
 @njit("c16[:,:,::1](i8, c16[:,:,:,::1])", parallel=True, cache=True)
@@ -180,13 +188,6 @@ setattr(
     "_post_sparse_pauli_basis_vectorization",
     _post_sparse_pauli_basis_vectorization,
 )
-
-
-for function, signature in SIGNATURES.items():
-    print(function)
-    jitted = jit_function(signature[0], function, **signature[1])
-    globals()[function] = jitted
-    setattr(QINFO, function, jitted)
 
 
 @njit(
