@@ -106,20 +106,20 @@ def _pauli_basis(
 setattr(QINFO, "_pauli_basis", _pauli_basis)
 
 
-@njit(
-    ["c16[:,::1](c16[:,::1], i8[:])", "c16[:,:,::1](c16[:,:,::1], i8[:])"], cache=True
-)
+@njit(["c16[:,:](c16[:,:], i8[:])", "c16[:,:,:](c16[:,:,:], i8[:])"], cache=True)
 def numba_transpose(array, axes):
     axes = to_fixed_tuple(axes, array.ndim)
     array = np.transpose(array, axes)
-    return np.ascontiguousarray(array)
+    # return np.ascontiguousarray(array)
+    return array
 
 
-@njit(["c16[:,::1](c16[:,::1], i8)", "c16[:,::1](c16[:,:,::1], i8)"], cache=True)
+@njit(["c16[:,::1](c16[:,:], i8)", "c16[:,::1](c16[:,:,:], i8)"], cache=True)
 def _vectorization_column(state, dim):
     indices = ENGINE.arange(state.ndim)
     indices[-2:] = indices[-2:][::-1]
     state = numba_transpose(state, indices)
+    state = ENGINE.ascontiguousarray(state)
     return ENGINE.reshape(state, (-1, dim**2))
 
 
@@ -141,10 +141,12 @@ setattr(QINFO, "_vectorization_column", _vectorization_column)
 # setattr(QINFO, "_vectorization_system", _vectorization_system)
 
 
-@njit(["c16[:,:,::1](c16[:,::1], i8)", "c16[:,:,::1](c16[:,:,::1], i8)"], cache=True)
+@njit(["c16[:,:,:](c16[:,:], i8)", "c16[:,:,:](c16[:,:,:], i8)"], cache=True)
 def _unvectorization_column(state, dim):
     axes = ENGINE.arange(state.ndim)[::-1]
-    state = numba_transpose(state, axes).reshape(dim, dim, state.shape[0])
+    last_dim = state.shape[0]
+    state = numba_transpose(state, axes)
+    state = ENGINE.ascontiguousarray(state).reshape(dim, dim, last_dim)
     return numba_transpose(state, ENGINE.array([2, 1, 0], dtype=ENGINE.int64))
 
 
@@ -153,12 +155,10 @@ setattr(QINFO, "_unvectorization_column", _unvectorization_column)
 
 @njit(
     [
-        nbt.complex128[::1](
-            nbt.complex128[:, ::1], nbt.Tuple((nbt.int64[::1], nbt.int64[::1]))
+        nbt.complex128[:](
+            nbt.complex128[:, :], nbt.Tuple((nbt.int64[:], nbt.int64[:]))
         ),
-        nbt.float64[::1](
-            nbt.float64[:, ::1], nbt.Tuple((nbt.int64[::1], nbt.int64[::1]))
-        ),
+        nbt.float64[:](nbt.float64[:, :], nbt.Tuple((nbt.int64[:], nbt.int64[:]))),
     ],
     parallel=True,
     cache=True,
@@ -172,14 +172,14 @@ def _array_at_2d_indices(array, indices):
 
 @njit(
     nbt.Tuple((nbt.complex128[:, ::1], nbt.int64[:, ::1]))(
-        nbt.complex128[:, ::1], nbt.int64
+        nbt.complex128[:, :], nbt.int64
     ),
     cache=True,
 )
 def _post_sparse_pauli_basis_vectorization(basis, dim):
     indices = ENGINE.nonzero(basis)
     basis = _array_at_2d_indices(basis, indices)
-    basis = basis.reshape(-1, dim)
+    basis = ENGINE.ascontiguousarray(basis).reshape(-1, dim)
     indices = indices[1].reshape(-1, dim)
     return basis, indices
 
@@ -276,7 +276,7 @@ setattr(
 
 
 @njit(
-    nbt.Tuple((nbt.complex128[:, ::1], nbt.int64[::1]))(
+    nbt.Tuple((nbt.complex128[:, ::1], nbt.int64[:]))(
         nbt.int64,
         nbt.complex128[:, ::1],
         nbt.complex128[:, ::1],
@@ -296,27 +296,27 @@ def _pauli_to_comp_basis_sparse_row(
     unitary = numba_transpose(unitary, ENGINE.arange(unitary.ndim)[::-1])
     nonzero = ENGINE.nonzero(unitary)
     unitary = _array_at_2d_indices(unitary, nonzero)
-    return unitary.reshape(unitary.shape[0], -1), nonzero[1]
+    return ENGINE.ascontiguousarray(unitary).reshape(unitary.shape[0], -1), nonzero[1]
 
 
 setattr(QINFO, "_pauli_to_comp_basis_sparse_row", _pauli_to_comp_basis_sparse_row)
 
 
 @njit(
-    nbt.Tuple((nbt.complex128[:, ::1], nbt.complex128[:, ::1], nbt.float64[:, :, ::1]))(
-        nbt.complex128[:, ::1]
+    nbt.Tuple((nbt.complex128[:, :], nbt.complex128[:, :], nbt.float64[:, :, ::1]))(
+        nbt.complex128[:, :]
     ),
     parallel=True,
     cache=True,
 )
 def _choi_to_kraus_preamble(choi_super_op):
     U, coefficients, V = ENGINE.linalg.svd(choi_super_op)
-    U = np.ascontiguousarray(U)
+    # U = np.ascontiguousarray(U)
     U = numba_transpose(U, ENGINE.arange(U.ndim)[::-1])
     coefficients = ENGINE.sqrt(coefficients)
     V = ENGINE.conj(V)
     coefficients = coefficients.reshape(U.shape[0], 1, 1)
-    V = np.ascontiguousarray(V)
+    # V = np.ascontiguousarray(V)
     return U, V, coefficients
 
 
@@ -337,15 +337,46 @@ def _kraus_operators(kraus_left, kraus_right):
 def _choi_to_kraus_row(choi_super_op):
     U, V, coefficients = _choi_to_kraus_preamble(choi_super_op)
     dim = int(np.sqrt(U.shape[-1]))
-    kraus_left = coefficients * _unvectorization_row(U, dim)
-    kraus_right = coefficients * _unvectorization_row(V, dim)
+    kraus_left = coefficients * _unvectorization_row(ENGINE.ascontiguousarray(U), dim)
+    kraus_right = coefficients * _unvectorization_row(ENGINE.ascontiguousarray(V), dim)
     kraus_ops = _kraus_operators(kraus_left, kraus_right)
     return kraus_ops, coefficients
 
 
 setattr(QINFO, "_choi_to_kraus_row", _choi_to_kraus_row)
 
-# TODO: choi to kraus column
+
+@njit(
+    nbt.Tuple((nbt.complex128[:, :, :, :], nbt.float64[:, :, ::1]))(
+        nbt.complex128[:, ::1]
+    ),
+    cache=True,
+)
+def _choi_to_kraus_column(choi_super_op):
+    U, V, coefficients = _choi_to_kraus_preamble(choi_super_op)
+    dim = int(np.sqrt(U.shape[-1]))
+    kraus_left = coefficients * _unvectorization_column(U, dim)
+    kraus_right = coefficients * _unvectorization_column(V, dim)
+    kraus_ops = _kraus_operators(kraus_left, kraus_right)
+    return kraus_ops, coefficients
+
+
+setattr(QINFO, "_choi_to_kraus_column", _choi_to_kraus_column)
+
+
+@njit("c16[:,:](i8, i8, f8, f8)", parallel=True, cache=True)
+def _random_gaussian_matrix(dims: int, rank: int, mean: float, stddev: float):
+    matrix = ENGINE.empty((dims, rank), dtype=ENGINE.complex128)
+    for i in prange(dims):
+        for j in prange(rank):
+            matrix[i, j] = ENGINE.random.normal(
+                loc=mean, scale=stddev
+            ) + 1.0j * ENGINE.random.normal(loc=mean, scale=stddev)
+    return matrix
+
+
+setattr(QINFO, "_random_gaussian_matrix", _random_gaussian_matrix)
+
 
 """
 @njit(
@@ -383,4 +414,4 @@ def _kraus_to_stinespring(
     )
 """
 
-setattr(QINFO, "_kraus_to_stinespring", _kraus_to_stinespring)
+# setattr(QINFO, "_kraus_to_stinespring", _kraus_to_stinespring)
