@@ -1,13 +1,12 @@
 # pylint: disable-all
 
 import numba.types as nbt
-import numpy as np
 import qibo.quantum_info.quantum_info as qinfo
 from numba import njit, prange, void
 from numba.np.unsafe.ndarray import to_fixed_tuple
 from scipy.linalg import expm
 
-ENGINE = qinfo.ENGINE
+ENGINE = qinfo.ENGINE  # this should be numpy
 
 SIGNATURES = {
     # "_vectorization_row": (
@@ -49,11 +48,11 @@ def _pauli_basis_inner(
     prod,
 ):
     dim = 2**nqubits
-    basis = np.empty((len(prod), dim, dim), dtype=np.complex128)
+    basis = ENGINE.empty((len(prod), dim, dim), dtype=ENGINE.complex128)
     for i in prange(len(prod)):  # pylint: disable=not-an-iterable
         elem = prod[i][0]
         for j in prange(1, len(prod[i])):  # pylint: disable=not-an-iterable
-            elem = np.kron(elem, prod[i][j])
+            elem = ENGINE.kron(elem, prod[i][j])
         basis[i] = elem
     return basis
 
@@ -62,12 +61,12 @@ def _pauli_basis_inner(
 def _cartesian_product(arrays, n):
     num_arrays = len(arrays)
     num_elements = num_arrays**n  # Total number of combinations
-    result = np.empty(
+    result = ENGINE.empty(
         (num_elements, n, arrays[0].shape[0], arrays[0].shape[1]), dtype=arrays[0].dtype
     )
 
     # Generate Cartesian product using a lexicographic order
-    indices = np.empty(n, dtype=np.int64)
+    indices = ENGINE.empty(n, dtype=ENGINE.int64)
 
     for i in range(num_elements):
         temp = i
@@ -95,7 +94,7 @@ def _pauli_basis(
     pauli_3,
     normalization: float = 1.0,
 ):
-    basis = np.empty((4, 2, 2), dtype=pauli_0.dtype)
+    basis = ENGINE.empty((4, 2, 2), dtype=pauli_0.dtype)
     # Assign manually instead of using vstack
     basis[0] = pauli_0
     basis[1] = pauli_1
@@ -105,14 +104,11 @@ def _pauli_basis(
     return _pauli_basis_inner(nqubits, prod) / normalization
 
 
-setattr(QINFO, "_pauli_basis", _pauli_basis)
-
-
 @njit(["c16[:,:](c16[:,:], i8[:])", "c16[:,:,:](c16[:,:,:], i8[:])"], cache=True)
 def numba_transpose(array, axes):
     axes = to_fixed_tuple(axes, array.ndim)
-    array = np.transpose(array, axes)
-    # return np.ascontiguousarray(array)
+    array = ENGINE.transpose(array, axes)
+    # return ENGINE.ascontiguousarray(array)
     return array
 
 
@@ -123,9 +119,6 @@ def numba_transpose(array, axes):
 )
 def _vectorization_row(state, dim: int):
     return ENGINE.reshape(ENGINE.ascontiguousarray(state), (-1, dim**2))
-
-
-setattr(QINFO, "_vectorization_row", _vectorization_row)
 
 
 @njit(["c16[:,::1](c16[:,:], i8)", "c16[:,::1](c16[:,:,:], i8)"], cache=True)
@@ -151,10 +144,6 @@ def _vectorization_system(state, dim=0):
     return ENGINE.reshape(state, (-1, 2 ** (2 * nqubits)))
 
 
-setattr(QINFO, "_vectorization_column", _vectorization_column)
-# setattr(QINFO, "_vectorization_system", _vectorization_system)
-
-
 @njit(
     ["c16[:,:,::1](c16[:,:], i8)", "c16[:,:,::1](c16[:,:,:], i8)"],
     parallel=True,
@@ -162,9 +151,6 @@ setattr(QINFO, "_vectorization_column", _vectorization_column)
 )
 def _unvectorization_row(state, dim: int):
     return ENGINE.reshape(ENGINE.ascontiguousarray(state), (state.shape[0], dim, dim))
-
-
-setattr(QINFO, "_unvectorization_row", _unvectorization_row)
 
 
 @njit(["c16[:,:,:](c16[:,:], i8)", "c16[:,:,:](c16[:,:,:], i8)"], cache=True)
@@ -175,9 +161,6 @@ def _unvectorization_column(state, dim):
     state = ENGINE.ascontiguousarray(state).reshape(dim, dim, last_dim)
     # return numba_transpose(state, ENGINE.array([2, 1, 0], dtype=ENGINE.int64))
     return state.T
-
-
-setattr(QINFO, "_unvectorization_column", _unvectorization_column)
 
 
 @njit(
@@ -212,13 +195,6 @@ def _post_sparse_pauli_basis_vectorization(basis, dim):
     return basis, indices
 
 
-setattr(
-    QINFO,
-    "_post_sparse_pauli_basis_vectorization",
-    _post_sparse_pauli_basis_vectorization,
-)
-
-
 @njit(
     "c16[:,::1](i8, c16[:,::1], c16[:,::1], c16[:,::1], c16[:,::1], f8)",
     parallel=True,
@@ -232,9 +208,6 @@ def _vectorize_pauli_basis_row(
     return _vectorization_row(basis, dim)
 
 
-setattr(QINFO, "_vectorize_pauli_basis_row", _vectorize_pauli_basis_row)
-
-
 @njit(
     "c16[:,::1](i8, c16[:,::1], c16[:,::1], c16[:,::1], c16[:,::1], f8)",
     parallel=True,
@@ -246,9 +219,6 @@ def _vectorize_pauli_basis_column(
     dim = 2**nqubits
     basis = _pauli_basis(nqubits, pauli_0, pauli_1, pauli_2, pauli_3, normalization)
     return _vectorization_column(basis, dim)
-
-
-setattr(QINFO, "_vectorize_pauli_basis_column", _vectorize_pauli_basis_column)
 
 
 @njit(
@@ -273,9 +243,6 @@ def _vectorize_sparse_pauli_basis_row(
     return _post_sparse_pauli_basis_vectorization(basis, dim)
 
 
-setattr(QINFO, "_vectorize_sparse_pauli_basis_row", _vectorize_sparse_pauli_basis_row)
-
-
 @njit(
     nbt.Tuple((nbt.complex128[:, ::1], nbt.int64[:, ::1]))(
         nbt.int64,
@@ -296,11 +263,6 @@ def _vectorize_sparse_pauli_basis_column(
         nqubits, pauli_0, pauli_1, pauli_2, pauli_3, normalization
     )
     return _post_sparse_pauli_basis_vectorization(basis, dim)
-
-
-setattr(
-    QINFO, "_vectorize_sparse_pauli_basis_column", _vectorize_sparse_pauli_basis_column
-)
 
 
 @njit(
@@ -328,9 +290,6 @@ def _pauli_to_comp_basis_sparse_row(
     return ENGINE.ascontiguousarray(unitary).reshape(unitary.shape[0], -1), nonzero[1]
 
 
-setattr(QINFO, "_pauli_to_comp_basis_sparse_row", _pauli_to_comp_basis_sparse_row)
-
-
 @njit(
     nbt.Tuple((nbt.complex128[:, :], nbt.complex128[:, :], nbt.float64[:, :, ::1]))(
         nbt.complex128[:, :]
@@ -340,13 +299,13 @@ setattr(QINFO, "_pauli_to_comp_basis_sparse_row", _pauli_to_comp_basis_sparse_ro
 )
 def _choi_to_kraus_preamble(choi_super_op):
     U, coefficients, V = ENGINE.linalg.svd(choi_super_op)
-    # U = np.ascontiguousarray(U)
+    # U = ENGINE.ascontiguousarray(U)
     # U = numba_transpose(U, ENGINE.arange(U.ndim)[::-1])
     U = U.T
     coefficients = ENGINE.sqrt(coefficients)
     V = ENGINE.conj(V)
     coefficients = coefficients.reshape(U.shape[0], 1, 1)
-    # V = np.ascontiguousarray(V)
+    # V = ENGINE.ascontiguousarray(V)
     return U, V, coefficients
 
 
@@ -366,14 +325,11 @@ def _kraus_operators(kraus_left, kraus_right):
 )
 def _choi_to_kraus_row(choi_super_op):
     U, V, coefficients = _choi_to_kraus_preamble(choi_super_op)
-    dim = int(np.sqrt(U.shape[-1]))
+    dim = int(ENGINE.sqrt(U.shape[-1]))
     kraus_left = coefficients * _unvectorization_row(U, dim)
     kraus_right = coefficients * _unvectorization_row(V, dim)
     kraus_ops = _kraus_operators(kraus_left, kraus_right)
     return kraus_ops, coefficients
-
-
-setattr(QINFO, "_choi_to_kraus_row", _choi_to_kraus_row)
 
 
 @njit(
@@ -384,14 +340,11 @@ setattr(QINFO, "_choi_to_kraus_row", _choi_to_kraus_row)
 )
 def _choi_to_kraus_column(choi_super_op):
     U, V, coefficients = _choi_to_kraus_preamble(choi_super_op)
-    dim = int(np.sqrt(U.shape[-1]))
+    dim = int(ENGINE.sqrt(U.shape[-1]))
     kraus_left = coefficients * _unvectorization_column(U, dim)
     kraus_right = coefficients * _unvectorization_column(V, dim)
     kraus_ops = _kraus_operators(kraus_left, kraus_right)
     return kraus_ops, coefficients
-
-
-setattr(QINFO, "_choi_to_kraus_column", _choi_to_kraus_column)
 
 
 @njit("c16[:](i8)", parallel=True, cache=True)
@@ -399,9 +352,6 @@ def _random_statevector(dims: int):
     state = ENGINE.random.standard_normal(dims)
     state = state + 1.0j * ENGINE.random.standard_normal(dims)
     return state / ENGINE.linalg.norm(state)
-
-
-setattr(QINFO, "_random_statevector", _random_statevector)
 
 
 @njit("c16[:,:](i8, i8, f8, f8)", parallel=True, cache=True)
@@ -415,16 +365,10 @@ def _random_gaussian_matrix(dims: int, rank: int, mean: float, stddev: float):
     return matrix
 
 
-setattr(QINFO, "_random_gaussian_matrix", _random_gaussian_matrix)
-
-
 @njit("c16[:,:](i8)", parallel=True, cache=True)
 def _random_density_matrix_pure(dims: int):
     state = _random_statevector(dims)
     return ENGINE.outer(state, ENGINE.conj(state).T)
-
-
-setattr(QINFO, "_random_density_matrix_pure", _random_density_matrix_pure)
 
 
 @njit("c16[:,:](i8, i8, f8, f8)", parallel=True, cache=True)
@@ -434,25 +378,16 @@ def _random_density_matrix_hs_ginibre(dims: int, rank: int, mean: float, stddev:
     return state / ENGINE.trace(state)
 
 
-setattr(QINFO, "_random_density_matrix_hs_ginibre", _random_density_matrix_hs_ginibre)
-
-
 @njit("c16[:,:](i8)", parallel=True, cache=True)
 def _random_hermitian(dims: int):
     matrix = _random_gaussian_matrix(dims, dims, 0.0, 1.0)
     return (matrix + ENGINE.conj(matrix).T) / 2
 
 
-setattr(QINFO, "_random_hermitian", _random_hermitian)
-
-
 @njit("c16[:,:](i8)", parallel=True, cache=True)
 def _random_hermitian_semidefinite(dims: int):
     matrix = _random_gaussian_matrix(dims, dims, 0.0, 1.0)
     return ENGINE.conj(matrix).T @ matrix
-
-
-setattr(QINFO, "_random_hermitian_semidefinite", _random_hermitian_semidefinite)
 
 
 @njit("c16[:,:](i8)", parallel=True, cache=True)
@@ -465,15 +400,13 @@ def _random_unitary_haar(dims: int):
     return ENGINE.ascontiguousarray(Q) @ R
 
 
-setattr(QINFO, "_random_unitary_haar", _random_unitary_haar)
-
 """
 # double check whether this is correct
 #@njit
 def expm(A):
     '''Compute expm(A) using the Padé approximant and scaling/squaring.'''
     # Constants for Padé approximant
-    pade_coeffs = np.array([
+    pade_coeffs = ENGINE.array([
         64764752532480000.0, 32382376266240000.0, 7771770303897600.0,
         1187353796428800.0, 129060195264000.0, 10559470521600.0,
         670442572800.0, 33522128640.0, 1323241920.0, 40840800.0,
@@ -481,10 +414,10 @@ def expm(A):
     ])
 
     n = A.shape[0]
-    A_norm = np.max(np.sum(np.abs(A), axis=1))  # Compute norm estimate
+    A_norm = ENGINE.max(ENGINE.sum(ENGINE.abs(A), axis=1))  # Compute norm estimate
 
     # Scaling step
-    s = max(0, int(np.log2(A_norm)) - 4)
+    s = max(0, int(ENGINE.log2(A_norm)) - 4)
     A_scaled = A / (2 ** s)
 
     # Compute Padé approximant
@@ -517,9 +450,6 @@ def _random_unitary(dims: int):
     return expm(-1.0j * H / 2)
 
 
-setattr(QINFO, "_random_unitary", _random_unitary)
-
-
 @njit("c16[:,:](c16[:,:], i8, i8, f8, f8)", parallel=True, cache=True)
 def _random_density_matrix_bures_inner(
     unitary, dims: int, rank: int, mean: float, stddev: float
@@ -534,9 +464,6 @@ def _random_density_matrix_bures_inner(
 def _random_density_matrix_bures(dims: int, rank: int, mean: float, stddev: float):
     unitary = _random_unitary(dims)
     return _random_density_matrix_bures_inner(unitary, dims, rank, mean, stddev)
-
-
-setattr(QINFO, "_random_density_matrix_bures", _random_density_matrix_bures)
 
 
 @njit(nbt.Tuple((nbt.int64[:], nbt.int64[:]))(nbt.int64), parallel=True, cache=True)
@@ -556,13 +483,6 @@ def _sample_from_quantum_mallows_distribution(nqubits: int):
         permutations[l] = mute_index[index]
         del mute_index[index]
     return hadamards, permutations
-
-
-setattr(
-    QINFO,
-    "_sample_from_quantum_mallows_distribution",
-    _sample_from_quantum_mallows_distribution,
-)
 
 
 @njit(
@@ -647,9 +567,6 @@ def _gamma_delta_matrices(nqubits: int, hadamards, permutations):
     return gamma_matrix, gamma_matrix_prime, delta_matrix, delta_matrix_prime
 
 
-setattr(QINFO, "_gamma_delta_matrices", _gamma_delta_matrices)
-
-
 @njit(
     nbt.Tuple((nbt.complex128[:, ::1], nbt.complex128[:, :]))(nbt.int64, nbt.int64),
     parallel=True,
@@ -688,17 +605,11 @@ def _super_op_from_bcsz_measure_row(dims: int, rank: int):
     return operator @ super_op @ operator
 
 
-setattr(QINFO, "_super_op_from_bcsz_measure_row", _super_op_from_bcsz_measure_row)
-
-
 @njit("c16[:,:](i8, i8)", parallel=True, cache=True)
 def _super_op_from_bcsz_measure_column(dims: int, rank: int):
     operator, super_op = _super_op_from_bcsz_measure_preamble(dims, rank)
     operator = ENGINE.kron(operator, ENGINE.eye(dims, dtype=operator.dtype))
     return operator @ super_op @ operator
-
-
-setattr(QINFO, "_super_op_from_bcsz_measure_column", _super_op_from_bcsz_measure_column)
 
 
 @njit("c16[:,:](c16[:,:,::1], c16[:], i8)", parallel=True, cache=True)
@@ -715,9 +626,6 @@ def _kraus_to_stinespring(kraus_ops, initial_state_env, dim_env: int):
     return prod
 
 
-setattr(QINFO, "_kraus_to_stinespring", _kraus_to_stinespring)
-
-
 @njit("c16[:,:,:](c16[:,::1], c16[:], i8, i8)", parallel=True, cache=True)
 def _stinespring_to_kraus(stinespring, initial_state_env, dim: int, dim_env: int):
     stinespring = stinespring.reshape(dim, dim_env, dim, dim_env)
@@ -731,13 +639,40 @@ def _stinespring_to_kraus(stinespring, initial_state_env, dim: int, dim_env: int
     tmp = ENGINE.empty((2 * dim_env,) + stinespring.shape[:2], dtype=stinespring.dtype)
     tmp[:dim_env] = stinespring[:, :, :dim_env]
     tmp[dim_env:] = stinespring[:, :, dim_env:]
-    # stinespring = ENGINE.vstack(
-    #    (stinespring[:, :, :dim_env], stinespring[:, :, dim_env:])
-    # )
     kraus = ENGINE.empty((tmp.shape[0], initial_state_env.shape[0]), dtype=tmp.dtype)
     for i in prange(tmp.shape[0]):
         kraus[i] = tmp[i] @ initial_state_env
     return kraus.reshape(dim, dim_env, dim_env)
 
 
-setattr(QINFO, "_stinespring_to_kraus", _stinespring_to_kraus)
+for function in (
+    _pauli_basis,
+    _vectorization_row,
+    _vectorization_column,
+    _unvectorization_row,
+    _unvectorization_column,
+    _post_sparse_pauli_basis_vectorization,
+    _vectorize_pauli_basis_row,
+    _vectorize_pauli_basis_column,
+    _vectorize_sparse_pauli_basis_row,
+    _vectorize_sparse_pauli_basis_column,
+    _pauli_to_comp_basis_sparse_row,
+    _choi_to_kraus_row,
+    _choi_to_kraus_column,
+    _random_statevector,
+    _random_density_matrix_pure,
+    _random_density_matrix_bures,
+    _random_density_matrix_hs_ginibre,
+    _random_gaussian_matrix,
+    _random_hermitian,
+    _random_hermitian_semidefinite,
+    _random_unitary,
+    _random_unitary_haar,
+    _sample_from_quantum_mallows_distribution,
+    _gamma_delta_matrices,
+    _super_op_from_bcsz_measure_row,
+    _super_op_from_bcsz_measure_column,
+    _kraus_to_stinespring,
+    _stinespring_to_kraus,
+):
+    setattr(QINFO, function.__name__, function)
