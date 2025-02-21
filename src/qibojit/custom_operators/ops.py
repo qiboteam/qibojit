@@ -2,6 +2,11 @@ import numpy as np
 from numba import njit, prange
 
 
+@njit("(i8,)", cache=True)
+def set_seed(seed):
+    np.random.seed(seed)
+
+
 @njit(
     ["complex64[:](complex64[:])", "complex128[:](complex128[:])"],
     parallel=True,

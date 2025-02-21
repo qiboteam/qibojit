@@ -296,3 +296,8 @@ def _rowsum(symplectic_matrix, h, i, nqubits, determined=False):
             symplectic_matrix[h[0], :nqubits] ^= g_xi_xh[j]
             symplectic_matrix[h[0], nqubits:-1] ^= g_zi_zh[j]
     return symplectic_matrix
+
+
+@njit("(i8,)", cache=True)
+def set_seed(seed):
+    np.random.seed(seed)

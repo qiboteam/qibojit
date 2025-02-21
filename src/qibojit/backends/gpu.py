@@ -10,6 +10,7 @@ from qibojit.backends.matrices import (
     CustomCuQuantumMatrices,
     CustomMatrices,
 )
+from qibojit.custom_operators.ops import set_seed
 
 
 class CupyBackend(NumbaBackend):  # pragma: no cover
@@ -121,6 +122,10 @@ class CupyBackend(NumbaBackend):  # pragma: no cover
             )
         # TODO: Raise error if GPU is not available
         self.device = device
+
+    def set_seed(self, seed):
+        super(NumbaBackend, self).set_seed(seed)
+        self.cp.random.seed(seed)
 
     def cast(self, x, dtype=None, copy=False):
         if dtype is None:

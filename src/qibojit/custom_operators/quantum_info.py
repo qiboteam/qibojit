@@ -650,40 +650,94 @@ def _gamma_delta_matrices(nqubits: int, hadamards, permutations):
 setattr(QINFO, "_gamma_delta_matrices", _gamma_delta_matrices)
 
 
-"""
 @njit(
-    [
-        nbt.complex128[::1](
-            nbt.complex128[:, ::1], nbt.Tuple((nbt.int64[::1], nbt.int64[::1]))
-        ),
-        nbt.float64[::1](
-            nbt.float64[:, ::1], nbt.Tuple((nbt.int64[::1], nbt.int64[::1]))
-        ),
-    ],
+    nbt.Tuple((nbt.complex128[:, ::1], nbt.complex128[:, :]))(nbt.int64, nbt.int64),
     parallel=True,
     cache=True,
 )
-def _set_array_at_2d_indices(array, indices, values):
-    empty = ENGINE.empty(indices[0].shape, dtype=array.dtype)
-    for i in prange(len(indices[0])):
-        empty[i] = array[indices[0][i], indices[1][i]]
-    return empty
-"""
+def _super_op_from_bcsz_measure_preamble(dims: int, rank: int):
+    super_op = _random_gaussian_matrix(
+        dims**2,
+        rank=rank,
+        mean=0,
+        stddev=1,
+    )
+    super_op = super_op @ ENGINE.conj(super_op).T
+    # partial trace
+    super_op_reshaped = ENGINE.reshape(super_op, (dims, dims, dims, dims))
+    super_op_reduced = ENGINE.empty((dims, dims), dtype=super_op.dtype)
+    for j in prange(dims):
+        for k in prange(dims):
+            super_op_reduced[j, k] = ENGINE.sum(super_op_reshaped[:, j, :, k])
+    eigenvalues, eigenvectors = ENGINE.linalg.eigh(super_op_reduced)
+    eigenvalues = ENGINE.sqrt(1.0 / eigenvalues)
+    eigenvectors = eigenvectors.T
+    conj_eigenvectors = ENGINE.conj(eigenvectors)
+    operator = ENGINE.zeros(
+        (eigenvectors.shape[1], eigenvectors.shape[1]), dtype=eigenvectors.dtype
+    )
+    for i in prange(eigenvectors.shape[0]):
+        operator += eigenvalues[i] * ENGINE.outer(eigenvectors[i], conj_eigenvectors[i])
+    return operator, super_op
 
-"""
-def _kraus_to_stinespring(
-    kraus_ops, initial_state_env, dim_env: int
-):
-    alphas = ENGINE.zeros((dim_env, dim_env, dim_env), dtype=complex)
-    #idx = ENGINE.arange(dim_env)
-    alphas[range(dim_env), range(dim_env)] = initial_state_env
+
+@njit("c16[:,:](i8, i8)", parallel=True, cache=True)
+def _super_op_from_bcsz_measure_row(dims: int, rank: int):
+    operator, super_op = _super_op_from_bcsz_measure_preamble(dims, rank)
+    operator = ENGINE.kron(ENGINE.eye(dims, dtype=operator.dtype), operator)
+    return operator @ super_op @ operator
+
+
+setattr(QINFO, "_super_op_from_bcsz_measure_row", _super_op_from_bcsz_measure_row)
+
+
+@njit("c16[:,:](i8, i8)", parallel=True, cache=True)
+def _super_op_from_bcsz_measure_column(dims: int, rank: int):
+    operator, super_op = _super_op_from_bcsz_measure_preamble(dims, rank)
+    operator = ENGINE.kron(operator, ENGINE.eye(dims, dtype=operator.dtype))
+    return operator @ super_op @ operator
+
+
+setattr(QINFO, "_super_op_from_bcsz_measure_column", _super_op_from_bcsz_measure_column)
+
+
+@njit("c16[:,:](c16[:,:,::1], c16[:], i8)", parallel=True, cache=True)
+def _kraus_to_stinespring(kraus_ops, initial_state_env, dim_env: int):
+    alphas = ENGINE.zeros((dim_env, dim_env, dim_env), dtype=initial_state_env.dtype)
+    idx = ENGINE.arange(dim_env)
+    for i in prange(dim_env):
+        alphas[idx[i], idx[i]] = initial_state_env
     # batched kron product
-    prod = 0.
+    dim = kraus_ops.shape[1] * alphas.shape[1]
+    prod = ENGINE.zeros((dim, dim), dtype=kraus_ops.dtype)
     for i in prange(len(kraus_ops)):
         prod += ENGINE.kron(kraus_ops[i], alphas[i])
-    return prod.reshape(
-        2 * (kraus_ops.shape[1] * alphas.shape[1],)
-    )
-"""
+    return prod
 
-# setattr(QINFO, "_kraus_to_stinespring", _kraus_to_stinespring)
+
+setattr(QINFO, "_kraus_to_stinespring", _kraus_to_stinespring)
+
+
+@njit("c16[:,:,:](c16[:,::1], c16[:], i8, i8)", parallel=True, cache=True)
+def _stinespring_to_kraus(stinespring, initial_state_env, dim: int, dim_env: int):
+    stinespring = stinespring.reshape(dim, dim_env, dim, dim_env)
+    stinespring = ENGINE.swapaxes(stinespring, 1, 2)
+    alphas = ENGINE.eye(dim_env, dtype=stinespring.dtype)
+    tmp = ENGINE.empty(stinespring.shape, dtype=stinespring.dtype)
+    for i in prange(dim):
+        for j in prange(dim):
+            tmp[i, j] = alphas @ stinespring[i, j]
+    stinespring = tmp.reshape(dim, dim_env, dim + dim_env)
+    tmp = ENGINE.empty((2 * dim_env,) + stinespring.shape[:2], dtype=stinespring.dtype)
+    tmp[:dim_env] = stinespring[:, :, :dim_env]
+    tmp[dim_env:] = stinespring[:, :, dim_env:]
+    # stinespring = ENGINE.vstack(
+    #    (stinespring[:, :, :dim_env], stinespring[:, :, dim_env:])
+    # )
+    kraus = ENGINE.empty((tmp.shape[0], initial_state_env.shape[0]), dtype=tmp.dtype)
+    for i in prange(tmp.shape[0]):
+        kraus[i] = tmp[i] @ initial_state_env
+    return kraus.reshape(dim, dim_env, dim_env)
+
+
+setattr(QINFO, "_stinespring_to_kraus", _stinespring_to_kraus)
