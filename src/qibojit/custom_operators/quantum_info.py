@@ -75,7 +75,6 @@ def _pauli_basis(
 def numba_transpose(array, axes):
     axes = to_fixed_tuple(axes, array.ndim)
     array = ENGINE.transpose(array, axes)
-    # return ENGINE.ascontiguousarray(array)
     return array
 
 
@@ -92,7 +91,7 @@ def _vectorization_row(state, dim: int):
 def _vectorization_column(state, dim):
     indices = ENGINE.arange(state.ndim)
     indices[-2:] = indices[-2:][::-1]
-    state = numba_transpose(state, indices)
+    state = ENGINE.transpose(state, to_fixed_tuple(indices, state.ndim))
     state = ENGINE.ascontiguousarray(state)
     return ENGINE.reshape(state, (-1, dim**2))
 

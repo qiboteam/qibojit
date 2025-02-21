@@ -752,8 +752,3 @@ def identity_density_matrix(nqubits, normalize: bool = True):
     if normalize:
         state /= 2**nqubits
     return state.reshape((n, n))
-
-
-def set_seed(seed):
-    numpy.random.seed(seed)
-    cp.random.seed(seed)
