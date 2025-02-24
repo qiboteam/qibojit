@@ -108,7 +108,7 @@ class CupyBackend(NumbaBackend):  # pragma: no cover
         # set the engine of the quantum info operators
         self.qinfo.ENGINE = cp
 
-        from cupyx.scipy.linalg import expm
+        from cupyx.scipy.linalg import expm  # pylint: disable=import-error
 
         self.qinfo.expm = expm
 
