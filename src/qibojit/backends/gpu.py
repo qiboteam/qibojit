@@ -108,6 +108,10 @@ class CupyBackend(NumbaBackend):  # pragma: no cover
         # set the engine of the quantum info operators
         self.qinfo.ENGINE = cp
 
+        from cupyx.scipy.linalg import expm
+
+        self.qinfo.expm = expm
+
     def set_precision(self, precision):
         super().set_precision(precision)
         if self.dtype == "complex128":
