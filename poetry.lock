@@ -1876,7 +1876,11 @@ enabler = ["pytest-enabler (>=2.2)"]
 test = ["big-O", "importlib-resources ; python_version < \"3.9\"", "jaraco.functools", "jaraco.itertools", "jaraco.test", "more-itertools", "pytest (>=6,!=8.1.*)", "pytest-ignore-flaky"]
 type = ["pytest-mypy"]
 
+[extras]
+cupy = ["cupy-cuda12x"]
+cuquantum = ["cuquantum-python-cu12"]
+
 [metadata]
 lock-version = "2.1"
 python-versions = "^3.9,<3.13"
-content-hash = "028778fc8f5cead819562a8a6819f287fbcc51f4d88cd747ed5aa131b3f933c0"
+content-hash = "39b0881a623f6ae63ee1bf57b9debc64f50abfdcd152aac9c4e08367bae04e1c"

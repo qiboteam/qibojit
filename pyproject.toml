@@ -54,6 +54,10 @@ optional = true
 cupy-cuda12x = "^13.1.0"
 cuquantum-python-cu12 = "^23.3.0"
 
+[tool.poetry.extras]
+cupy = ["cupy-cuda12x"]
+cuquantum = ["cuquantum-python-cu12"]
+
 [tool.poe.tasks]
 test = "pytest"
 lint = "pylint src/**/*.py -E"
