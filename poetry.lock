@@ -1351,7 +1351,7 @@ qulacs = ["qulacs (>=0.6.4,<0.7.0)"]
 type = "git"
 url = "https://github.com/qiboteam/qibo.git"
 reference = "py3.13"
-resolved_reference = "5b5e44a786eadb60d74914b05781b78a775cc162"
+resolved_reference = "d9ba728a04ab23c83328126e5ef9f860f51c9250"
 
 [[package]]
 name = "scipy"
