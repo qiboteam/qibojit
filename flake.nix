@@ -47,7 +47,6 @@
                   install.groups = ["dev" "test"];
                   install.allExtras = true;
                 };
-                version = "3.12";
               };
             }
           ];
