@@ -119,6 +119,18 @@ class CupyBackend(NumbaBackend):  # pragma: no cover
         # TODO: Raise error if GPU is not available
         self.device = device
 
+    def set_seed(self, seed):
+        super().set_seed(seed)
+        self.cp.random.seed(seed)
+
+    def zeros(self, shape, dtype=None):
+        if dtype is None:
+            dtype = self.dtype
+        return self.cp.zeros(shape, dtype=dtype)
+
+    def random_choice(self, a, **kwargs):
+        return self.cp.random.choice(a, **kwargs)
+
     def cast(self, x, dtype=None, copy=False):
         if dtype is None:
             dtype = self.dtype
