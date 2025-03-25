@@ -134,29 +134,37 @@ class CupyBackend(NumbaBackend):  # pragma: no cover
     def cast(self, x, dtype=None, copy=False):
         if dtype is None:
             dtype = self.dtype
+
         if self.sparse.issparse(x):
             if dtype != x.dtype:
                 return x.astype(dtype)
-            else:
-                return x
-        elif self.npsparse.issparse(x):
-            cls = getattr(self.sparse, x.__class__.__name__)
-            return cls(x, dtype=dtype)
-        elif isinstance(x, self.cp.ndarray) and copy:
+
+            return x
+
+        if self.npsparse.issparse(x):
+            class_ = getattr(self.sparse, x.__class__.__name__)
+
+            return class_(x, dtype=dtype)
+
+        if isinstance(x, self.cp.ndarray) and copy:
             return self.cp.copy(self.cp.asarray(x, dtype=dtype))
-        else:
-            return self.cp.asarray(x, dtype=dtype)
+
+        return self.cp.asarray(x, dtype=dtype)
 
     def to_numpy(self, x):
         if isinstance(x, self.cp.ndarray):
             return x.get()
-        elif isinstance(x, list):
+
+        if isinstance(x, list):
             return self.cp.asarray(x).get()
-        elif self.sparse.issparse(x):
+
+        if self.sparse.issparse(x):
             return x.toarray().get()
-        elif self.npsparse.issparse(x):
+
+        if self.npsparse.issparse(x):
             return x.toarray()
-        return np.array(x, copy=False)
+
+        return np.asarray(x)
 
     def is_sparse(self, x):
         return self.sparse.issparse(x) or self.npsparse.issparse(x)
