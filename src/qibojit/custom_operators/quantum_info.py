@@ -1,7 +1,7 @@
 # pylint: disable-all
 
 import numba.types as nbt
-import qibo.quantum_info.quantum_info as qinfo
+import qibo.quantum_info._quantum_info as qinfo
 from numba import njit, prange, void
 from numba.np.unsafe.ndarray import to_fixed_tuple
 from scipy.linalg import expm
