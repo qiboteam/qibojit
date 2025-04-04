@@ -96,14 +96,14 @@ def test_collapse_call(backend, density_matrix):
         target_state = tbackend.np.mean(
             [
                 gate.apply_density_matrix(tbackend, np.copy(state), 3)
-                for _ in range(100)
+                for _ in range(500)
             ],
             axis=0,
         )
         final_state = backend.np.mean(
             [
                 backend.to_numpy(gate.apply_density_matrix(backend, np.copy(state), 3))
-                for _ in range(100)
+                for _ in range(500)
             ],
             axis=0,
         )
