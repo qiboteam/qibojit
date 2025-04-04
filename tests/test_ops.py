@@ -4,12 +4,12 @@ import numpy as np
 import pytest
 from qibo.quantum_info import random_density_matrix, random_statevector
 
-from .utils import qubits_tensor, random_complex, set_precision
+from .utils import qubits_tensor, random_complex, set_dtype
 
 
 @pytest.mark.parametrize("is_matrix", [False, True])
 def test_zero_state(backend, dtype, is_matrix):
-    set_precision(dtype, backend)
+    set_dtype(dtype, backend)
     if is_matrix:
         final_state = backend.zero_density_matrix(4)
         target_state = np.array([1] + [0] * 255, dtype=dtype)
@@ -22,7 +22,7 @@ def test_zero_state(backend, dtype, is_matrix):
 
 @pytest.mark.parametrize("normalize", [False, True])
 def test_identity_density_matrix(backend, dtype, normalize):
-    set_precision(dtype, backend)
+    set_dtype(dtype, backend)
     norm = 16 if normalize else 1.0
     final_state = backend.identity_density_matrix(4, normalize=normalize)
     target_state = np.eye(16, dtype=dtype) / norm
@@ -31,7 +31,7 @@ def test_identity_density_matrix(backend, dtype, normalize):
 
 @pytest.mark.parametrize("is_matrix", [False, True])
 def test_plus_state(backend, dtype, is_matrix):
-    set_precision(dtype, backend)
+    set_dtype(dtype, backend)
     if is_matrix:
         final_state = backend.plus_density_matrix(4)
         target_state = np.ones((16, 16), dtype=dtype) / 16
@@ -168,7 +168,7 @@ def test_swap_pieces_zero_global(backend, nqubits, local, dtype):
     shape = (2, int(state.shape[0]) // 2)
     state = np.reshape(state, shape)
 
-    set_precision(dtype, backend)
+    set_dtype(dtype, backend)
     gate = gates.SWAP(0, local)
     target_state = backend.apply_gate(gate, target_state, nqubits)
     target_state = np.reshape(backend.to_numpy(target_state), shape)
