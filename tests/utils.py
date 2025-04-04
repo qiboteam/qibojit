@@ -12,10 +12,6 @@ def random_complex(shape, dtype="complex128"):
     return x.astype(dtype)
 
 
-def set_precision(dtype, *backends):
-    if dtype == "complex64":
-        precision = "single"
-    else:
-        precision = "double"
+def set_dtype(dtype, *backends):
     for backend in backends:
-        backend.set_precision(precision)
+        backend.set_dtype(dtype)

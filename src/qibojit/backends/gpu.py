@@ -104,8 +104,8 @@ class CupyBackend(NumbaBackend):  # pragma: no cover
         # number of available GPUs (for multigpu)
         self.ngpus = cp.cuda.runtime.getDeviceCount()
 
-    def set_precision(self, precision):
-        super().set_precision(precision)
+    def set_dtype(self, dtype):
+        super().set_dtype(dtype)
         if self.dtype == "complex128":
             self.kernel_type = "double"
         elif self.dtype == "complex64":
@@ -366,7 +366,7 @@ class CupyBackend(NumbaBackend):  # pragma: no cover
 
         try:
             cpu_backend = NumbaBackend()
-            cpu_backend.set_precision(self.precision)
+            cpu_backend.set_dtype(self.dtype)
             ops = MultiGpuOps(self, cpu_backend, circuit)
 
             if initial_state is None:
@@ -604,9 +604,9 @@ class CuQuantumBackend(CupyBackend):  # pragma: no cover
         if hasattr(self, "cusv"):
             self.cusv.destroy(self.handle)
 
-    def set_precision(self, precision):
-        if precision != self.precision:
-            super().set_precision(precision)
+    def set_dtype(self, dtype):
+        if dtype != self.dtype:
+            super().set_dtype(dtype)
             if self.custom_matrices:
                 self.custom_matrices = CustomCuQuantumMatrices(self.dtype)
 
