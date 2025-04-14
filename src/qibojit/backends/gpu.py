@@ -49,6 +49,8 @@ class CupyBackend(NumbaBackend):  # pragma: no cover
         self.kernel_type = "double"
         self.matrices = CupyMatrices(self.dtype)
         self.custom_matrices = CustomMatrices(self.dtype)
+        self.custom_matrices._cast = self.matrices._cast
+
         try:
             if not cp.cuda.runtime.getDeviceCount():  # pragma: no cover
                 raise RuntimeError("Cannot use cupy backend if GPU is not available.")
@@ -599,6 +601,7 @@ class CuQuantumBackend(CupyBackend):  # pragma: no cover
         self.supports_multigpu = True
         self.handle = self.cusv.create()
         self.custom_matrices = CustomCuQuantumMatrices(self.dtype)
+        self.custom_matrices._cast = self.matrices._cast
 
     def __del__(self):
         if hasattr(self, "cusv"):
