@@ -81,22 +81,44 @@ def test_collapse_call(backend, density_matrix):
     from qibo.backends import NumpyBackend
 
     tbackend = NumpyBackend()
+    tbackend.set_seed(123)
+    backend.set_seed(123)
     if density_matrix:
         state = random_density_matrix(2**3, backend=tbackend)
     else:
         state = random_statevector(2**3, backend=tbackend)
 
+    tbackend.set_seed(123)
+    backend.set_seed(123)
+
     gate = gates.M(0, 1, collapse=True)
-    np.random.seed(123)
     if density_matrix:
-        target_state = gate.apply_density_matrix(tbackend, np.copy(state), 3)
-        np.random.seed(123)
-        final_state = gate.apply_density_matrix(backend, np.copy(state), 3)
+        target_state = tbackend.np.mean(
+            [
+                gate.apply_density_matrix(tbackend, np.copy(state), 3)
+                for _ in range(500)
+            ],
+            axis=0,
+        )
+        final_state = backend.np.mean(
+            [
+                backend.to_numpy(gate.apply_density_matrix(backend, np.copy(state), 3))
+                for _ in range(500)
+            ],
+            axis=0,
+        )
     else:
-        target_state = gate.apply(tbackend, np.copy(state), 3)
-        np.random.seed(123)
-        final_state = gate.apply(backend, np.copy(state), 3)
-    backend.assert_allclose(final_state, target_state)
+        target_state = tbackend.np.mean(
+            [gate.apply(tbackend, np.copy(state), 3) for _ in range(500)], axis=0
+        )
+        final_state = backend.np.mean(
+            [
+                backend.to_numpy(gate.apply(backend, np.copy(state), 3))
+                for _ in range(500)
+            ],
+            axis=0,
+        )
+    backend.assert_allclose(final_state, target_state, atol=1e-1)
 
 
 def generate_transpose_qubits(nqubits):
