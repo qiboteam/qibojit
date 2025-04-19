@@ -23,6 +23,7 @@ class CupyBackend(NumbaBackend):  # pragma: no cover
 
         import cupy as cp  # pylint: disable=import-error
         import cupy_backends  # pylint: disable=import-error
+        import cupyx.scipy.sparse as cp_sparse  # pylint: disable=import error
 
         self.name = "qibojit"
         self.platform = "cupy"
@@ -44,7 +45,7 @@ class CupyBackend(NumbaBackend):  # pragma: no cover
         from scipy import sparse
 
         self.npsparse = sparse
-        self.sparse = cp.sparse
+        self.sparse = cp_sparse
         self.device = "/GPU:0"
         self.kernel_type = "double"
         self.matrices = CupyMatrices(self.dtype)
