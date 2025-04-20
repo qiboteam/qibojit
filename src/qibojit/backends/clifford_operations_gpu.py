@@ -1,7 +1,7 @@
 """Set of custom CuPy operations for the Clifford backend."""
 
 import cupy as cp  # pylint: disable=E0401
-import cupyx.scipy.sparse as cp_sparse
+import cupyx.scipy.sparse as cp_sparse  # pylint: disable=import-error
 import numpy
 from qibo.backends._clifford_operations import _dim, _dim_xz, _get_rxz, _packed_size
 from scipy import sparse

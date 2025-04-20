@@ -23,7 +23,7 @@ class CupyBackend(NumbaBackend):  # pragma: no cover
 
         import cupy as cp  # pylint: disable=import-error
         import cupy_backends  # pylint: disable=import-error
-        import cupyx.scipy.sparse as cp_sparse  # pylint: disable=import error
+        import cupyx.scipy.sparse as cp_sparse  # pylint: disable=import-error
 
         self.name = "qibojit"
         self.platform = "cupy"
