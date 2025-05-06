@@ -47,7 +47,6 @@ class CupyBackend(NumbaBackend):  # pragma: no cover
         self.npsparse = sparse
         self.sparse = cp_sparse
         self.device = "/GPU:0"
-        self.kernel_type = "double"
         self.matrices = CupyMatrices(self.dtype)
         self.custom_matrices = CustomMatrices(self.dtype)
         self.custom_matrices._cast = self.matrices._cast
@@ -75,29 +74,45 @@ class CupyBackend(NumbaBackend):  # pragma: no cover
         self.gates = {}
         from qibojit.custom_operators import raw_kernels
 
-        def kernel_loader(name, ktype):
-            code = getattr(raw_kernels, name)
-            code = code.replace("T", f"thrust::complex<{ktype}>")
-            gate = cp.RawKernel(code, name, ("--std=c++11",))
-            self.gates[f"{name}_{ktype}"] = gate
+        replacements = {
+            "float32": "float",
+            "float64": "double",
+            "complex64": "thrust::complex<float>",
+            "complex128": "thrust::complex<double>",
+        }
 
-        for ktype in ("float", "double"):
+        def kernel_loader(name, dtype):
+            code = getattr(raw_kernels, name)
+            code = code.replace("<TYPE>", replacements[dtype])
+            code = code.replace("_<NAME>", "")
+            self.gates[f"{name}_{dtype}"] = cp.RawKernel(code, name, ("--std=c++11",))
+
+        for dtype in ("float32", "float64", "complex64", "complex128"):
             for name in self.KERNELS:
-                kernel_loader(f"{name}_kernel", ktype)
-                kernel_loader(f"multicontrol_{name}_kernel", ktype)
-            kernel_loader("collapse_state_kernel", ktype)
-            kernel_loader("initial_state_kernel", ktype)
+                kernel_loader(f"{name}_kernel", dtype)
+                kernel_loader(f"multicontrol_{name}_kernel", dtype)
+            kernel_loader("collapse_state_kernel", dtype)
+
+            # register initial state kernel
+            name = "initial_state_kernel"
+            code = getattr(raw_kernels, name)
+            ctype = replacements[dtype]
+            code = code.replace("<TYPE>", ctype)
+            body = "state[0] = 1;" if dtype in ("float32", "float64") else f"state[0] = {ctype}(1, 0);"
+            code = code.replace("<BODY>", body)
+            self.gates[f"{name}_{dtype}"] = cp.RawKernel(code, name, ("--std=c++11",))
 
         # load multiqubit kernels
         name = "apply_multi_qubit_gate_kernel"
         for ntargets in range(3, self.MAX_NUM_TARGETS + 1):
-            for ktype in ("float", "double"):
+            for dtype in ("complex64", "complex128"):
                 code = getattr(raw_kernels, name)
-                code = code.replace("T", f"thrust::complex<{ktype}>")
+                template_type = "thrust::complex<float>" if dtype == "complex64" else "thrust::complex<double>"
+                code = code.replace("T", template_type)
                 code = code.replace("nsubstates", str(2**ntargets))
                 code = code.replace("MAX_BLOCK_SIZE", str(self.DEFAULT_BLOCK_SIZE))
                 gate = cp.RawKernel(code, name, ("--std=c++11",))
-                self.gates[f"{name}_{ktype}_{ntargets}"] = gate
+                self.gates[f"{name}_{dtype}_{ntargets}"] = gate
 
         # load numba op for measuring frequencies
         from qibojit.custom_operators.ops import measure_frequencies
@@ -106,13 +121,6 @@ class CupyBackend(NumbaBackend):  # pragma: no cover
 
         # number of available GPUs (for multigpu)
         self.ngpus = cp.cuda.runtime.getDeviceCount()
-
-    def set_dtype(self, dtype):
-        super().set_dtype(dtype)
-        if self.dtype == "complex128":
-            self.kernel_type = "double"
-        elif self.dtype == "complex64":
-            self.kernel_type = "float"
 
     def set_device(self, device):
         if "GPU" not in device:
@@ -174,7 +182,7 @@ class CupyBackend(NumbaBackend):  # pragma: no cover
 
     def zero_state(self, nqubits):
         n = 1 << nqubits
-        kernel = self.gates.get(f"initial_state_kernel_{self.kernel_type}")
+        kernel = self.gates.get(f"initial_state_kernel_{self.dtype}")
         state = self.cp.zeros(n, dtype=self.dtype)
         kernel((1,), (1,), [state])
         self.cp.cuda.stream.get_current_stream().synchronize()
@@ -182,7 +190,7 @@ class CupyBackend(NumbaBackend):  # pragma: no cover
 
     def zero_density_matrix(self, nqubits):
         n = 1 << nqubits
-        kernel = self.gates.get(f"initial_state_kernel_{self.kernel_type}")
+        kernel = self.gates.get(f"initial_state_kernel_{self.dtype}")
         state = self.cp.zeros(n * n, dtype=self.dtype)
         kernel((1,), (1,), [state])
         self.cp.cuda.stream.get_current_stream().synchronize()
@@ -238,10 +246,10 @@ class CupyBackend(NumbaBackend):  # pragma: no cover
             args = (state, tk, m, gate)
 
         if ncontrols:
-            kernel = self.gates.get(f"multicontrol_{kernel}_kernel_{self.kernel_type}")
+            kernel = self.gates.get(f"multicontrol_{kernel}_kernel_{self.dtype}")
             args += (qubits, ncontrols + 1)
         else:
-            kernel = self.gates.get(f"{kernel}_kernel_{self.kernel_type}")
+            kernel = self.gates.get(f"{kernel}_kernel_{self.dtype}")
 
         nblocks, block_size = self.calculate_blocks(nstates)
         kernel((nblocks,), (block_size,), args)
@@ -269,10 +277,10 @@ class CupyBackend(NumbaBackend):  # pragma: no cover
             assert state.dtype == args[-1].dtype
 
         if ncontrols:
-            kernel = self.gates.get(f"multicontrol_{kernel}_kernel_{self.kernel_type}")
+            kernel = self.gates.get(f"multicontrol_{kernel}_kernel_{self.dtype}")
             args += (qubits, ncontrols + 2)
         else:
-            kernel = self.gates.get(f"{kernel}_kernel_{self.kernel_type}")
+            kernel = self.gates.get(f"{kernel}_kernel_{self.dtype}")
 
         nblocks, block_size = self.calculate_blocks(nstates)
         kernel((nblocks,), (block_size,), args)
@@ -299,7 +307,7 @@ class CupyBackend(NumbaBackend):  # pragma: no cover
         nsubstates = 1 << ntargets
         nblocks, block_size = self.calculate_blocks(nstates)
         kernel = self.gates.get(
-            f"apply_multi_qubit_gate_kernel_{self.kernel_type}_{ntargets}"
+            f"apply_multi_qubit_gate_kernel_{self.dtype}_{ntargets}"
         )
         args = (state, gate, qubits, targets, ntargets, nactive)
         kernel((nblocks,), (block_size,), args)
@@ -341,7 +349,7 @@ class CupyBackend(NumbaBackend):  # pragma: no cover
             [nqubits - q - 1 for q in reversed(qubits)], dtype=self.cp.int32
         )
         args = [state, qubits, int(shot), ntargets]
-        kernel = self.gates.get(f"collapse_state_kernel_{self.kernel_type}")
+        kernel = self.gates.get(f"collapse_state_kernel_{self.dtype}")
         kernel((nblocks,), (block_size,), args)
         self.cp.cuda.stream.get_current_stream().synchronize()
 
