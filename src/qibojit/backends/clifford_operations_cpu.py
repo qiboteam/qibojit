@@ -253,6 +253,23 @@ def CY(symplectic_matrix, control_q, target_q, nqubits):
     return symplectic_matrix
 
 
+def _packbits(array, axis):
+    array = array.astype(np.uint8)
+    array = np.swapaxes(array, axis, -1)
+    shape = array.shape
+    n = shape[-1]
+    array = np.reshape(array, (np.prod(shape[:-1]), n))
+    packed_len = (n + 7) // 8
+    out = np.zeros((array.shape[0], packed_len), dtype=np.uint8)
+    tmp = np.arange(n, dtype=np.uint8)
+    byte_idx = tmp // 8
+    bit_idx = 7 - (tmp % 8)
+    for i in prange(n):
+        out[:, byte_idx[i]] |= array[:, i] << bit_idx[i]
+    out = np.reshape(out, shape[:-1] + (packed_len,))
+    return np.swapaxes(out, axis, -1)
+
+
 @njit(
     [
         "u1[:,:](u1[:,:], u8[:], u8[:], u8, b1)",
