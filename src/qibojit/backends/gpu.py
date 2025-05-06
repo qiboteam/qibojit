@@ -84,7 +84,13 @@ class CupyBackend(NumbaBackend):  # pragma: no cover
         def kernel_loader(name, dtype):
             code = getattr(raw_kernels, name)
             code = code.replace("<TYPE>", replacements[dtype])
-            code = code.replace("_<NAME>", "")
+            if name == "initial_state_kernel":
+                body = (
+                    "state[0] = 1;"
+                    if dtype in ("float32", "float64")
+                    else f"state[0] = {replacements[dtype]}(1, 0);"
+                )
+                code = code.replace("<BODY>", body)
             self.gates[f"{name}_{dtype}"] = cp.RawKernel(code, name, ("--std=c++11",))
 
         for dtype in ("float32", "float64", "complex64", "complex128"):
@@ -92,22 +98,18 @@ class CupyBackend(NumbaBackend):  # pragma: no cover
                 kernel_loader(f"{name}_kernel", dtype)
                 kernel_loader(f"multicontrol_{name}_kernel", dtype)
             kernel_loader("collapse_state_kernel", dtype)
-
-            # register initial state kernel
-            name = "initial_state_kernel"
-            code = getattr(raw_kernels, name)
-            ctype = replacements[dtype]
-            code = code.replace("<TYPE>", ctype)
-            body = "state[0] = 1;" if dtype in ("float32", "float64") else f"state[0] = {ctype}(1, 0);"
-            code = code.replace("<BODY>", body)
-            self.gates[f"{name}_{dtype}"] = cp.RawKernel(code, name, ("--std=c++11",))
+            kernel_loader("initial_state_kernel", dtype)
 
         # load multiqubit kernels
         name = "apply_multi_qubit_gate_kernel"
         for ntargets in range(3, self.MAX_NUM_TARGETS + 1):
             for dtype in ("complex64", "complex128"):
                 code = getattr(raw_kernels, name)
-                template_type = "thrust::complex<float>" if dtype == "complex64" else "thrust::complex<double>"
+                template_type = (
+                    "thrust::complex<float>"
+                    if dtype == "complex64"
+                    else "thrust::complex<double>"
+                )
                 code = code.replace("T", template_type)
                 code = code.replace("nsubstates", str(2**ntargets))
                 code = code.replace("MAX_BLOCK_SIZE", str(self.DEFAULT_BLOCK_SIZE))

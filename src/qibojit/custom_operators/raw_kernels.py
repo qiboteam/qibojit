@@ -4,16 +4,17 @@
 # while the functions and kernels here are called by CupyBackend.
 from pathlib import Path
 
-with open(Path(__file__).parent / "kernel_helpers.cpp", "r") as file:
+with open(Path(__file__).parent / "kernel_helpers.cpp") as file:
     helpers = file.read()
 
 
 # ---------- KERNELS ----------
 
 apply_gate_kernel = (
-helpers + """
-extern "C" 
-__global__ void apply_gate_kernel_<NAME>(<TYPE>* state, long tk, int m, const <TYPE>* gate) {
+    helpers
+    + """
+extern "C"
+__global__ void apply_gate_kernel(<TYPE>* state, long tk, int m, const <TYPE>* gate) {
   apply_gate_kernel<<TYPE>>(state, tk, m, gate);
 }
 """
@@ -21,10 +22,11 @@ __global__ void apply_gate_kernel_<NAME>(<TYPE>* state, long tk, int m, const <T
 
 
 apply_x_kernel = (
-helpers + """
+    helpers
+    + """
 // C++ implementation of gates.py:apply_x_kernel()
 extern "C"
-__global__ void apply_x_kernel_<NAME>(<TYPE>* state, long tk, int m) {
+__global__ void apply_x_kernel(<TYPE>* state, long tk, int m) {
   apply_x_kernel<<TYPE>>(state, tk, m);
 }
 """
@@ -32,10 +34,11 @@ __global__ void apply_x_kernel_<NAME>(<TYPE>* state, long tk, int m) {
 
 
 apply_y_kernel = (
-helpers + """
+    helpers
+    + """
 // C++ implementation of gates.py:apply_x_kernel()
 extern "C"
-__global__ void apply_y_kernel_<NAME>(<TYPE>* state, long tk, int m) {
+__global__ void apply_y_kernel(<TYPE>* state, long tk, int m) {
   apply_y_kernel<<TYPE>>(state, tk, m);
 }
 """
@@ -43,10 +46,11 @@ __global__ void apply_y_kernel_<NAME>(<TYPE>* state, long tk, int m) {
 
 
 apply_z_kernel = (
-helpers + """
+    helpers
+    + """
 // C++ implementation of gates.py:apply_x_kernel()
 extern "C"
-__global__ void apply_z_kernel_<NAME>(<TYPE>* state, long tk, int m) {
+__global__ void apply_z_kernel(<TYPE>* state, long tk, int m) {
   apply_z_kernel<<TYPE>>(state, tk, m);
 }
 """
@@ -54,10 +58,11 @@ __global__ void apply_z_kernel_<NAME>(<TYPE>* state, long tk, int m) {
 
 
 apply_z_pow_kernel = (
-helpers + """
+    helpers
+    + """
 // C++ implementation of gates.py:apply_z_pow_kernel()
 extern "C"
-__global__ void apply_z_pow_kernel_<NAME>(<TYPE>* state, long tk, int m,
+__global__ void apply_z_pow_kernel(<TYPE>* state, long tk, int m,
                                    const <TYPE>* gate) {
   apply_z_pow_kernel<<TYPE>>(state, tk, m, gate);
 }
@@ -66,9 +71,10 @@ __global__ void apply_z_pow_kernel_<NAME>(<TYPE>* state, long tk, int m,
 
 
 apply_two_qubit_gate_kernel = (
-helpers + """
+    helpers
+    + """
 extern "C"
-__global__ void apply_two_qubit_gate_kernel_<NAME>(<TYPE>* state, long tk1, long tk2,
+__global__ void apply_two_qubit_gate_kernel(<TYPE>* state, long tk1, long tk2,
                                             int m1, int m2, long uk1, long uk2,
                                             const <TYPE>* gate) {
   apply_two_qubit_gate_kernel<<TYPE>>(state, tk1, tk2, m1, m2, uk1, uk2, gate);
@@ -78,9 +84,10 @@ __global__ void apply_two_qubit_gate_kernel_<NAME>(<TYPE>* state, long tk1, long
 
 
 apply_fsim_kernel = (
-helpers + """
+    helpers
+    + """
 extern "C"
-__global__ void apply_fsim_kernel_<NAME>(<TYPE>* state, long tk1, long tk2,
+__global__ void apply_fsim_kernel(<TYPE>* state, long tk1, long tk2,
                                   int m1, int m2, long uk1, long uk2,
                                   const <TYPE>* gate) {
   apply_fsim_kernel<<TYPE>>(state, tk1, tk2, m1, m2, uk1, uk2, gate);
@@ -90,10 +97,11 @@ __global__ void apply_fsim_kernel_<NAME>(<TYPE>* state, long tk1, long tk2,
 
 
 apply_swap_kernel = (
-helpers + """
+    helpers
+    + """
 // C++ implementation of gates.py:apply_swap_kernel()
 extern "C"
-__global__ void apply_swap_kernel_<NAME>(<TYPE>* state, long tk1, long tk2,
+__global__ void apply_swap_kernel(<TYPE>* state, long tk1, long tk2,
                                   int m1, int m2, long uk1, long uk2) {
   apply_swap_kernel<<TYPE>>(state, tk1, tk2, m1, m2, uk1, uk2);
 }
@@ -101,9 +109,10 @@ __global__ void apply_swap_kernel_<NAME>(<TYPE>* state, long tk1, long tk2,
 )  # pragma: no cover
 
 multicontrol_apply_gate_kernel = (
-helpers + """
-extern "C" 
-__global__ void multicontrol_apply_gate_kernel_<NAME>(<TYPE>* state, long tk, int m, const <TYPE>* gate,
+    helpers
+    + """
+extern "C"
+__global__ void multicontrol_apply_gate_kernel(<TYPE>* state, long tk, int m, const <TYPE>* gate,
                                                       const int* qubits, int ncontrols) {
   multicontrol_apply_gate_kernel<<TYPE>>(state, tk, m, gate, qubits, ncontrols);
 }
@@ -112,10 +121,11 @@ __global__ void multicontrol_apply_gate_kernel_<NAME>(<TYPE>* state, long tk, in
 
 
 multicontrol_apply_x_kernel = (
-helpers + """
+    helpers
+    + """
 // C++ implementation of gates.py:apply_x_kernel()
 extern "C"
-__global__ void multicontrol_apply_x_kernel_<NAME>(<TYPE>* state, long tk, int m,
+__global__ void multicontrol_apply_x_kernel(<TYPE>* state, long tk, int m,
                                                       const int* qubits, int ncontrols) {
   multicontrol_apply_x_kernel<<TYPE>>(state, tk, m, qubits, ncontrols);
 }
@@ -124,10 +134,11 @@ __global__ void multicontrol_apply_x_kernel_<NAME>(<TYPE>* state, long tk, int m
 
 
 multicontrol_apply_y_kernel = (
-helpers + """
+    helpers
+    + """
 // C++ implementation of gates.py:apply_x_kernel()
 extern "C"
-__global__ void multicontrol_apply_y_kernel_<NAME>(<TYPE>* state, long tk, int m,
+__global__ void multicontrol_apply_y_kernel(<TYPE>* state, long tk, int m,
                                                     const int* qubits, int ncontrols) {
   multicontrol_apply_y_kernel<<TYPE>>(state, tk, m, qubits, ncontrols);
 }
@@ -136,10 +147,11 @@ __global__ void multicontrol_apply_y_kernel_<NAME>(<TYPE>* state, long tk, int m
 
 
 multicontrol_apply_z_kernel = (
-helpers + """
+    helpers
+    + """
 // C++ implementation of gates.py:apply_x_kernel()
 extern "C"
-__global__ void multicontrol_apply_z_kernel_<NAME>(<TYPE>* state, long tk, int m,
+__global__ void multicontrol_apply_z_kernel(<TYPE>* state, long tk, int m,
                                                       const int* qubits, int ncontrols) {
   multicontrol_apply_z_kernel<<TYPE>>(state, tk, m, qubits, ncontrols);
 }
@@ -148,10 +160,11 @@ __global__ void multicontrol_apply_z_kernel_<NAME>(<TYPE>* state, long tk, int m
 
 
 multicontrol_apply_z_pow_kernel = (
-helpers + """
+    helpers
+    + """
 // C++ implementation of gates.py:apply_z_pow_kernel()
 extern "C"
-__global__ void multicontrol_apply_z_pow_kernel_<NAME>(<TYPE>* state, long tk, int m,
+__global__ void multicontrol_apply_z_pow_kernel(<TYPE>* state, long tk, int m,
                                    const <TYPE>* gate, const int* qubits, int ncontrols) {
   multicontrol_apply_z_pow_kernel<<TYPE>>(state, tk, m, gate, qubits, ncontrols);
 }
@@ -160,9 +173,10 @@ __global__ void multicontrol_apply_z_pow_kernel_<NAME>(<TYPE>* state, long tk, i
 
 
 multicontrol_apply_two_qubit_gate_kernel = (
-helpers + """
+    helpers
+    + """
 extern "C"
-__global__ void multicontrol_apply_two_qubit_gate_kernel_<NAME>(<TYPE>* state, long tk1, long tk2,
+__global__ void multicontrol_apply_two_qubit_gate_kernel(<TYPE>* state, long tk1, long tk2,
                                             int m1, int m2, long uk1, long uk2,
                                             const <TYPE>* gate,
                                             const int* qubits, int ncontrols) {
@@ -173,9 +187,10 @@ __global__ void multicontrol_apply_two_qubit_gate_kernel_<NAME>(<TYPE>* state, l
 
 
 multicontrol_apply_fsim_kernel = (
-helpers + """
+    helpers
+    + """
 extern "C"
-__global__ void multicontrol_apply_fsim_kernel_<NAME>(<TYPE>* state, long tk1, long tk2,
+__global__ void multicontrol_apply_fsim_kernel(<TYPE>* state, long tk1, long tk2,
                                   int m1, int m2, long uk1, long uk2,
                                   const <TYPE>* gate,
                                   const int* qubits, int ncontrols) {
@@ -186,10 +201,11 @@ __global__ void multicontrol_apply_fsim_kernel_<NAME>(<TYPE>* state, long tk1, l
 
 
 multicontrol_apply_swap_kernel = (
-helpers + """
+    helpers
+    + """
 // C++ implementation of gates.py:apply_swap_kernel()
 extern "C"
-__global__ void multicontrol_apply_swap_kernel_<NAME>(<TYPE>* state, long tk1, long tk2,
+__global__ void multicontrol_apply_swap_kernel(<TYPE>* state, long tk1, long tk2,
                                   int m1, int m2, long uk1, long uk2,
                                   const int* qubits, int ncontrols) {
   multicontrol_apply_swap_kernel<<TYPE>>(state, tk1, tk2, m1, m2, uk1, uk2, qubits, ncontrols);
@@ -199,12 +215,13 @@ __global__ void multicontrol_apply_swap_kernel_<NAME>(<TYPE>* state, long tk1, l
 
 
 apply_multi_qubit_gate_kernel = (
-helpers + """
+    helpers
+    + """
 extern "C" __global__ void
 __launch_bounds__(MAX_BLOCK_SIZE) // to prevent cuda_error_launch_out_of_resources.
                                   // the maximum block size is chosen in backends.py
                                   // and it is replaced here before compilation.
-apply_multi_qubit_gate_kernel_<NAME>(<TYPE>* state,
+apply_multi_qubit_gate_kernel(<TYPE>* state,
                               const <TYPE>* gate,
                               const int* qubits,
                               const long* targets,
@@ -217,9 +234,10 @@ apply_multi_qubit_gate_kernel_<NAME>(<TYPE>* state,
 
 
 collapse_state_kernel = (
-helpers + """
+    helpers
+    + """
 extern "C"
-__global__ void collapse_state_kernel_<NAME>(<TYPE>* state, const int qubits,
+__global__ void collapse_state_kernel(<TYPE>* state, const int qubits,
                                       const long result, int ntargets) {
   collapse_state_kernel<<TYPE>>(state, qubits, result, ntargets);
 }
