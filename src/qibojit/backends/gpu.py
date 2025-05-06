@@ -74,7 +74,7 @@ class CupyBackend(NumbaBackend):  # pragma: no cover
         self.gates = {}
         from qibojit.custom_operators import raw_kernels
 
-        replacements = {
+        type_replacements = {
             "float32": "float",
             "float64": "double",
             "complex64": "thrust::complex<float>",
@@ -83,17 +83,17 @@ class CupyBackend(NumbaBackend):  # pragma: no cover
 
         def kernel_loader(name, dtype):
             code = getattr(raw_kernels, name)
-            code = code.replace("<TYPE>", replacements[dtype])
+            code = code.replace("<TYPE>", type_replacements[dtype])
             if name == "initial_state_kernel":
                 body = (
                     "state[0] = 1;"
                     if dtype in ("float32", "float64")
-                    else f"state[0] = {replacements[dtype]}(1, 0);"
+                    else f"state[0] = {type_replacements[dtype]}(1, 0);"
                 )
                 code = code.replace("<BODY>", body)
             self.gates[f"{name}_{dtype}"] = cp.RawKernel(code, name, ("--std=c++11",))
 
-        for dtype in ("float32", "float64", "complex64", "complex128"):
+        for dtype in type_replacements.keys():
             for name in self.KERNELS:
                 kernel_loader(f"{name}_kernel", dtype)
                 kernel_loader(f"multicontrol_{name}_kernel", dtype)
@@ -103,14 +103,9 @@ class CupyBackend(NumbaBackend):  # pragma: no cover
         # load multiqubit kernels
         name = "apply_multi_qubit_gate_kernel"
         for ntargets in range(3, self.MAX_NUM_TARGETS + 1):
-            for dtype in ("complex64", "complex128"):
+            for dtype, ctype in type_replacements.items():
                 code = getattr(raw_kernels, name)
-                template_type = (
-                    "thrust::complex<float>"
-                    if dtype == "complex64"
-                    else "thrust::complex<double>"
-                )
-                code = code.replace("T", template_type)
+                code = code.replace("<TYPE>", ctype)
                 code = code.replace("nsubstates", str(2**ntargets))
                 code = code.replace("MAX_BLOCK_SIZE", str(self.DEFAULT_BLOCK_SIZE))
                 gate = cp.RawKernel(code, name, ("--std=c++11",))
