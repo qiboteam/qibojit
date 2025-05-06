@@ -24,7 +24,6 @@ __global__ void apply_gate_kernel(<TYPE>* state, long tk, int m, const <TYPE>* g
 apply_x_kernel = (
     helpers
     + """
-// C++ implementation of gates.py:apply_x_kernel()
 extern "C"
 __global__ void apply_x_kernel(<TYPE>* state, long tk, int m) {
   apply_x_kernel<<TYPE>>(state, tk, m);
@@ -36,7 +35,6 @@ __global__ void apply_x_kernel(<TYPE>* state, long tk, int m) {
 apply_y_kernel = (
     helpers
     + """
-// C++ implementation of gates.py:apply_x_kernel()
 extern "C"
 __global__ void apply_y_kernel(<TYPE>* state, long tk, int m) {
   apply_y_kernel<<TYPE>>(state, tk, m);
@@ -48,7 +46,6 @@ __global__ void apply_y_kernel(<TYPE>* state, long tk, int m) {
 apply_z_kernel = (
     helpers
     + """
-// C++ implementation of gates.py:apply_x_kernel()
 extern "C"
 __global__ void apply_z_kernel(<TYPE>* state, long tk, int m) {
   apply_z_kernel<<TYPE>>(state, tk, m);
@@ -60,7 +57,6 @@ __global__ void apply_z_kernel(<TYPE>* state, long tk, int m) {
 apply_z_pow_kernel = (
     helpers
     + """
-// C++ implementation of gates.py:apply_z_pow_kernel()
 extern "C"
 __global__ void apply_z_pow_kernel(<TYPE>* state, long tk, int m,
                                    const <TYPE>* gate) {
@@ -99,7 +95,6 @@ __global__ void apply_fsim_kernel(<TYPE>* state, long tk1, long tk2,
 apply_swap_kernel = (
     helpers
     + """
-// C++ implementation of gates.py:apply_swap_kernel()
 extern "C"
 __global__ void apply_swap_kernel(<TYPE>* state, long tk1, long tk2,
                                   int m1, int m2, long uk1, long uk2) {
@@ -123,7 +118,6 @@ __global__ void multicontrol_apply_gate_kernel(<TYPE>* state, long tk, int m, co
 multicontrol_apply_x_kernel = (
     helpers
     + """
-// C++ implementation of gates.py:apply_x_kernel()
 extern "C"
 __global__ void multicontrol_apply_x_kernel(<TYPE>* state, long tk, int m,
                                                       const int* qubits, int ncontrols) {
@@ -136,7 +130,6 @@ __global__ void multicontrol_apply_x_kernel(<TYPE>* state, long tk, int m,
 multicontrol_apply_y_kernel = (
     helpers
     + """
-// C++ implementation of gates.py:apply_x_kernel()
 extern "C"
 __global__ void multicontrol_apply_y_kernel(<TYPE>* state, long tk, int m,
                                                     const int* qubits, int ncontrols) {
@@ -149,7 +142,6 @@ __global__ void multicontrol_apply_y_kernel(<TYPE>* state, long tk, int m,
 multicontrol_apply_z_kernel = (
     helpers
     + """
-// C++ implementation of gates.py:apply_x_kernel()
 extern "C"
 __global__ void multicontrol_apply_z_kernel(<TYPE>* state, long tk, int m,
                                                       const int* qubits, int ncontrols) {
@@ -162,7 +154,6 @@ __global__ void multicontrol_apply_z_kernel(<TYPE>* state, long tk, int m,
 multicontrol_apply_z_pow_kernel = (
     helpers
     + """
-// C++ implementation of gates.py:apply_z_pow_kernel()
 extern "C"
 __global__ void multicontrol_apply_z_pow_kernel(<TYPE>* state, long tk, int m,
                                    const <TYPE>* gate, const int* qubits, int ncontrols) {
@@ -203,7 +194,6 @@ __global__ void multicontrol_apply_fsim_kernel(<TYPE>* state, long tk1, long tk2
 multicontrol_apply_swap_kernel = (
     helpers
     + """
-// C++ implementation of gates.py:apply_swap_kernel()
 extern "C"
 __global__ void multicontrol_apply_swap_kernel(<TYPE>* state, long tk1, long tk2,
                                   int m1, int m2, long uk1, long uk2,
@@ -254,16 +244,5 @@ initial_state_kernel = """
 // single thread execute this kernel and set the first element to 1
 extern "C" __global__ void initial_state_kernel(<TYPE>* state) {
   <BODY>
-}
-"""  # pragma: no cover
-
-
-initial_state_kernel_real = """
-// C++ implementation of ops.py:initial_state_vector()
-// In contrast to the Python method, the state is inizialized
-// to zero in backends.py:CupyBackend.initial_state, then a
-// single thread execute this kernel and set the first element to 1
-extern "C" __global__ void initial_state_kernel(<TYPE>* state) {
-  state[0] = 1;
 }
 """  # pragma: no cover
