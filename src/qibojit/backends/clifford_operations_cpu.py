@@ -253,19 +253,24 @@ def CY(symplectic_matrix, control_q, target_q, nqubits):
     return symplectic_matrix
 
 
+@njit(parallel=PARALLEL, cache=True)
 def _packbits(array, axis):
     array = array.astype(np.uint8)
-    array = np.swapaxes(array, axis, -1)
+    array = np.ascontiguousarray(np.swapaxes(array, axis, -1))
     shape = array.shape
     n = shape[-1]
-    array = np.reshape(array, (np.prod(shape[:-1]), n))
+    dim = 1
+    for s in shape[:-1]:
+        dim *= s
+    array = np.reshape(array, (dim, n))
     packed_len = (n + 7) // 8
-    out = np.zeros((array.shape[0], packed_len), dtype=np.uint8)
+    out = np.zeros((dim, packed_len), dtype=np.uint8)
     tmp = np.arange(n, dtype=np.uint8)
     byte_idx = tmp // 8
     bit_idx = 7 - (tmp % 8)
-    for i in prange(n):
-        out[:, byte_idx[i]] |= array[:, i] << bit_idx[i]
+    for j in prange(dim):  # pylint: disable=not-an-iterable
+        for i in prange(n):  # pylint: disable=not-an-iterable
+            out[j, byte_idx[i]] |= array[j, i] << bit_idx[i]
     out = np.reshape(out, shape[:-1] + (packed_len,))
     return np.swapaxes(out, axis, -1)
 
