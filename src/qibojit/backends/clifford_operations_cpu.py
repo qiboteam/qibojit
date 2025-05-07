@@ -265,12 +265,11 @@ def _packbits(array, axis):
     array = np.reshape(array, (dim, n))
     packed_len = (n + 7) // 8
     out = np.zeros((dim, packed_len), dtype=np.uint8)
-    tmp = np.arange(n, dtype=np.uint8)
-    byte_idx = tmp // 8
-    bit_idx = 7 - (tmp % 8)
     for j in prange(dim):  # pylint: disable=not-an-iterable
         for i in prange(n):  # pylint: disable=not-an-iterable
-            out[j, byte_idx[i]] |= array[j, i] << bit_idx[i]
+            byte_idx = i // 8
+            bit_idx = 7 - (i % 8)
+            out[j, byte_idx] |= array[j, i] << bit_idx
     out = np.reshape(out, shape[:-1] + (packed_len,))
     return np.swapaxes(out, axis, -1)
 
