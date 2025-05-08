@@ -621,18 +621,22 @@ class CuQuantumBackend(CupyBackend):  # pragma: no cover
                 self.custom_matrices = CustomCuQuantumMatrices(self.dtype)
 
     def get_cuda_type(self, dtype="complex64"):
-        if dtype == "complex128":
+        if dtype not in ("complex128", "complex64", "float64", "float32"):
+            raise_error(
+                TypeError,
+                "Type must be one of (``complex64``, ``complex128``, ``float64``, ``float32``).",
+            )
+
+        if dtype in ("complex128", "float64"):
             return (
                 self.cuquantum.cudaDataType.CUDA_C_64F,
                 self.cuquantum.ComputeType.COMPUTE_64F,
             )
-        elif dtype == "complex64":
-            return (
-                self.cuquantum.cudaDataType.CUDA_C_32F,
-                self.cuquantum.ComputeType.COMPUTE_32F,
-            )
-        else:
-            raise TypeError("Type can be either complex64 or complex128")
+
+        return (
+            self.cuquantum.cudaDataType.CUDA_C_32F,
+            self.cuquantum.ComputeType.COMPUTE_32F,
+        )
 
     def one_qubit_base(self, state, nqubits, target, kernel, gate, qubits=None):
         ntarget = 1
@@ -649,8 +653,8 @@ class CuQuantumBackend(CupyBackend):  # pragma: no cover
         adjoint = 0
         target = self.np.asarray([target], dtype=self.np.int32)
 
-        state = self.cast(state)
-        gate = self.cast(gate)
+        state = self.cast(state, dtype=self.dtype)
+        gate = self.cast(gate, dtype=self.dtype)
         assert state.dtype == gate.dtype
         data_type, compute_type = self.get_cuda_type(state.dtype)
         if isinstance(gate, self.cp.ndarray):
@@ -720,8 +724,8 @@ class CuQuantumBackend(CupyBackend):  # pragma: no cover
 
         adjoint = 0
 
-        state = self.cast(state)
-        gate = self.cast(gate)
+        state = self.cast(state, dtype=self.dtype)
+        gate = self.cast(gate, dtype=self.dtype)
 
         assert state.dtype == gate.dtype
         data_type, compute_type = self.get_cuda_type(state.dtype)
@@ -795,7 +799,7 @@ class CuQuantumBackend(CupyBackend):  # pragma: no cover
         return state
 
     def multi_qubit_base(self, state, nqubits, targets, gate, qubits=None):
-        state = self.cast(state)
+        state = self.cast(state, dtype=self.dtype)
         ntarget = len(targets)
         if qubits is None:
             qubits = sorted(nqubits - q - 1 for q in targets)
@@ -808,7 +812,7 @@ class CuQuantumBackend(CupyBackend):  # pragma: no cover
         )
         ncontrols = len(controls)
         adjoint = 0
-        gate = self.cast(gate)
+        gate = self.cast(gate, dtype=self.dtype)
         assert state.dtype == gate.dtype
         data_type, compute_type = self.get_cuda_type(state.dtype)
 
@@ -861,7 +865,7 @@ class CuQuantumBackend(CupyBackend):  # pragma: no cover
         return state
 
     def collapse_state(self, state, qubits, shot, nqubits, normalize=True):
-        state = self.cast(state)
+        state = self.cast(state, dtype=self.dtype)
         results = bin(int(shot)).replace("0b", "")
         results = list(map(int, "0" * (len(qubits) - len(results)) + results))[::-1]
         ntarget = 1
