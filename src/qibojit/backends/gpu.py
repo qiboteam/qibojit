@@ -615,19 +615,25 @@ class CuQuantumBackend(CupyBackend):  # pragma: no cover
             self.cusv.destroy(self.handle)
 
     def set_dtype(self, dtype):
+        if dtype in ("float32", "float64"):
+            raise_error(
+                NotImplementedError,
+                "``CuQuantumBackend only supports data types ``complex64`` and ``complex128``.",
+            )
+
         if dtype != self.dtype:
             super().set_dtype(dtype)
             if self.custom_matrices:
                 self.custom_matrices = CustomCuQuantumMatrices(self.dtype)
 
     def get_cuda_type(self, dtype="complex64"):
-        if dtype not in ("complex128", "complex64", "float64", "float32"):
+        if dtype not in ("complex128", "complex64"):
             raise_error(
-                TypeError,
-                "Type must be one of (``complex64``, ``complex128``, ``float64``, ``float32``).",
+                NotImplementedError,
+                "``CuQuantumBackend only supports data types ``complex64`` and ``complex128``.",
             )
 
-        if dtype in ("complex128", "float64"):
+        if dtype == "complex128":
             return (
                 self.cuquantum.cudaDataType.CUDA_C_64F,
                 self.cuquantum.ComputeType.COMPUTE_64F,
