@@ -498,6 +498,6 @@ initial_state_kernel = """
 // to zero in backends.py:CupyBackend.initial_state, then a
 // single thread execute this kernel and set the first element to 1
 extern "C" __global__ void initial_state_kernel(T* state) {
-  state[0] = T(1, 0);
+  <BODY>
 }
 """  # pragma: no cover

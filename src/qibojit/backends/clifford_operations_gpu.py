@@ -1,6 +1,7 @@
 """Set of custom CuPy operations for the Clifford backend."""
 
 import cupy as cp  # pylint: disable=E0401
+import cupyx.scipy.sparse as cp_sparse  # pylint: disable=import-error
 import numpy
 from qibo.backends._clifford_operations import _dim, _dim_xz, _get_rxz, _packed_size
 from scipy import sparse
@@ -721,13 +722,13 @@ def cast(x, dtype=None, copy=False):
     if dtype is None:
         dtype = "complex128"
 
-    if cp.sparse.issparse(x):
+    if cp_sparse.issparse(x):
         if dtype != x.dtype:
             return x.astype(dtype)
         return x
 
     if sparse.issparse(x):
-        cls = getattr(cp.sparse, x.__class__.__name__)
+        cls = getattr(cp_sparse, x.__class__.__name__)
         return cls(x, dtype=dtype)
 
     if isinstance(x, cp.ndarray) and copy:

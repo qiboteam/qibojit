@@ -14,6 +14,8 @@ def multicontrol_index(g, qubits):
 
 @njit(
     [
+        "float32[:](float32[:], float32[:,:], int32, int32)",
+        "float64[:](float64[:], float64[:,:], int64, int64)",
         "complex64[:](complex64[:], complex64[:,:], int64, int64)",
         "complex128[:](complex128[:], complex128[:,:], int64, int64)",
     ],
@@ -34,6 +36,8 @@ def apply_gate_kernel(state, gate, nstates, m):
 
 @njit(
     [
+        "float32[:](float32[:], float32[:,:], int32[:], int32, int32)",
+        "float64[:](float64[:], float64[:,:], int32[:], int64, int64)",
         "complex64[:](complex64[:], complex64[:,:], int32[:], int64, int64)",
         "complex128[:](complex128[:], complex128[:,:], int32[:], int64, int64)",
     ],
@@ -54,6 +58,8 @@ def multicontrol_apply_gate_kernel(state, gate, qubits, nstates, m):
 
 @njit(
     [
+        "float32[:](float32[:], optional(float32[:,:]), int32, int32)",
+        "float64[:](float64[:], optional(float64[:,:]), int64, int64)",
         "complex64[:](complex64[:], optional(complex64[:,:]), int64, int64)",
         "complex128[:](complex128[:], optional(complex128[:,:]), int64, int64)",
     ],
@@ -71,6 +77,8 @@ def apply_x_kernel(state, gate, nstates, m):
 
 @njit(
     [
+        "float32[:](float32[:], optional(float32[:,:]), int32[:], int32, int32)",
+        "float64[:](float64[:], optional(float64[:,:]), int32[:], int64, int64)",
         "complex64[:](complex64[:], optional(complex64[:,:]), int32[:], int64, int64)",
         "complex128[:](complex128[:], optional(complex128[:,:]), int32[:], int64, int64)",
     ],
@@ -122,6 +130,8 @@ def multicontrol_apply_y_kernel(state, gate, qubits, nstates, m):
 
 @njit(
     [
+        "float32[:](float32[:], optional(float32[:,:]), int32, int32)",
+        "float64[:](float64[:], optional(float64[:,:]), int64, int64)",
         "complex64[:](complex64[:], optional(complex64[:,:]), int64, int64)",
         "complex128[:](complex128[:], optional(complex128[:,:]), int64, int64)",
     ],
@@ -138,6 +148,8 @@ def apply_z_kernel(state, gate, nstates, m):
 
 @njit(
     [
+        "float32[:](float32[:], optional(float32[:,:]), int32[:], int32, int32)",
+        "float64[:](float64[:], optional(float64[:,:]), int32[:], int64, int64)",
         "complex64[:](complex64[:], optional(complex64[:,:]), int32[:], int64, int64)",
         "complex128[:](complex128[:], optional(complex128[:,:]), int32[:], int64, int64)",
     ],
@@ -154,6 +166,8 @@ def multicontrol_apply_z_kernel(state, gate, qubits, nstates, m):
 
 @njit(
     [
+        "float32[:](float32[:], float32, int32, int32)",
+        "float64[:](float64[:], float64, int64, int64)",
         "complex64[:](complex64[:], complex64, int64, int64)",
         "complex128[:](complex128[:], complex128, int64, int64)",
     ],
@@ -170,6 +184,8 @@ def apply_z_pow_kernel(state, gate, nstates, m):
 
 @njit(
     [
+        "float32[:](float32[:], float32, int32[:], int32, int32)",
+        "float64[:](float64[:], float64, int32[:], int64, int64)",
         "complex64[:](complex64[:], complex64, int32[:], int64, int64)",
         "complex128[:](complex128[:], complex128, int32[:], int64, int64)",
     ],
@@ -186,6 +202,8 @@ def multicontrol_apply_z_pow_kernel(state, gate, qubits, nstates, m):
 
 @njit(
     [
+        "float32[:](float32[:], float32[:,:], int32, int32, int32, boolean)",
+        "float64[:](float64[:], float64[:,:], int64, int64, int64, boolean)",
         "complex64[:](complex64[:], complex64[:,:], int64, int64, int64, boolean)",
         "complex128[:](complex128[:], complex128[:,:], int64, int64, int64, boolean)",
     ],
@@ -232,6 +250,8 @@ def apply_two_qubit_gate_kernel(state, gate, nstates, m1, m2, swap_targets=False
 
 @njit(
     [
+        "float32[:](float32[:], float32[:,:], int32[:], int32, int32, int32, boolean)",
+        "float64[:](float64[:], float64[:,:], int32[:], int64, int64, int64, boolean)",
         "complex64[:](complex64[:], complex64[:,:], int32[:], int64, int64, int64, boolean)",
         "complex128[:](complex128[:], complex128[:,:], int32[:], int64, int64, int64, boolean)",
     ],
@@ -279,6 +299,8 @@ def multicontrol_apply_two_qubit_gate_kernel(
 
 @njit(
     [
+        "float32[:](float32[:], optional(float32[:,:]), int32, int32, int32, boolean)",
+        "float64[:](float64[:], optional(float64[:,:]), int64, int64, int64, boolean)",
         "complex64[:](complex64[:], optional(complex64[:,:]), int64, int64, int64, boolean)",
         "complex128[:](complex128[:], optional(complex128[:,:]), int64, int64, int64, boolean)",
     ],
@@ -297,6 +319,8 @@ def apply_swap_kernel(state, gate, nstates, m1, m2, swap_targets=False):
 
 @njit(
     [
+        "float32[:](float32[:], optional(float32[:,:]), int32[:], int32, int32, int32, boolean)",
+        "float64[:](float64[:], optional(float64[:,:]), int32[:], int64, int64, int64, boolean)",
         "complex64[:](complex64[:], optional(complex64[:,:]), int32[:], int64, int64, int64, boolean)",
         "complex128[:](complex128[:], optional(complex128[:,:]), int32[:], int64, int64, int64, boolean)",
     ],
@@ -307,7 +331,6 @@ def multicontrol_apply_swap_kernel(
     state, gate, qubits, nstates, m1, m2, swap_targets=False
 ):
     tk1, tk2 = 1 << m1, 1 << m2
-    uk1, uk2 = tk1, tk2
     for g in prange(nstates):  # pylint: disable=not-an-iterable
         i = multicontrol_index(g, qubits)
         i1, i2 = i - tk2, i - tk1
@@ -367,7 +390,7 @@ def multicontrol_apply_fsim_kernel(
     return state
 
 
-@njit("int64(int64, int64[:])", cache=True)
+@njit(["int32(int32, int32[:])", "int64(int64, int64[:])"], cache=True)
 def multitarget_index(i, targets):
     t = 0
     for u, v in enumerate(targets):
@@ -377,6 +400,8 @@ def multitarget_index(i, targets):
 
 @njit(
     [
+        "float32[:](float32[:], float32[:,:], int32[:], int32, int32[:])",
+        "float64[:](float64[:], float64[:,:], int32[:], int64, int64[:])",
         "complex64[:](complex64[:], complex64[:,:], int32[:], int64, int64[:])",
         "complex128[:](complex128[:], complex128[:,:], int32[:], int64, int64[:])",
     ],
@@ -411,6 +436,8 @@ def apply_three_qubit_gate_kernel(state, gate, qubits, nstates, targets):
 
 @njit(
     [
+        "float32[:](float32[:], float32[:,:], int32[:], int32, int32[:])",
+        "float64[:](float64[:], float64[:,:], int32[:], int64, int64[:])",
         "complex64[:](complex64[:], complex64[:,:], int32[:], int64, int64[:])",
         "complex128[:](complex128[:], complex128[:,:], int32[:], int64, int64[:])",
     ],
@@ -461,6 +488,8 @@ def apply_four_qubit_gate_kernel(state, gate, qubits, nstates, targets):
 
 @njit(
     [
+        "float32[:](float32[:], float32[:,:], int32[:], int32, int32[:])",
+        "float64[:](float64[:], float64[:,:], int32[:], int64, int64[:])",
         "complex64[:](complex64[:], complex64[:,:], int32[:], int64, int64[:])",
         "complex128[:](complex128[:], complex128[:,:], int32[:], int64, int64[:])",
     ],
@@ -545,6 +574,8 @@ def apply_five_qubit_gate_kernel(state, gate, qubits, nstates, targets):
 
 @njit(
     [
+        "float32[:](float32[:], float32[:,::1], int32[:], int32, int32[:])",
+        "float64[:](float64[:], float64[:,::1], int32[:], int64, int64[:])",
         "complex64[:](complex64[:], complex64[:,::1], int32[:], int64, int64[:])",
         "complex128[:](complex128[:], complex128[:,::1], int32[:], int64, int64[:])",
     ],
