@@ -10,6 +10,7 @@ from qibojit.backends.matrices import (
     CustomCuQuantumMatrices,
     CustomMatrices,
 )
+from qibojit.custom_operators.ops import set_seed
 
 
 class CupyBackend(NumbaBackend):  # pragma: no cover
@@ -106,6 +107,13 @@ class CupyBackend(NumbaBackend):  # pragma: no cover
         # number of available GPUs (for multigpu)
         self.ngpus = cp.cuda.runtime.getDeviceCount()
 
+        # set the engine of the quantum info operators
+        self.qinfo.ENGINE = cp
+
+        from cupyx.scipy.linalg import expm  # pylint: disable=import-error
+
+        self.qinfo.expm = expm
+
     def set_precision(self, precision):
         super().set_precision(precision)
         if self.dtype == "complex128":
@@ -122,7 +130,7 @@ class CupyBackend(NumbaBackend):  # pragma: no cover
         self.device = device
 
     def set_seed(self, seed):
-        super().set_seed(seed)
+        super(NumbaBackend, self).set_seed(seed)
         self.cp.random.seed(seed)
 
     def zeros(self, shape, dtype=None):

@@ -6,6 +6,7 @@ from qibo.gates.channels import ReadoutErrorChannel
 from qibo.gates.special import FusedGate
 
 from qibojit.backends.matrices import CustomMatrices
+from qibojit.custom_operators.quantum_info import QINFO
 
 GATE_OPS = {
     "X": "apply_x",
@@ -70,6 +71,11 @@ class NumbaBackend(NumpyBackend):
         else:
             self.set_threads(len(psutil.Process().cpu_affinity()))
 
+        # load the quantum info custom operators
+        for method in dir(QINFO):
+            if method[:2] != "__":
+                setattr(self.qinfo, method, getattr(QINFO, method))
+
     def set_precision(self, precision):
         if precision != self.precision:
             super().set_precision(precision)
@@ -81,6 +87,10 @@ class NumbaBackend(NumpyBackend):
 
         numba.set_num_threads(nthreads)
         self.nthreads = nthreads
+
+    def set_seed(self, seed):
+        super().set_seed(seed)
+        self.ops.set_seed(self.np.random.get_state()[1][0])
 
     # def cast(self, x, dtype=None, copy=False): Inherited from ``NumpyBackend``
 
