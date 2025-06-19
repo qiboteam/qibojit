@@ -70,9 +70,9 @@ class NumbaBackend(NumpyBackend):
         else:
             self.set_threads(len(psutil.Process().cpu_affinity()))
 
-    def set_precision(self, precision):
-        if precision != self.precision:
-            super().set_precision(precision)
+    def set_dtype(self, dtype):
+        if dtype != self.dtype:
+            super().set_dtype(dtype)
             if self.custom_matrices:
                 self.custom_matrices = CustomMatrices(self.dtype)
 
