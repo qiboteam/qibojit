@@ -255,14 +255,14 @@ def CY(symplectic_matrix, control_q, target_q, nqubits):
     return symplectic_matrix
 
 
-@cache
-@njit(parallel=PARALLEL, cache=True)
+# this cannot be cached anymore with numba unfortunately
+@njit("i8(i8)", parallel=False, cache=True)
 def _packed_size(n):
     """Returns the size of an array of `n` booleans after packing."""
     return int(np.ceil(n / 8))
 
 
-@njit(parallel=PARALLEL, cache=True)
+@njit(["u1[:,:](u1[:,:], i8)", "u1[:,:](b1[:,:], i8)"], parallel=PARALLEL, cache=True)
 def _packbits(array, axis):
     array = array.astype(np.uint8)
     array = np.ascontiguousarray(np.swapaxes(array, axis, -1))
@@ -283,7 +283,7 @@ def _packbits(array, axis):
     return np.swapaxes(out, axis, -1)
 
 
-@njit(parallel=PARALLEL, cache=True)
+@njit("u1[:,:](u1[:,:], i8)", parallel=PARALLEL, cache=True)
 def _pack_for_measurements(state, nqubits):
     """Prepares the state for measurements by packing the rows of the X and Z sections of the symplectic matrix."""
     r, x, z = _get_rxz(state, nqubits)
@@ -292,7 +292,7 @@ def _pack_for_measurements(state, nqubits):
     return np.hstack((x, z, r[:, None]))
 
 
-@njit(parallel=PARALLEL, cache=True)
+@njit("u1[:](u1)", parallel=PARALLEL, cache=True)
 def _unpack_byte(byte):
     bits = np.empty(8, dtype=np.uint8)
     for i in range(8):
@@ -300,7 +300,7 @@ def _unpack_byte(byte):
     return bits
 
 
-@njit(parallel=PARALLEL, cache=True)
+@njit("u1[:,:](u1[:,:], i8, i8)", parallel=PARALLEL, cache=True)
 def _unpackbits(array, axis, count):
     # this is gonnna be used on 2d arrays only
     # i.e. portions of the symplectic matrix
@@ -311,7 +311,7 @@ def _unpackbits(array, axis, count):
     byte_len = in_shape[-1]
 
     # Output shape: replace last dim with ceil(count / 8) * 8
-    out_shape = (in_shape[-1], count)
+    out_shape = (in_shape[0], count)
     out = np.zeros(out_shape, dtype=np.uint8)
 
     for idx in range(in_shape[0]):
@@ -329,7 +329,7 @@ def _unpackbits(array, axis, count):
     return out
 
 
-@njit(parallel=PARALLEL, cache=True)
+@njit("u1[:,:](u1[:,:], i8)", parallel=PARALLEL, cache=True)
 def _unpack_for_measurements(state, nqubits):
     """Unpacks the symplectc matrix that was packed for measurements."""
     x = _unpackbits(state[:, : _packed_size(nqubits)], axis=1, count=nqubits)
@@ -349,7 +349,6 @@ def _unpack_for_measurements(state, nqubits):
 def _rowsum(symplectic_matrix, h, i, nqubits, determined=False):
     xi, zi = symplectic_matrix[i, :nqubits], symplectic_matrix[i, nqubits:-1]
     xh, zh = symplectic_matrix[h, :nqubits], symplectic_matrix[h, nqubits:-1]
-
     symplectic_matrix = _pack_for_measurements(symplectic_matrix, nqubits)
     packed_n = _packed_size(nqubits)
     packed_xi, packed_zi = (
