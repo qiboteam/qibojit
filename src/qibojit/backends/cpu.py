@@ -1,8 +1,6 @@
 import numpy as np
 from qibo.backends.numpy import NumpyBackend
-from qibo.config import log
 from qibo.gates.abstract import ParametrizedGate
-from qibo.gates.channels import ReadoutErrorChannel
 from qibo.gates.special import FusedGate
 
 from qibojit.backends.matrices import CustomMatrices
@@ -167,21 +165,29 @@ class NumbaBackend(NumpyBackend):
             # fusion is tested in qibo tests
             return self.matrix_fused(gate)
 
-        return _matrix(2 ** len(gate.target_qubits)) if callable(_matrix) else _matrix
+        if callable(_matrix) and name == "FanOut":
+            return _matrix(*gate.init_args)
+
+        if callable(_matrix):
+            return _matrix(2 ** len(gate.target_qubits)) 
+                    
+        return _matrix
 
     def apply_gate(self, gate, state, nqubits):
         matrix = self._as_custom_matrix(gate)
         qubits = self._create_qubits_tensor(gate, nqubits)
         targets = gate.target_qubits
-        state = self.cast(state)
+        state = self.cast(state, dtype=state.dtype)
+
         if len(targets) == 1:
             op = GATE_OPS.get(gate.__class__.__name__, "apply_gate")
             return self.one_qubit_base(state, nqubits, *targets, op, matrix, qubits)
-        elif len(targets) == 2:
+        
+        if len(targets) == 2:
             op = GATE_OPS.get(gate.__class__.__name__, "apply_two_qubit_gate")
             return self.two_qubit_base(state, nqubits, *targets, op, matrix, qubits)
-        else:
-            return self.multi_qubit_base(state, nqubits, targets, matrix, qubits)
+
+        return self.multi_qubit_base(state, nqubits, targets, matrix, qubits)
 
     def apply_gate_density_matrix(self, gate, state, nqubits, inverse=False):
         name = gate.__class__.__name__
