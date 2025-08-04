@@ -169,8 +169,8 @@ class NumbaBackend(NumpyBackend):
             return _matrix(*gate.init_args)
 
         if callable(_matrix):
-            return _matrix(2 ** len(gate.target_qubits)) 
-                    
+            return _matrix(2 ** len(gate.target_qubits))
+
         return _matrix
 
     def apply_gate(self, gate, state, nqubits):
@@ -182,7 +182,7 @@ class NumbaBackend(NumpyBackend):
         if len(targets) == 1:
             op = GATE_OPS.get(gate.__class__.__name__, "apply_gate")
             return self.one_qubit_base(state, nqubits, *targets, op, matrix, qubits)
-        
+
         if len(targets) == 2:
             op = GATE_OPS.get(gate.__class__.__name__, "apply_two_qubit_gate")
             return self.two_qubit_base(state, nqubits, *targets, op, matrix, qubits)
