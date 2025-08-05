@@ -535,14 +535,17 @@ class CupyBackend(NumbaBackend):  # pragma: no cover
         eigenvalues=None,
     ):
         if eigenvectors is None or self.is_sparse(matrix):
-            if self.is_sparse(matrix):
-                from scipy.sparse.linalg import expm
+            is_sparse = self.is_sparse(matrix)
 
-                return self.cast(expm(phase * self.to_numpy(matrix)))
+            if is_sparse:
+                from scipy.sparse.linalg import expm  # pylint: disable=import-outside-toplevel
+            else:
+                from cupyx.scipy.linalg import expm  # pylint: disable=import-error
 
-            from cupyx.scipy.linalg import expm  # pylint: disable=import-error
+            _matrix = self.to_numpy(matrix) if is_sparse else matrix
+            _matrix = expm(phase * _matrix)
 
-            return self.cast(expm(phase * matrix))
+            return self.cast(_matrix, dtype=_matrix.dtype)
 
         expd = self.np.exp(phase * eigenvalues)
         ud = self.np.transpose(self.np.conj(eigenvectors))
