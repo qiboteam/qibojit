@@ -80,10 +80,6 @@ class NumbaBackend(NumpyBackend):
         numba.set_num_threads(nthreads)
         self.nthreads = nthreads
 
-    # def cast(self, x, dtype=None, copy=False): Inherited from ``NumpyBackend``
-
-    # def to_numpy(self, x): Inherited from ``NumpyBackend``
-
     def zero_state(self, nqubits):
         size = 2**nqubits
         state = np.empty((size,), dtype=self.dtype)
@@ -93,14 +89,6 @@ class NumbaBackend(NumpyBackend):
         size = 2**nqubits
         state = np.empty((size, size), dtype=self.dtype)
         return self.ops.initial_density_matrix(state)
-
-    # def plus_state(self, nqubits): Inherited from ``NumpyBackend``
-
-    # def plus_density_matrix(self, nqubits): Inherited from ``NumpyBackend``
-
-    # def matrix_special(self, gate): Inherited from ``NumpyBackend``
-
-    # def control_matrix(self, gate): Inherited from ``NumpyBackend``
 
     def one_qubit_base(self, state, nqubits, target, kernel, gate, qubits):
         ncontrols = len(qubits) - 1 if qubits is not None else 0
@@ -246,8 +234,6 @@ class NumbaBackend(NumpyBackend):
         )
         return np.reshape(state, shape)
 
-    # def apply_channel(self, gate): Inherited from ``NumpyBackend``
-
     def apply_channel_density_matrix(self, channel, state, nqubits):
         state = self.cast(state)
         if not channel._all_unitary_operators:
@@ -284,16 +270,6 @@ class NumbaBackend(NumpyBackend):
             state = state / self.np.trace(state)
         return state
 
-    # def calculate_probabilities(self, state, qubits, nqubits): Inherited from ``NumpyBackend``
-
-    # def sample_shots(self, probabilities, nshots): Inherited from ``NumpyBackend``
-
-    # def aggregate_shots(self, shots): Inherited from ``NumpyBackend``
-
-    # def samples_to_binary(self, samples, nqubits): Inherited from ``NumpyBackend``
-
-    # def samples_to_decimal(self, samples, nqubits): Inherited from ``NumpyBackend``
-
     def sample_frequencies(self, probabilities, nshots):
         from qibo.config import SHOT_METROPOLIS_THRESHOLD
 
@@ -310,7 +286,3 @@ class NumbaBackend(NumpyBackend):
             frequencies, probabilities, nshots, nqubits, seed, self.nthreads
         )
         return collections.Counter({i: f for i, f in enumerate(frequencies) if f > 0})
-
-    # def calculate_frequencies(self, samples): Inherited from ``NumpyBackend``
-
-    # def assert_allclose(self, value, target, rtol=1e-7, atol=0.0): Inherited from ``NumpyBackend``
