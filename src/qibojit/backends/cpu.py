@@ -153,6 +153,9 @@ class NumbaBackend(NumpyBackend):
         name = gate.__class__.__name__
         _matrix = getattr(self.custom_matrices, name)
 
+        if callable(_matrix) and name == "FanOut":
+            return _matrix(*gate.init_args)
+
         if isinstance(gate, ParametrizedGate):
             if name == "GeneralizedRBS":  # pragma: no cover
                 # this is tested in qibo tests
@@ -165,13 +168,7 @@ class NumbaBackend(NumpyBackend):
             # fusion is tested in qibo tests
             return self.matrix_fused(gate)
 
-        if callable(_matrix) and name == "FanOut":
-            return _matrix(*gate.init_args)
-
-        if callable(_matrix):
-            return _matrix(2 ** len(gate.target_qubits))
-
-        return _matrix
+        return _matrix(2 ** len(gate.target_qubits)) if callable(_matrix) else _matrix
 
     def apply_gate(self, gate, state, nqubits):
         matrix = self._as_custom_matrix(gate)
