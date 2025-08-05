@@ -538,7 +538,9 @@ class CupyBackend(NumbaBackend):  # pragma: no cover
             is_sparse = self.is_sparse(matrix)
 
             if is_sparse:
-                from scipy.sparse.linalg import expm  # pylint: disable=import-outside-toplevel
+                from scipy.sparse.linalg import (  # pylint: disable=import-outside-toplevel
+                    expm,
+                )
             else:
                 from cupyx.scipy.linalg import expm  # pylint: disable=import-error
 
