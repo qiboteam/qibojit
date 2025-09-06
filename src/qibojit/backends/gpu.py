@@ -460,14 +460,19 @@ class CupyBackend(NumbaBackend):  # pragma: no cover
 
     # def calculate_symbolic_density_matrix(self, state, nqubits, decimals=5, cutoff=1e-10, max_terms=20): Inherited from ``NumpyBackend``
 
-    def calculate_probabilities(self, state, qubits, nqubits):
+    def calculate_probabilities(
+        self, state, qubits, nqubits: int, density_matrix: bool = False
+    ):
         try:
-            probs = super().calculate_probabilities(state, qubits, nqubits)
+            probs = super().calculate_probabilities(
+                state, qubits, nqubits, density_matrix
+            )
         except MemoryError:
             # fall back to CPU
             probs = super().calculate_probabilities(
-                self.to_numpy(state), qubits, nqubits
+                self.to_numpy(state), qubits, nqubits, density_matrix
             )
+
         return probs
 
     def sample_shots(self, probabilities, nshots):
