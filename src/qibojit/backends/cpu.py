@@ -86,15 +86,18 @@ class NumbaBackend(NumpyBackend):
 
     # def to_numpy(self, x): Inherited from ``NumpyBackend``
 
-    def zero_state(self, nqubits):
+    def zero_state(self, nqubits, density_matrix: bool = False):
         size = 2**nqubits
-        state = np.empty((size,), dtype=self.dtype)
+        shape = (size,)
+        if density_matrix:
+            shape *= 2
+        state = np.empty(shape, dtype=self.dtype)
         return self.ops.initial_state_vector(state)
 
-    def zero_density_matrix(self, nqubits):
-        size = 2**nqubits
-        state = np.empty((size, size), dtype=self.dtype)
-        return self.ops.initial_density_matrix(state)
+    # def zero_density_matrix(self, nqubits):
+    #     size = 2**nqubits
+    #     state = np.empty((size, size), dtype=self.dtype)
+    #     return self.ops.initial_density_matrix(state)
 
     # def plus_state(self, nqubits): Inherited from ``NumpyBackend``
 
