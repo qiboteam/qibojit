@@ -11,7 +11,7 @@ from .utils import qubits_tensor, random_complex, set_dtype
 def test_zero_state(backend, dtype, is_matrix):
     set_dtype(dtype, backend)
     if is_matrix:
-        final_state = backend.zero_density_matrix(4)
+        final_state = backend.zero_state(4, density_matrix=True)
         target_state = np.array([1] + [0] * 255, dtype=dtype)
         target_state = np.reshape(target_state, (16, 16))
     else:

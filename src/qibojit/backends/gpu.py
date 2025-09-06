@@ -178,21 +178,22 @@ class CupyBackend(NumbaBackend):  # pragma: no cover
     def is_sparse(self, x):
         return self.sparse.issparse(x) or self.npsparse.issparse(x)
 
-    def zero_state(self, nqubits):
+    def zero_state(self, nqubits, density_matrix: bool = False):
         n = 1 << nqubits
+        shape = n * n if density_matrix else n
         kernel = self.gates.get(f"initial_state_kernel_{self.dtype}")
-        state = self.cp.zeros(n, dtype=self.dtype)
+        state = self.cp.zeros(shape, dtype=self.dtype)
         kernel((1,), (1,), [state])
         self.cp.cuda.stream.get_current_stream().synchronize()
-        return state
+        return state.reshape((n, n)) if density_matrix else state
 
-    def zero_density_matrix(self, nqubits):
-        n = 1 << nqubits
-        kernel = self.gates.get(f"initial_state_kernel_{self.dtype}")
-        state = self.cp.zeros(n * n, dtype=self.dtype)
-        kernel((1,), (1,), [state])
-        self.cp.cuda.stream.get_current_stream().synchronize()
-        return state.reshape((n, n))
+    # def zero_density_matrix(self, nqubits):
+    #     n = 1 << nqubits
+    #     kernel = self.gates.get(f"initial_state_kernel_{self.dtype}")
+    #     state = self.cp.zeros(n * n, dtype=self.dtype)
+    #     kernel((1,), (1,), [state])
+    #     self.cp.cuda.stream.get_current_stream().synchronize()
+    #     return state.reshape((n, n))
 
     def identity_density_matrix(self, nqubits, normalize: bool = True):
         n = 1 << nqubits
