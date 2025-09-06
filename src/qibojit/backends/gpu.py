@@ -1,7 +1,7 @@
 from typing import Union
 
 import numpy as np
-from qibo.backends.numpy import NumpyBackend, _calculate_negative_power_singular_matrix
+from qibo.backends.numpy import NumpyBackend
 from qibo.config import log, raise_error
 
 from qibojit.backends.cpu import NumbaBackend
@@ -583,7 +583,7 @@ class CupyBackend(NumbaBackend):  # pragma: no cover
             # negative powers of singular matrices via SVD
             determinant = self.cp.linalg.det(matrix)
             if abs(determinant) < precision_singularity:
-                return _calculate_negative_power_singular_matrix(
+                return self._negative_power_singular_matrix(
                     matrix, power, precision_singularity, self.cp, self
                 )
 
