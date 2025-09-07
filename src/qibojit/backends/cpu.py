@@ -2,7 +2,7 @@ import sys
 
 from collections import Counter
 
-from qibo.backends.abstract import Backend, NumpyBackend
+from qibo.backends import Backend, NumpyBackend
 from qibo.gates.abstract import ParametrizedGate
 from qibo.gates.special import FusedGate
 
