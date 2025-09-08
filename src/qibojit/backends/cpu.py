@@ -94,14 +94,6 @@ class NumbaBackend(NumpyBackend):
 
         return func(state)
 
-    def apply_gate(self, gate, state, nqubits: int, inverse: bool = False):
-        density_matrix = bool(len(state.shape) == 2)
-
-        if density_matrix:
-            return self._apply_gate_density_matrix(gate, state, nqubits, inverse)
-
-        return self._apply_gate(gate, state, nqubits)
-
     def apply_channel(self, channel, state, nqubits: int):
         density_matrix = bool(len(state.shape) == 2)
 
@@ -109,6 +101,14 @@ class NumbaBackend(NumpyBackend):
             return self._apply_channel_density_matrix(channel, state, nqubits)
 
         return super().apply_channel(channel, state, nqubits)
+
+    def apply_gate(self, gate, state, nqubits: int, inverse: bool = False):
+        density_matrix = bool(len(state.shape) == 2)
+
+        if density_matrix:
+            return self._apply_gate_density_matrix(gate, state, nqubits, inverse)
+
+        return self._apply_gate(gate, state, nqubits)
 
     def multi_qubit_base(self, state, nqubits: int, targets, gate, qubits):
         if qubits is None:
@@ -168,7 +168,7 @@ class NumbaBackend(NumpyBackend):
         return Counter({i: f for i, f in enumerate(frequencies) if f > 0})
 
     def _apply_channel_density_matrix(self, channel, state, nqubits):
-        state = self.cast(state)
+        state = self.cast(state, dtype=state.dtype)
         if not channel._all_unitary_operators:
             state_copy = self.cast(state, copy=True)
         new_state = (1 - channel.coefficient_sum) * state
@@ -291,9 +291,11 @@ class NumbaBackend(NumpyBackend):
         shape = state.shape
         dm_qubits = [qubit + nqubits for qubit in qubits]
         state = self._collapse_statevector(
-            state.ravel(), dm_qubits, shot, 2 * nqubits, False
+            state.ravel(), dm_qubits, shot, 2 * nqubits, normalize=False
         )
-        state = self._collapse_statevector(state, qubits, shot, 2 * nqubits, False)
+        state = self._collapse_statevector(
+            state, qubits, shot, 2 * nqubits, normalize=False
+        )
         state = self.reshape(state, shape)
 
         if normalize:
@@ -310,7 +312,9 @@ class NumbaBackend(NumpyBackend):
         normalize: bool = True,
     ):
         state = self.cast(state, dtype=state.dtype)
-        qubits = self.cast([nqubits - q - 1 for q in reversed(qubits)], dtype="int32")
+        qubits = self.cast(
+            [nqubits - q - 1 for q in reversed(qubits)], dtype=self.int32
+        )
 
         if normalize:
             return self.ops.collapse_state_normalized(state, qubits, int(shot), nqubits)
