@@ -1432,13 +1432,24 @@ files = [
 
 [[package]]
 name = "qibo"
+<<<<<<< HEAD
 version = "0.2.21"
+=======
+version = "0.2.20"
+>>>>>>> main
 description = "A framework for quantum computing with hardware acceleration."
 optional = false
 python-versions = ">=3.10,<3.14"
 groups = ["main"]
+<<<<<<< HEAD
 files = []
 develop = false
+=======
+files = [
+    {file = "qibo-0.2.20-py3-none-any.whl", hash = "sha256:240b4fb8913abd7b419311f4daddd067187c630324d13b6d6e6068163c8cad46"},
+    {file = "qibo-0.2.20.tar.gz", hash = "sha256:dfbe6b5851cf1f481cb14903c40185cd3dbf8069b0d2ed371f074b1df5d794a6"},
+]
+>>>>>>> main
 
 [package.dependencies]
 cma = "^3.4.0"
@@ -1874,4 +1885,8 @@ cuquantum = ["cuquantum-python-cu12"]
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.10,<3.14"
+<<<<<<< HEAD
 content-hash = "2cb580d8dcf9f1f079fc22eb9bc14ae3c58aea4250df394eee8e059abdfdbd55"
+=======
+content-hash = "bc0ec03497b7e45627495ea636561bd6cecc30ae85b73e7e04940d925093db9c"
+>>>>>>> main
