@@ -65,7 +65,9 @@ def test_backend_expm_sparse(backend, sparse_type):
 
     m = rand(16, 16, format=sparse_type)
     target = expm(m.toarray())
-    result = backend.to_numpy(backend.calculate_matrix_exp(1j, backend.cast(m)))
+    result = backend.to_numpy(
+        backend.calculate_matrix_exp(backend.cast(m, dtype=m.dtype))
+    )
     backend.assert_allclose(target, result, atol=1e-10)
 
 

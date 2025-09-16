@@ -216,8 +216,6 @@ class CupyBackend(NumbaBackend):  # pragma: no cover
         npmatrix = super().matrix_fused(gate)
         return self.cast(npmatrix, dtype=self.dtype)
 
-    # def control_matrix(self, gate): Inherited from ``NumpyBackend``
-
     def calculate_blocks(self, nstates, block_size=DEFAULT_BLOCK_SIZE):
         """Compute the number of blocks and of threads per block.
 
@@ -327,16 +325,6 @@ class CupyBackend(NumbaBackend):  # pragma: no cover
         matrix = super()._as_custom_matrix(gate)
         return self.cp.asarray(matrix.ravel())
 
-    # def apply_gate(self, gate, state, nqubits): Inherited from ``NumbaBackend``
-
-    # def apply_gate_density_matrix(self, gate, state, nqubits, inverse=False): Inherited from ``NumbaBackend``
-
-    # def _apply_ygate_density_matrix(self, gate, state, nqubits): Inherited from ``NumbaBackend``
-
-    # def apply_channel(self, gate): Inherited from ``NumbaBackend``
-
-    # def apply_channel_density_matrix(self, channel, state, nqubits): Inherited from ``NumbaBackend``
-
     def collapse_state(self, state, qubits, shot, nqubits, normalize=True):
         ntargets = len(qubits)
         nstates = 1 << (nqubits - ntargets)
@@ -355,10 +343,6 @@ class CupyBackend(NumbaBackend):  # pragma: no cover
             norm = self.cp.sqrt(self.cp.sum(self.cp.square(self.cp.abs(state))))
             state = state / norm
         return state
-
-    # def collapse_density_matrix(self, state, qubits, shot, nqubits, normalize=True): Inherited from ``NumbaBackend``
-
-    # def reset_error_density_matrix(self, gate, state, nqubits): Inherited from ``NumpyBackend``
 
     def execute_distributed_circuit(
         self,
@@ -456,10 +440,6 @@ class CupyBackend(NumbaBackend):  # pragma: no cover
                 "different device configuration and try again.",
             )
 
-    # def calculate_symbolic(self, state, nqubits, decimals=5, cutoff=1e-10, max_terms=20): Inherited from ``NumpyBackend``
-
-    # def calculate_symbolic_density_matrix(self, state, nqubits, decimals=5, cutoff=1e-10, max_terms=20): Inherited from ``NumpyBackend``
-
     def calculate_probabilities(self, state, qubits, nqubits):
         try:
             probs = super().calculate_probabilities(state, qubits, nqubits)
@@ -475,20 +455,10 @@ class CupyBackend(NumbaBackend):  # pragma: no cover
         probabilities = self.to_numpy(probabilities)
         return super().sample_shots(probabilities, nshots)
 
-    # def aggregate_shots(self, shots): Inherited from ``NumpyBackend``
-
-    # def samples_to_binary(self, samples, nqubits): Inherited from ``NumpyBackend``
-
-    # def samples_to_decimal(self, samples, nqubits): Inherited from ``NumpyBackend``
-
     def sample_frequencies(self, probabilities, nshots):
         # Sample frequencies on CPU
         probabilities = self.to_numpy(probabilities)
         return super().sample_frequencies(probabilities, nshots)
-
-    # def calculate_frequencies(self, samples): Inherited from ``NumpyBackend``
-
-    # def assert_allclose(self, value, target, rtol=1e-7, atol=0.0): Inherited from ``NumpyBackend``
 
     def calculate_expectation_state(self, matrix, state, normalize):
         state = self.cast(state)
@@ -557,20 +527,32 @@ class CupyBackend(NumbaBackend):  # pragma: no cover
 
         return self.cp.linalg.eigh(matrix)
 
-    def calculate_matrix_exp(self, a, matrix, eigenvectors=None, eigenvalues=None):
+    def calculate_matrix_exp(
+        self,
+        matrix,
+        phase: Union[float, int, complex] = 1,
+        eigenvectors=None,
+        eigenvalues=None,
+    ):
         if eigenvectors is None or self.is_sparse(matrix):
-            if self.is_sparse(matrix):
-                from scipy.sparse.linalg import expm
+            is_sparse = self.is_sparse(matrix)
 
-                return self.cast(expm(-1j * a * self.to_numpy(matrix)))
+            if is_sparse:
+                from scipy.sparse.linalg import (  # pylint: disable=import-outside-toplevel
+                    expm,
+                )
             else:
                 from cupyx.scipy.linalg import expm  # pylint: disable=import-error
 
-                return self.cast(expm(-1j * a * matrix))
-        else:
-            expd = self.cp.diag(self.cp.exp(-1j * a * eigenvalues))
-            ud = self.cp.transpose(self.cp.conj(eigenvectors))
-            return self.cp.matmul(eigenvectors, self.cp.matmul(expd, ud))
+            _matrix = self.to_numpy(matrix) if is_sparse else matrix
+            _matrix = expm(phase * _matrix)
+
+            return self.cast(_matrix, dtype=_matrix.dtype)
+
+        expd = self.np.exp(phase * eigenvalues)
+        ud = self.np.transpose(self.np.conj(eigenvectors))
+
+        return (eigenvectors * expd) @ ud
 
     def calculate_matrix_power(
         self, matrix, power: Union[float, int], precision_singularity: float = 1e-14
