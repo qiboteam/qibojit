@@ -1,7 +1,7 @@
 from typing import Union
 
 import numpy as np
-from qibo.backends.numpy import NumpyBackend, _calculate_negative_power_singular_matrix
+from qibo.backends.numpy import NumpyBackend
 from qibo.config import log, raise_error
 
 from qibojit.backends.cpu import NumbaBackend
@@ -178,21 +178,22 @@ class CupyBackend(NumbaBackend):  # pragma: no cover
     def is_sparse(self, x):
         return self.sparse.issparse(x) or self.npsparse.issparse(x)
 
-    def zero_state(self, nqubits):
+    def zero_state(self, nqubits, density_matrix: bool = False):
         n = 1 << nqubits
+        shape = n * n if density_matrix else n
         kernel = self.gates.get(f"initial_state_kernel_{self.dtype}")
-        state = self.cp.zeros(n, dtype=self.dtype)
+        state = self.cp.zeros(shape, dtype=self.dtype)
         kernel((1,), (1,), [state])
         self.cp.cuda.stream.get_current_stream().synchronize()
-        return state
+        return state.reshape((n, n)) if density_matrix else state
 
-    def zero_density_matrix(self, nqubits):
-        n = 1 << nqubits
-        kernel = self.gates.get(f"initial_state_kernel_{self.dtype}")
-        state = self.cp.zeros(n * n, dtype=self.dtype)
-        kernel((1,), (1,), [state])
-        self.cp.cuda.stream.get_current_stream().synchronize()
-        return state.reshape((n, n))
+    # def zero_density_matrix(self, nqubits):
+    #     n = 1 << nqubits
+    #     kernel = self.gates.get(f"initial_state_kernel_{self.dtype}")
+    #     state = self.cp.zeros(n * n, dtype=self.dtype)
+    #     kernel((1,), (1,), [state])
+    #     self.cp.cuda.stream.get_current_stream().synchronize()
+    #     return state.reshape((n, n))
 
     def identity_density_matrix(self, nqubits, normalize: bool = True):
         n = 1 << nqubits
@@ -440,14 +441,19 @@ class CupyBackend(NumbaBackend):  # pragma: no cover
                 "different device configuration and try again.",
             )
 
-    def calculate_probabilities(self, state, qubits, nqubits):
+    def calculate_probabilities(
+        self, state, qubits, nqubits: int, density_matrix: bool = False
+    ):
         try:
-            probs = super().calculate_probabilities(state, qubits, nqubits)
+            probs = super().calculate_probabilities(
+                state, qubits, nqubits, density_matrix
+            )
         except MemoryError:
             # fall back to CPU
             probs = super().calculate_probabilities(
-                self.to_numpy(state), qubits, nqubits
+                self.to_numpy(state), qubits, nqubits, density_matrix
             )
+
         return probs
 
     def sample_shots(self, probabilities, nshots):
@@ -565,7 +571,7 @@ class CupyBackend(NumbaBackend):  # pragma: no cover
             # negative powers of singular matrices via SVD
             determinant = self.cp.linalg.det(matrix)
             if abs(determinant) < precision_singularity:
-                return _calculate_negative_power_singular_matrix(
+                return self._negative_power_singular_matrix(
                     matrix, power, precision_singularity, self.cp, self
                 )
 

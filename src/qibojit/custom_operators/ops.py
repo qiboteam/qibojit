@@ -80,7 +80,6 @@ def collapse_state(state, qubits, result, nqubits):
     cache=True,
 )
 def collapse_state_normalized(state, qubits, result, nqubits):
-    # qubits = tuple(qubits)
     nstates = 1 << (nqubits - len(qubits))
     nsubstates = 1 << len(qubits)
 
@@ -124,9 +123,6 @@ def measure_frequencies(frequencies, probs, nshots, nqubits, seed, nthreads):
         np.random.seed(thread_seed[n])
         shot = probs.argmax()
         for i in range(thread_nshots[n]):
-            # if i == 0:
-            #     # Initial bitstring is the one with the maximum probability
-            #     shot = probs.argmax()
             new_shot = (shot + np.random.randint(0, nstates)) % nstates
             # accept or reject move
             if probs[new_shot] / probs[shot] > np.random.random():
