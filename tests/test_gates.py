@@ -1,9 +1,8 @@
 import numpy as np
 import pytest
-from qibo import gates
+from qibo import Circuit, gates
 from qibo.backends import NumpyBackend
 from qibo.config import PRECISION_TOL
-from qibo.models import Circuit
 from qibo.quantum_info import (
     random_density_matrix,
     random_statevector,
@@ -322,6 +321,19 @@ def test_apply_fsim(backend, nqubits, targets, controls, dtype):
     backend.assert_allclose(state, target_state, atol=ATOL.get(dtype))
 
 
+@pytest.mark.parametrize("nqubits", [2, 3, 4])
+def test_apply_fanout(backend, nqubits):
+    tbackend = NumpyBackend()
+    state = random_statevector(2**nqubits, backend=tbackend)
+    gate = gates.FanOut(*range(nqubits))
+
+    backend.assert_allclose(gate.matrix(backend), gate.matrix(tbackend))
+
+    target_state = tbackend.apply_gate(gate, np.copy(state), nqubits)
+    state = backend.apply_gate(gate, np.copy(state), nqubits)
+    backend.assert_allclose(state, target_state, atol=PRECISION_TOL)
+
+
 @pytest.mark.parametrize(
     ("nqubits", "targets", "controls"),
     [
@@ -412,11 +424,11 @@ def test_gates_on_circuit(backend, gatename, density_matrix):
     else:
         state = random_statevector(2**1, backend=tbackend)
 
-    c = Circuit(1, density_matrix=density_matrix)
-    c.add(getattr(gates, gatename)(0))
+    circuit = Circuit(1, density_matrix=density_matrix)
+    circuit.add(getattr(gates, gatename)(0))
 
-    target_state = tbackend.execute_circuit(c, np.copy(state))
-    final_state = backend.execute_circuit(c, np.copy(state))
+    target_state = tbackend.execute_circuit(circuit, np.copy(state))
+    final_state = backend.execute_circuit(circuit, np.copy(state))
     backend.assert_allclose(final_state, target_state)
 
 
@@ -434,8 +446,6 @@ def test_gates_on_circuit(backend, gatename, density_matrix):
 )
 @pytest.mark.parametrize("density_matrix", [False, True])
 def test_parametrized_gates_on_circuit(backend, gatename, params, density_matrix):
-    from qibo.models import Circuit
-
     tbackend = NumpyBackend()
     if density_matrix:
         state = random_density_matrix(2**2, backend=tbackend)
