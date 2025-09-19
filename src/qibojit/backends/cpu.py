@@ -141,7 +141,7 @@ class NumbaBackend(NumpyBackend):
         name = gate.__class__.__name__
         _matrix = getattr(self.custom_matrices, name)
 
-        if callable(_matrix) and name == "FanOut":
+        if name == "FanOut":
             return _matrix(*gate.init_args)
 
         if isinstance(gate, ParametrizedGate):
@@ -150,6 +150,7 @@ class NumbaBackend(NumpyBackend):
                 theta = gate.init_kwargs["theta"]
                 phi = gate.init_kwargs["phi"]
                 return _matrix(gate.init_args[0], gate.init_args[1], theta, phi)
+
             return _matrix(*gate.parameters)
 
         if isinstance(gate, FusedGate):  # pragma: no cover
@@ -164,6 +165,9 @@ class NumbaBackend(NumpyBackend):
         targets = gate.target_qubits
         state = self.cast(state, dtype=state.dtype)
 
+        if gate.name == "fanout":
+            return self._apply_fanout_gate(gate, state, nqubits)
+
         if len(targets) == 1:
             op = GATE_OPS.get(gate.__class__.__name__, "apply_gate")
             return self.one_qubit_base(state, nqubits, *targets, op, matrix, qubits)
@@ -173,6 +177,20 @@ class NumbaBackend(NumpyBackend):
             return self.two_qubit_base(state, nqubits, *targets, op, matrix, qubits)
 
         return self.multi_qubit_base(state, nqubits, targets, matrix, qubits)
+
+    def _apply_fanout_gate(self, gate, state, nqubits):
+        from qibo import gates  # pylint: disable=import-outside-toplevel
+
+        control, targets = gate.control_qubits[0], gate.target_qubits
+
+        for target in targets:
+            gate = gates.CNOT(control, target)
+            matrix = self._as_custom_matrix(gate)
+            qubits = self._create_qubits_tensor(gate, nqubits)
+            op = GATE_OPS.get("CNOT")
+            state = self.one_qubit_base(state, nqubits, target, op, matrix, qubits)
+
+        return state
 
     def apply_gate_density_matrix(self, gate, state, nqubits, inverse=False):
         name = gate.__class__.__name__

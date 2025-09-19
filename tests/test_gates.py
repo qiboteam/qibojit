@@ -322,11 +322,13 @@ def test_apply_fsim(backend, nqubits, targets, controls, dtype):
     backend.assert_allclose(state, target_state, atol=ATOL.get(dtype))
 
 
-@pytest.mark.parametrize("nqubits", [3])
+@pytest.mark.parametrize("nqubits", [2, 3, 4])
 def test_apply_fanout(backend, nqubits):
     tbackend = NumpyBackend()
     state = random_statevector(2**nqubits, backend=tbackend)
     gate = gates.FanOut(*range(nqubits))
+
+    backend.assert_allclose(gate.matrix(backend), gate.matrix(tbackend))
 
     target_state = tbackend.apply_gate(gate, np.copy(state), nqubits)
     state = backend.apply_gate(gate, np.copy(state), nqubits)
