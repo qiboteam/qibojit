@@ -1,6 +1,5 @@
 import numpy as np
 import pytest
-
 from qibo import Circuit, gates
 from qibo.backends import NumpyBackend
 from qibo.config import PRECISION_TOL
