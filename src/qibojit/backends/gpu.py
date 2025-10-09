@@ -1,9 +1,8 @@
 from typing import Union
 
 import numpy as np
-from scipy import sparse
-
 from qibo.config import log, raise_error
+from scipy import sparse
 
 from qibojit.backends.cpu import NumbaBackend
 from qibojit.backends.matrices import (
@@ -299,7 +298,8 @@ class CupyBackend(NumbaBackend):  # pragma: no cover
             )
         nactive = len(qubits)
         targets = self.engine.asarray(
-            tuple(1 << (nqubits - t - 1) for t in targets[::-1]), dtype=self.engine.int64
+            tuple(1 << (nqubits - t - 1) for t in targets[::-1]),
+            dtype=self.engine.int64,
         )
         nstates = 1 << (nqubits - nactive)
         nsubstates = 1 << ntargets
@@ -342,7 +342,9 @@ class CupyBackend(NumbaBackend):  # pragma: no cover
         self.engine.cuda.stream.get_current_stream().synchronize()
 
         if normalize:
-            norm = self.engine.sqrt(self.engine.sum(self.engine.square(self.engine.abs(state))))
+            norm = self.engine.sqrt(
+                self.engine.sum(self.engine.square(self.engine.abs(state)))
+            )
             state = state / norm
         return state
 
@@ -882,7 +884,9 @@ class CuQuantumBackend(CupyBackend):  # pragma: no cover
             )
 
         if normalize:
-            norm = self.engine.sqrt(self.engine.sum(self.engine.square(self.engine.abs(state))))
+            norm = self.engine.sqrt(
+                self.engine.sum(self.engine.square(self.engine.abs(state)))
+            )
             state = state / norm
 
         return state
