@@ -2,7 +2,8 @@ import sys
 from collections import Counter
 from typing import List, Tuple, Union
 
-from qibo.backends import NumpyBackend
+import numpy as np
+from qibo.backends import Backend
 from qibo.config import SHOT_METROPOLIS_THRESHOLD
 from qibo.gates.abstract import ParametrizedGate
 from qibo.gates.special import FusedGate
@@ -25,13 +26,11 @@ GATE_OPS = {
 }
 
 
-class NumbaBackend(NumpyBackend):
+class NumbaBackend(Backend):
     def __init__(self):
         super().__init__()
+        import numba  # pylint: disable=import-outside-toplevel
         import psutil  # pylint: disable=import-outside-toplevel
-        from numba import (
-            __version__ as numba_version,  # pylint: disable=import-outside-toplevel
-        )
 
         from qibojit import (
             __version__ as qibojit_version,  # pylint: disable=import-outside-toplevel
@@ -40,6 +39,8 @@ class NumbaBackend(NumpyBackend):
             gates,
             ops,
         )
+
+        self.engine = numba
 
         self.custom_matrices = CustomMatrices(self.dtype)
         self.device = "/CPU:0"
@@ -55,7 +56,7 @@ class NumbaBackend(NumpyBackend):
         self.versions.update(
             {
                 "qibojit": qibojit_version,
-                "numba": numba_version,
+                "numba": self.engine._version,
             }
         )
 
@@ -261,9 +262,26 @@ class NumbaBackend(NumpyBackend):
         )
         return self.reshape(state, shape)
 
+    def _apply_fanout_gate(self, gate, state, nqubits):
+        from qibo import gates  # pylint: disable=import-outside-toplevel
+
+        control, targets = gate.control_qubits[0], gate.target_qubits
+
+        for target in targets:
+            gate = gates.CNOT(control, target)
+            matrix = self._as_custom_matrix(gate)
+            qubits = self._create_qubits_tensor(gate, nqubits)
+            op = GATE_OPS.get("CNOT")
+            state = self.one_qubit_base(state, nqubits, target, op, matrix, qubits)
+
+        return state
+
     def _as_custom_matrix(self, gate):
         name = gate.__class__.__name__
         _matrix = getattr(self.custom_matrices, name)
+
+        if name == "FanOut":
+            return _matrix(*gate.init_args)
 
         if isinstance(gate, ParametrizedGate):
             if name == "GeneralizedRBS":  # pragma: no cover
@@ -271,6 +289,7 @@ class NumbaBackend(NumpyBackend):
                 theta = gate.init_kwargs["theta"]
                 phi = gate.init_kwargs["phi"]
                 return _matrix(gate.init_args[0], gate.init_args[1], theta, phi)
+
             return _matrix(*gate.parameters)
 
         if isinstance(gate, FusedGate):  # pragma: no cover
@@ -288,15 +307,6 @@ class NumbaBackend(NumpyBackend):
         normalize: bool = True,
     ):
         state = self.cast(state, dtype=state.dtype)
-        shape = state.shape
-        dm_qubits = [qubit + nqubits for qubit in qubits]
-        state = self._collapse_statevector(
-            state.ravel(), dm_qubits, shot, 2 * nqubits, normalize=False
-        )
-        state = self._collapse_statevector(
-            state, qubits, shot, 2 * nqubits, normalize=False
-        )
-        state = self.reshape(state, shape)
 
         if normalize:
             state = state / self.trace(state)
