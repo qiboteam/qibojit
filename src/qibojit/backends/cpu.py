@@ -41,6 +41,7 @@ class NumbaBackend(Backend):
         )
 
         self.engine = np
+        self.ops = ops
 
         self.tensor_types = (self.engine.ndarray,)
         self.numeric_types += (
@@ -58,12 +59,12 @@ class NumbaBackend(Backend):
         self.device = "/CPU:0"
         self.gates = gates
         self.name = "qibojit"
+        self.measure_frequencies_op = self.ops.measure_frequencies
         self.multi_qubit_kernels = {
             3: self.gates.apply_three_qubit_gate_kernel,
             4: self.gates.apply_four_qubit_gate_kernel,
             5: self.gates.apply_five_qubit_gate_kernel,
         }
-        self.ops = ops
         self.platform = "numba"
         self.versions.update(
             {
@@ -72,12 +73,22 @@ class NumbaBackend(Backend):
             }
         )
 
-        self.measure_frequencies_op = self.ops.measure_frequencies
-
         if sys.platform == "darwin":  # pragma: no cover
             self.set_threads(psutil.cpu_count(logical=False))
         else:
             self.set_threads(len(psutil.Process().cpu_affinity()))
+
+    def cast(self, x, dtype=None, copy: bool = False):
+        if dtype is None:
+            dtype = self.dtype
+
+        if isinstance(x, self.tensor_types):
+            return x.astype(dtype, copy=copy)
+
+        if self.is_sparse(x):
+            return x.astype(dtype, copy=copy)
+
+        return self.engine.asarray(x, dtype=dtype, copy=copy if copy else None)
 
     def set_dtype(self, dtype):
         if dtype != self.dtype:
@@ -91,18 +102,6 @@ class NumbaBackend(Backend):
 
         numba.set_num_threads(nthreads)
         self.nthreads = nthreads
-
-    def cast(self, x, dtype=None, copy: bool = False):
-        if dtype is None:
-            dtype = self.dtype
-
-        if isinstance(x, self.tensor_types):
-            return x.astype(dtype, copy=copy)
-
-        if self.is_sparse(x):
-            return x.astype(dtype, copy=copy)
-
-        return self.engine.asarray(x, dtype=dtype, copy=copy if copy else None)
 
     def to_numpy(self, array):
         if self.is_sparse(array):
@@ -213,6 +212,20 @@ class NumbaBackend(Backend):
                 state = self.apply_gate(gate, state, nqubits, inverse=True)
         return new_state
 
+    def _apply_fanout_gate(self, gate, state, nqubits):
+        from qibo import gates  # pylint: disable=import-outside-toplevel
+
+        control, targets = gate.control_qubits[0], gate.target_qubits
+
+        for target in targets:
+            gate = gates.CNOT(control, target)
+            matrix = self._as_custom_matrix(gate)
+            qubits = self._create_qubits_tensor(gate, nqubits)
+            op = GATE_OPS.get("CNOT")
+            state = self.one_qubit_base(state, nqubits, target, op, matrix, qubits)
+
+        return state
+
     def _apply_gate(self, gate, state, nqubits):
         matrix = self._as_custom_matrix(gate)
         qubits = self._create_qubits_tensor(gate, nqubits)
@@ -291,20 +304,6 @@ class NumbaBackend(Backend):
             state, 2 * nqubits, *targets_dm, "apply_gate", self.conj(matrix), qubits
         )
         return self.reshape(state, shape)
-
-    def _apply_fanout_gate(self, gate, state, nqubits):
-        from qibo import gates  # pylint: disable=import-outside-toplevel
-
-        control, targets = gate.control_qubits[0], gate.target_qubits
-
-        for target in targets:
-            gate = gates.CNOT(control, target)
-            matrix = self._as_custom_matrix(gate)
-            qubits = self._create_qubits_tensor(gate, nqubits)
-            op = GATE_OPS.get("CNOT")
-            state = self.one_qubit_base(state, nqubits, target, op, matrix, qubits)
-
-        return state
 
     def _as_custom_matrix(self, gate):
         name = gate.__class__.__name__
