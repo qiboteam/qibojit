@@ -42,6 +42,17 @@ class NumbaBackend(Backend):
 
         self.engine = np
 
+        self.tensor_types = (self.engine.ndarray,)
+        self.numeric_types += (
+            self.int8,
+            self.int32,
+            self.int64,
+            self.float32,
+            self.float64,
+            self.complex64,
+            self.complex128,
+        )
+
         self.matrices = NumpyMatrices(self.dtype)
         self.custom_matrices = CustomMatrices(self.dtype)
         self.device = "/CPU:0"
@@ -80,6 +91,23 @@ class NumbaBackend(Backend):
 
         numba.set_num_threads(nthreads)
         self.nthreads = nthreads
+
+    def cast(self, x, dtype=None, copy: bool = False):
+        if dtype is None:
+            dtype = self.dtype
+
+        if isinstance(x, self.tensor_types):
+            return x.astype(dtype, copy=copy)
+
+        if self.is_sparse(x):
+            return x.astype(dtype, copy=copy)
+
+        return self.engine.asarray(x, dtype=dtype, copy=copy if copy else None)
+
+    def to_numpy(self, array):
+        if self.is_sparse(array):
+            return array.toarray()
+        return array
 
     def zero_state(self, nqubits, density_matrix: bool = False, dtype=None):
         if dtype is None:
