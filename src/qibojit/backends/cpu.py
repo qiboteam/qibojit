@@ -3,7 +3,7 @@ from collections import Counter
 from typing import List, Tuple, Union
 
 import numpy as np
-from qibo.backends import Backend
+from qibo.backends import Backend, NumpyMatrices
 from qibo.config import SHOT_METROPOLIS_THRESHOLD
 from qibo.gates.abstract import ParametrizedGate
 from qibo.gates.special import FusedGate
@@ -40,8 +40,9 @@ class NumbaBackend(Backend):
             ops,
         )
 
-        self.engine = numba
+        self.engine = np
 
+        self.matrices = NumpyMatrices(self.dtype)
         self.custom_matrices = CustomMatrices(self.dtype)
         self.device = "/CPU:0"
         self.gates = gates
@@ -56,7 +57,7 @@ class NumbaBackend(Backend):
         self.versions.update(
             {
                 "qibojit": qibojit_version,
-                "numba": self.engine._version,
+                "numba": numba.__version__,
             }
         )
 
@@ -70,6 +71,7 @@ class NumbaBackend(Backend):
     def set_dtype(self, dtype):
         if dtype != self.dtype:
             super().set_dtype(dtype)
+            self.matrices = NumpyMatrices(self.dtype)
             if self.custom_matrices:
                 self.custom_matrices = CustomMatrices(self.dtype)
 
