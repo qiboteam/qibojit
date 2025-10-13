@@ -650,7 +650,7 @@ def _random_outcome(state, p, q, nqubits):
     h = state[:-1, q].nonzero()[0]
     state[p, q] = tmp
     if h.shape[0] > 0:
-        # dim = state.shape[1]
+        dim = state.shape[1]
         # state = _pack_for_measurements(state, nqubits)
         # dim = state.shape[1]
         state = _rowsum(
@@ -661,6 +661,7 @@ def _random_outcome(state, p, q, nqubits):
             False,
         )
         # state = _unpack_for_measurements(state.reshape(-1, dim), nqubits)
+        state = state.reshape(-1, dim)
     state[p - nqubits, :] = state[p, :]
     outcome = cp.random.randint(2, size=None, dtype=cp.uint)
     state[p, :] = 0
@@ -683,6 +684,7 @@ def _determined_outcome(state, q, nqubits):
         nqubits,  # _packed_size(nqubits),
         True,
     )
+    state = state.reshape(-1, dim)
     # state = _unpack_for_measurements(state.reshape(-1, dim), nqubits)
     return state, state[-1, -1]
 
