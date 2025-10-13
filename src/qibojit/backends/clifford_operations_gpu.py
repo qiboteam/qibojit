@@ -651,16 +651,16 @@ def _random_outcome(state, p, q, nqubits):
     state[p, q] = tmp
     if h.shape[0] > 0:
         dim = state.shape[1]
-        state = _pack_for_measurements(state, nqubits)
-        dim = state.shape[1]
+        # state = _pack_for_measurements(state, nqubits)
+        # dim = state.shape[1]
         state = _rowsum(
             state.ravel(),
             h,
             p.astype(cp.uint) * cp.ones(h.shape[0], dtype=np.uint),
-            _packed_size(nqubits),
+            nqubits,  # _packed_size(nqubits),
             False,
         )
-        state = _unpack_for_measurements(state.reshape(-1, dim), nqubits)
+        # state = _unpack_for_measurements(state.reshape(-1, dim), nqubits)
     state[p - nqubits, :] = state[p, :]
     outcome = cp.random.randint(2, size=None, dtype=cp.uint)
     state[p, :] = 0
@@ -672,21 +672,23 @@ def _random_outcome(state, p, q, nqubits):
 def _determined_outcome(state, q, nqubits):
     state[-1, :] = 0
     idx = (state[:nqubits, q].nonzero()[0] + nqubits).astype(np.uint)
-    state = _pack_for_measurements(state, nqubits)
+    if len(idx) == 0:
+        return state, state[-1, -1]
+    # state = _pack_for_measurements(state, nqubits)
     dim = state.shape[1]
     state = _rowsum(
         state.ravel(),
         (2 * nqubits * cp.ones(idx.shape, dtype=np.uint)).astype(np.uint),
         idx.astype(np.uint),
-        _packed_size(nqubits),
+        nqubits,  # _packed_size(nqubits),
         True,
     )
-    state = _unpack_for_measurements(state.reshape(-1, dim), nqubits)
+    # state = _unpack_for_measurements(state.reshape(-1, dim), nqubits)
     return state, state[-1, -1]
 
 
-_packbits = """
-__global__ void _packbits(const char* input, char* output, const int axis, const int nrows, const int ncols) {
+_packbits_kernel = """
+__global__ void _packbits(const char* input, char* output, const int& axis, const int& nrows, const int& ncols) {
     unsigned int tid_x = blockIdx.x * blockDim.x + threadIdx.x;
     unsigned int bid_y = blockIdx.y;
     unsigned int ntid_x = gridDim.x * blockDim.x;
@@ -710,9 +712,10 @@ __global__ void _packbits(const char* input, char* output, const int axis, const
 }
 """
 
-_packbits = cp.RawKernel(_packbits, "_packbits", options=("--std=c++11",))
+_packbits_kernel = cp.RawKernel(_packbits_kernel, "_packbits", options=("--std=c++11",))
 
-_get_rxz = """
+
+_get_rxz_kernel = """
 __global__ void _get_rxz(const char* symplectic_matrix, const char* r, const char* x, const char* z, unsigned int nqubits) {
     unsigned int tid_x = blockIdx.x * blockDim.x + threadIdx.x;
     unsigned int bid_y = blockIdx.y;
@@ -728,35 +731,37 @@ __global__ void _get_rxz(const char* symplectic_matrix, const char* r, const cha
             unsigned int idx = row_idx + col_idx * (N + 1);
             unsigned int col = idx % (N + 1);
             if (col < nqubits) {
-                x[idx] = symplectic_matrix[idx]
+                x[idx] = symplectic_matrix[idx];
             } else if (col < N + 1) {
-                z[idx] = symplectic_matrix[idx]
+                z[idx] = symplectic_matrix[idx];
             } else if (col == N + 1) {
-                r[idx] = symplectic_matrix[idx]
+                r[idx] = symplectic_matrix[idx];
             }
         }
     }
 }
 """
 
-_pack_for_measurements = """
-__global__ void _pack_for_measurements(const char* symplectic_matrix, )
+
+_pack_for_measurements_kernel = """
 """
 
 
 def _packbits(array, axis):
     # cupy.packbits doesn't support axis yet
+    """
     array = cp.swapaxes(array, axis, -1)
     shape = array.shape
     n = shape[-1]
-    dim = array[:-1].size
+    dim = np.prod(array.shape[:-1])
     array = cp.reshape(array, (dim, n))
     packed_len = (n + 7) // 8
     out = cp.zeros((dim, packed_len), dtype=cp.uint8)
-    pack_column_bits(GRIDDIM_2D, (BLOCKDIM,), (array, out, dim, n))
+    _packbits_kernel(GRIDDIM_2D, (BLOCKDIM,), (array, out, dim, n))
     out = cp.reshape(out, shape[:-1] + (packed_len,))
     return cp.swapaxes(out, axis, -1)
-    # return cp.array(numpy.packbits(array.get(), axis=axis), dtype=cp.uint8)
+    """
+    return cp.array(numpy.packbits(array.get(), axis=axis), dtype=cp.uint8)
 
 
 def _unpackbits(array, axis, count):
