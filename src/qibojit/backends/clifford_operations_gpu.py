@@ -722,16 +722,16 @@ __global__ void _get_rxz(const char* symplectic_matrix, const char* r, const cha
     unsigned int N = 2 * nqubits;
 
     unsigned int _row_idx = bid_y;
-    unsigned int _col_idx = tid_idx * ncols;
-    for (unsigned int row_idx = _tid_idx * ncols; row_idx < N; row_idx + ntid_x) {
-        for (unsigned int col_idx = _col_idx; col_idx < N + 1; col_idx + nbid_y) {
-            unsigned int idx = row_idx + col_idx;
-            unsigned int col = col_idx % (N + 1);
+    unsigned int _col_idx = tid_x;
+    for (unsigned int row_idx = _row_idx; row_idx < N; row_idx + nbid_y) {
+        for (unsigned int col_idx = _col_idx; col_idx < N + 1; col_idx + nbid_x) {
+            unsigned int idx = row_idx + col_idx * (N + 1);
+            unsigned int col = idx % (N + 1);
             if (col < nqubits) {
                 x[idx] = symplectic_matrix[idx]
-            } else if (col < N) {
+            } else if (col < N + 1) {
                 z[idx] = symplectic_matrix[idx]
-            } else {
+            } else if (col == N + 1) {
                 r[idx] = symplectic_matrix[idx]
             }
         }
