@@ -570,6 +570,9 @@ def CY(symplectic_matrix, control_q, target_q, nqubits):
     return symplectic_matrix
 
 
+# this is not perfoming the packing unpacking of the bits
+# as numba and numpy do, in order to do that one would need to
+# write custom cuda kernels for un/packbits and _un/pack_for_measurements
 _apply_rowsum = """
 __device__ void _apply_rowsum(unsigned char* symplectic_matrix, const long* h, const long* i, const int& nqubits, const bool& determined, const int& nrows, long* g_exp, const int& dim) {
     unsigned int tid_x = blockIdx.x * blockDim.x + threadIdx.x;
@@ -651,16 +654,14 @@ def _random_outcome(state, p, q, nqubits):
     state[p, q] = tmp
     if h.shape[0] > 0:
         dim = state.shape[1]
-        state = _pack_for_measurements(state, nqubits)
-        dim = state.shape[1]
         state = _rowsum(
             state.ravel(),
             h,
             p.astype(cp.uint) * cp.ones(h.shape[0], dtype=np.uint),
-            _packed_size(nqubits),
+            nqubits,
             False,
         )
-        state = _unpack_for_measurements(state.reshape(-1, dim), nqubits)
+        state = state.reshape(-1, dim)
     state[p - nqubits, :] = state[p, :]
     outcome = cp.random.randint(2, size=None, dtype=cp.uint)
     state[p, :] = 0
@@ -672,16 +673,17 @@ def _random_outcome(state, p, q, nqubits):
 def _determined_outcome(state, q, nqubits):
     state[-1, :] = 0
     idx = (state[:nqubits, q].nonzero()[0] + nqubits).astype(np.uint)
-    state = _pack_for_measurements(state, nqubits)
+    if len(idx) == 0:
+        return state, state[-1, -1]
     dim = state.shape[1]
     state = _rowsum(
         state.ravel(),
         (2 * nqubits * cp.ones(idx.shape, dtype=np.uint)).astype(np.uint),
         idx.astype(np.uint),
-        _packed_size(nqubits),
+        nqubits,
         True,
     )
-    state = _unpack_for_measurements(state.reshape(-1, dim), nqubits)
+    state = state.reshape(-1, dim)
     return state, state[-1, -1]
 
 

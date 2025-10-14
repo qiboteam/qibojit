@@ -22,8 +22,7 @@ classifiers = [
 [tool.poetry.dependencies]
 python = ">=3.10,<3.14"
 numba = "^0.61.0"
-#qibo = "^0.2.18"
-qibo = { git = "https://github.com/qiboteam/qibo", branch="qinfo_jit" }
+qibo = { git = "https://github.com/qiboteam/qibo", branch="clifford_measurement_fix" }
 scipy = "^1.10.1"
 psutil = "^5.9.5"
 cupy-cuda12x = { version = "^13.1.0", optional = true }
