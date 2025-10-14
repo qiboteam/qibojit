@@ -570,6 +570,9 @@ def CY(symplectic_matrix, control_q, target_q, nqubits):
     return symplectic_matrix
 
 
+# this is not perfoming the packing unpacking of the bits
+# as numba and numpy do, in order to do that one would need to
+# write custom cuda kernels for un/packbits and _un/pack_for_measurements
 _apply_rowsum = """
 __device__ void _apply_rowsum(unsigned char* symplectic_matrix, const long* h, const long* i, const int& nqubits, const bool& determined, const int& nrows, long* g_exp, const int& dim) {
     unsigned int tid_x = blockIdx.x * blockDim.x + threadIdx.x;
@@ -651,16 +654,13 @@ def _random_outcome(state, p, q, nqubits):
     state[p, q] = tmp
     if h.shape[0] > 0:
         dim = state.shape[1]
-        # state = _pack_for_measurements(state, nqubits)
-        # dim = state.shape[1]
         state = _rowsum(
             state.ravel(),
             h,
             p.astype(cp.uint) * cp.ones(h.shape[0], dtype=np.uint),
-            nqubits,  # _packed_size(nqubits),
+            nqubits,
             False,
         )
-        # state = _unpack_for_measurements(state.reshape(-1, dim), nqubits)
         state = state.reshape(-1, dim)
     state[p - nqubits, :] = state[p, :]
     outcome = cp.random.randint(2, size=None, dtype=cp.uint)
@@ -675,94 +675,20 @@ def _determined_outcome(state, q, nqubits):
     idx = (state[:nqubits, q].nonzero()[0] + nqubits).astype(np.uint)
     if len(idx) == 0:
         return state, state[-1, -1]
-    # state = _pack_for_measurements(state, nqubits)
     dim = state.shape[1]
     state = _rowsum(
         state.ravel(),
         (2 * nqubits * cp.ones(idx.shape, dtype=np.uint)).astype(np.uint),
         idx.astype(np.uint),
-        nqubits,  # _packed_size(nqubits),
+        nqubits,
         True,
     )
     state = state.reshape(-1, dim)
-    # state = _unpack_for_measurements(state.reshape(-1, dim), nqubits)
     return state, state[-1, -1]
-
-
-_packbits_kernel = """
-__global__ void _packbits(const char* input, char* output, const int& axis, const int& nrows, const int& ncols) {
-    unsigned int tid_x = blockIdx.x * blockDim.x + threadIdx.x;
-    unsigned int bid_y = blockIdx.y;
-    unsigned int ntid_x = gridDim.x * blockDim.x;
-    unsigned int nbid_y = gridDim.y;
-
-    if (axis == 0) {
-        unsigned int _row_idx = bid_y;
-        unsigned int _col_idx = tid_idx * ncols;
-    } else {
-        unsigned int _col_idx = bid_y;
-        unsigned int _row_idx = tid_idx * ncols;
-    }
-
-    for (unsigned int row_idx = _tid_idx * ncols; row_idx < nrows; row_idx + ntid_x) {
-        for (unsigned int col_idx = _col_idx; col_idx < ncols; col_idx + nbid_y) {
-            char byte_idx = col_idx // 8;
-            char bit_idx = 7 - (col_idx % 8);
-            output[row_idx + byte_idx] |= input[row_idx + col_idx] << bit_idx;
-        }
-    }
-}
-"""
-
-_packbits_kernel = cp.RawKernel(_packbits_kernel, "_packbits", options=("--std=c++11",))
-
-
-_get_rxz_kernel = """
-__global__ void _get_rxz(const char* symplectic_matrix, const char* r, const char* x, const char* z, unsigned int nqubits) {
-    unsigned int tid_x = blockIdx.x * blockDim.x + threadIdx.x;
-    unsigned int bid_y = blockIdx.y;
-    unsigned int ntid_x = gridDim.x * blockDim.x;
-    unsigned int nbid_y = gridDim.y;
-
-    unsigned int N = 2 * nqubits;
-
-    unsigned int _row_idx = bid_y;
-    unsigned int _col_idx = tid_x;
-    for (unsigned int row_idx = _row_idx; row_idx < N; row_idx + nbid_y) {
-        for (unsigned int col_idx = _col_idx; col_idx < N + 1; col_idx + nbid_x) {
-            unsigned int idx = row_idx + col_idx * (N + 1);
-            unsigned int col = idx % (N + 1);
-            if (col < nqubits) {
-                x[idx] = symplectic_matrix[idx];
-            } else if (col < N + 1) {
-                z[idx] = symplectic_matrix[idx];
-            } else if (col == N + 1) {
-                r[idx] = symplectic_matrix[idx];
-            }
-        }
-    }
-}
-"""
-
-
-_pack_for_measurements_kernel = """
-"""
 
 
 def _packbits(array, axis):
     # cupy.packbits doesn't support axis yet
-    """
-    array = cp.swapaxes(array, axis, -1)
-    shape = array.shape
-    n = shape[-1]
-    dim = np.prod(array.shape[:-1])
-    array = cp.reshape(array, (dim, n))
-    packed_len = (n + 7) // 8
-    out = cp.zeros((dim, packed_len), dtype=cp.uint8)
-    _packbits_kernel(GRIDDIM_2D, (BLOCKDIM,), (array, out, dim, n))
-    out = cp.reshape(out, shape[:-1] + (packed_len,))
-    return cp.swapaxes(out, axis, -1)
-    """
     return cp.array(numpy.packbits(array.get(), axis=axis), dtype=cp.uint8)
 
 
