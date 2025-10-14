@@ -8,7 +8,12 @@ def set_seed(seed):
 
 
 @njit(
-    ["complex64[:](complex64[:])", "complex128[:](complex128[:])"],
+    [
+        "float32[:](float32[:])",
+        "float64[:](float64[:])",
+        "complex64[:](complex64[:])",
+        "complex128[:](complex128[:])",
+    ],
     parallel=True,
     cache=True,
 )
@@ -20,7 +25,12 @@ def initial_state_vector(state):
 
 
 @njit(
-    ["complex64[:,:](complex64[:,:])", "complex128[:,:](complex128[:,:])"],
+    [
+        "float32[:,:](float32[:,:])",
+        "float64[:,:](float64[:,:])",
+        "complex64[:,:](complex64[:,:])",
+        "complex128[:,:](complex128[:,:])",
+    ],
     parallel=True,
     cache=True,
 )
@@ -44,6 +54,8 @@ def collapse_index(g, h, qubits):
 
 @njit(
     [
+        "float32[:](float32[:], int32[:], int32, int32)",
+        "float64[:](float64[:], int32[:], int64, int64)",
         "complex64[:](complex64[:], int32[:], int64, int64)",
         "complex128[:](complex128[:], int32[:], int64, int64)",
     ],
@@ -51,7 +63,6 @@ def collapse_index(g, h, qubits):
     cache=True,
 )
 def collapse_state(state, qubits, result, nqubits):
-    # qubits = tuple(qubits)
     nstates = 1 << (nqubits - len(qubits))
     nsubstates = 1 << len(qubits)
 
@@ -65,6 +76,8 @@ def collapse_state(state, qubits, result, nqubits):
 
 @njit(
     [
+        "float32[:](float32[:], int32[:], int32, int32)",
+        "float64[:](float64[:], int32[:], int64, int64)",
         "complex64[:](complex64[:], int32[:], int64, int64)",
         "complex128[:](complex128[:], int32[:], int64, int64)",
     ],
@@ -147,6 +160,8 @@ def transpose_state(pieces, state, nqubits, order):
 
 @njit(
     [
+        "void(float32[:], float32[:], int32, int32)",
+        "void(float64[:], float64[:], int64, int64)",
         "void(complex64[:], complex64[:], int64, int64)",
         "void(complex128[:], complex128[:], int64, int64)",
     ],

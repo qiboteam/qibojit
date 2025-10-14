@@ -24,6 +24,7 @@ class CupyBackend(NumbaBackend):  # pragma: no cover
 
         import cupy as cp  # pylint: disable=import-error
         import cupy_backends  # pylint: disable=import-error
+        import cupyx.scipy.sparse as cp_sparse  # pylint: disable=import-error
 
         self.name = "qibojit"
         self.platform = "cupy"
@@ -45,9 +46,8 @@ class CupyBackend(NumbaBackend):  # pragma: no cover
         from scipy import sparse
 
         self.npsparse = sparse
-        self.sparse = cp.sparse
+        self.sparse = cp_sparse
         self.device = "/GPU:0"
-        self.kernel_type = "double"
         self.matrices = CupyMatrices(self.dtype)
         self.custom_matrices = CustomMatrices(self.dtype)
         self.custom_matrices._cast = self.matrices._cast
@@ -75,29 +75,43 @@ class CupyBackend(NumbaBackend):  # pragma: no cover
         self.gates = {}
         from qibojit.custom_operators import raw_kernels
 
-        def kernel_loader(name, ktype):
-            code = getattr(raw_kernels, name)
-            code = code.replace("T", f"thrust::complex<{ktype}>")
-            gate = cp.RawKernel(code, name, ("--std=c++11",))
-            self.gates[f"{name}_{ktype}"] = gate
+        type_replacements = {
+            "float32": "float",
+            "float64": "double",
+            "complex64": "thrust::complex<float>",
+            "complex128": "thrust::complex<double>",
+        }
 
-        for ktype in ("float", "double"):
+        def kernel_loader(name, dtype):
+            code = getattr(raw_kernels, name)
+            code = code.replace("T", type_replacements[dtype])
+            if name == "initial_state_kernel":
+                body = (
+                    "state[0] = 1;"
+                    if dtype in ("float32", "float64")
+                    else f"state[0] = {type_replacements[dtype]}(1, 0);"
+                )
+                code = code.replace("<BODY>", body)
+            gate = cp.RawKernel(code, name, ("--std=c++11",))
+            self.gates[f"{name}_{dtype}"] = gate
+
+        for dtype in type_replacements.keys():
             for name in self.KERNELS:
-                kernel_loader(f"{name}_kernel", ktype)
-                kernel_loader(f"multicontrol_{name}_kernel", ktype)
-            kernel_loader("collapse_state_kernel", ktype)
-            kernel_loader("initial_state_kernel", ktype)
+                kernel_loader(f"{name}_kernel", dtype)
+                kernel_loader(f"multicontrol_{name}_kernel", dtype)
+            kernel_loader("collapse_state_kernel", dtype)
+            kernel_loader("initial_state_kernel", dtype)
 
         # load multiqubit kernels
         name = "apply_multi_qubit_gate_kernel"
         for ntargets in range(3, self.MAX_NUM_TARGETS + 1):
-            for ktype in ("float", "double"):
+            for dtype, ctype in type_replacements.items():
                 code = getattr(raw_kernels, name)
-                code = code.replace("T", f"thrust::complex<{ktype}>")
+                code = code.replace("T", ctype)
                 code = code.replace("nsubstates", str(2**ntargets))
                 code = code.replace("MAX_BLOCK_SIZE", str(self.DEFAULT_BLOCK_SIZE))
                 gate = cp.RawKernel(code, name, ("--std=c++11",))
-                self.gates[f"{name}_{ktype}_{ntargets}"] = gate
+                self.gates[f"{name}_{dtype}_{ntargets}"] = gate
 
         # load numba op for measuring frequencies
         from qibojit.custom_operators.ops import measure_frequencies
@@ -113,13 +127,6 @@ class CupyBackend(NumbaBackend):  # pragma: no cover
         from cupyx.scipy.linalg import expm  # pylint: disable=import-error
 
         self.qinfo.expm = expm
-
-    def set_precision(self, precision):
-        super().set_precision(precision)
-        if self.dtype == "complex128":
-            self.kernel_type = "double"
-        elif self.dtype == "complex64":
-            self.kernel_type = "float"
 
     def set_device(self, device):
         if "GPU" not in device:
@@ -181,7 +188,7 @@ class CupyBackend(NumbaBackend):  # pragma: no cover
 
     def zero_state(self, nqubits):
         n = 1 << nqubits
-        kernel = self.gates.get(f"initial_state_kernel_{self.kernel_type}")
+        kernel = self.gates.get(f"initial_state_kernel_{self.dtype}")
         state = self.cp.zeros(n, dtype=self.dtype)
         kernel((1,), (1,), [state])
         self.cp.cuda.stream.get_current_stream().synchronize()
@@ -189,7 +196,7 @@ class CupyBackend(NumbaBackend):  # pragma: no cover
 
     def zero_density_matrix(self, nqubits):
         n = 1 << nqubits
-        kernel = self.gates.get(f"initial_state_kernel_{self.kernel_type}")
+        kernel = self.gates.get(f"initial_state_kernel_{self.dtype}")
         state = self.cp.zeros(n * n, dtype=self.dtype)
         kernel((1,), (1,), [state])
         self.cp.cuda.stream.get_current_stream().synchronize()
@@ -217,8 +224,6 @@ class CupyBackend(NumbaBackend):  # pragma: no cover
         npmatrix = super().matrix_fused(gate)
         return self.cast(npmatrix, dtype=self.dtype)
 
-    # def control_matrix(self, gate): Inherited from ``NumpyBackend``
-
     def calculate_blocks(self, nstates, block_size=DEFAULT_BLOCK_SIZE):
         """Compute the number of blocks and of threads per block.
 
@@ -245,10 +250,10 @@ class CupyBackend(NumbaBackend):  # pragma: no cover
             args = (state, tk, m, gate)
 
         if ncontrols:
-            kernel = self.gates.get(f"multicontrol_{kernel}_kernel_{self.kernel_type}")
+            kernel = self.gates.get(f"multicontrol_{kernel}_kernel_{self.dtype}")
             args += (qubits, ncontrols + 1)
         else:
-            kernel = self.gates.get(f"{kernel}_kernel_{self.kernel_type}")
+            kernel = self.gates.get(f"{kernel}_kernel_{self.dtype}")
 
         nblocks, block_size = self.calculate_blocks(nstates)
         kernel((nblocks,), (block_size,), args)
@@ -276,10 +281,10 @@ class CupyBackend(NumbaBackend):  # pragma: no cover
             assert state.dtype == args[-1].dtype
 
         if ncontrols:
-            kernel = self.gates.get(f"multicontrol_{kernel}_kernel_{self.kernel_type}")
+            kernel = self.gates.get(f"multicontrol_{kernel}_kernel_{self.dtype}")
             args += (qubits, ncontrols + 2)
         else:
-            kernel = self.gates.get(f"{kernel}_kernel_{self.kernel_type}")
+            kernel = self.gates.get(f"{kernel}_kernel_{self.dtype}")
 
         nblocks, block_size = self.calculate_blocks(nstates)
         kernel((nblocks,), (block_size,), args)
@@ -306,7 +311,7 @@ class CupyBackend(NumbaBackend):  # pragma: no cover
         nsubstates = 1 << ntargets
         nblocks, block_size = self.calculate_blocks(nstates)
         kernel = self.gates.get(
-            f"apply_multi_qubit_gate_kernel_{self.kernel_type}_{ntargets}"
+            f"apply_multi_qubit_gate_kernel_{self.dtype}_{ntargets}"
         )
         args = (state, gate, qubits, targets, ntargets, nactive)
         kernel((nblocks,), (block_size,), args)
@@ -328,16 +333,6 @@ class CupyBackend(NumbaBackend):  # pragma: no cover
         matrix = super()._as_custom_matrix(gate)
         return self.cp.asarray(matrix.ravel())
 
-    # def apply_gate(self, gate, state, nqubits): Inherited from ``NumbaBackend``
-
-    # def apply_gate_density_matrix(self, gate, state, nqubits, inverse=False): Inherited from ``NumbaBackend``
-
-    # def _apply_ygate_density_matrix(self, gate, state, nqubits): Inherited from ``NumbaBackend``
-
-    # def apply_channel(self, gate): Inherited from ``NumbaBackend``
-
-    # def apply_channel_density_matrix(self, channel, state, nqubits): Inherited from ``NumbaBackend``
-
     def collapse_state(self, state, qubits, shot, nqubits, normalize=True):
         ntargets = len(qubits)
         nstates = 1 << (nqubits - ntargets)
@@ -348,7 +343,7 @@ class CupyBackend(NumbaBackend):  # pragma: no cover
             [nqubits - q - 1 for q in reversed(qubits)], dtype=self.cp.int32
         )
         args = [state, qubits, int(shot), ntargets]
-        kernel = self.gates.get(f"collapse_state_kernel_{self.kernel_type}")
+        kernel = self.gates.get(f"collapse_state_kernel_{self.dtype}")
         kernel((nblocks,), (block_size,), args)
         self.cp.cuda.stream.get_current_stream().synchronize()
 
@@ -356,10 +351,6 @@ class CupyBackend(NumbaBackend):  # pragma: no cover
             norm = self.cp.sqrt(self.cp.sum(self.cp.square(self.cp.abs(state))))
             state = state / norm
         return state
-
-    # def collapse_density_matrix(self, state, qubits, shot, nqubits, normalize=True): Inherited from ``NumbaBackend``
-
-    # def reset_error_density_matrix(self, gate, state, nqubits): Inherited from ``NumpyBackend``
 
     def execute_distributed_circuit(
         self,
@@ -376,7 +367,7 @@ class CupyBackend(NumbaBackend):  # pragma: no cover
 
         try:
             cpu_backend = NumbaBackend()
-            cpu_backend.set_precision(self.precision)
+            cpu_backend.set_dtype(self.dtype)
             ops = MultiGpuOps(self, cpu_backend, circuit)
 
             if initial_state is None:
@@ -457,10 +448,6 @@ class CupyBackend(NumbaBackend):  # pragma: no cover
                 "different device configuration and try again.",
             )
 
-    # def calculate_symbolic(self, state, nqubits, decimals=5, cutoff=1e-10, max_terms=20): Inherited from ``NumpyBackend``
-
-    # def calculate_symbolic_density_matrix(self, state, nqubits, decimals=5, cutoff=1e-10, max_terms=20): Inherited from ``NumpyBackend``
-
     def calculate_probabilities(self, state, qubits, nqubits):
         try:
             probs = super().calculate_probabilities(state, qubits, nqubits)
@@ -476,20 +463,10 @@ class CupyBackend(NumbaBackend):  # pragma: no cover
         probabilities = self.to_numpy(probabilities)
         return super().sample_shots(probabilities, nshots)
 
-    # def aggregate_shots(self, shots): Inherited from ``NumpyBackend``
-
-    # def samples_to_binary(self, samples, nqubits): Inherited from ``NumpyBackend``
-
-    # def samples_to_decimal(self, samples, nqubits): Inherited from ``NumpyBackend``
-
     def sample_frequencies(self, probabilities, nshots):
         # Sample frequencies on CPU
         probabilities = self.to_numpy(probabilities)
         return super().sample_frequencies(probabilities, nshots)
-
-    # def calculate_frequencies(self, samples): Inherited from ``NumpyBackend``
-
-    # def assert_allclose(self, value, target, rtol=1e-7, atol=0.0): Inherited from ``NumpyBackend``
 
     def calculate_expectation_state(self, matrix, state, normalize):
         state = self.cast(state)
@@ -558,20 +535,32 @@ class CupyBackend(NumbaBackend):  # pragma: no cover
 
         return self.cp.linalg.eigh(matrix)
 
-    def calculate_matrix_exp(self, a, matrix, eigenvectors=None, eigenvalues=None):
+    def calculate_matrix_exp(
+        self,
+        matrix,
+        phase: Union[float, int, complex] = 1,
+        eigenvectors=None,
+        eigenvalues=None,
+    ):
         if eigenvectors is None or self.is_sparse(matrix):
-            if self.is_sparse(matrix):
-                from scipy.sparse.linalg import expm
+            is_sparse = self.is_sparse(matrix)
 
-                return self.cast(expm(-1j * a * self.to_numpy(matrix)))
+            if is_sparse:
+                from scipy.sparse.linalg import (  # pylint: disable=import-outside-toplevel
+                    expm,
+                )
             else:
                 from cupyx.scipy.linalg import expm  # pylint: disable=import-error
 
-                return self.cast(expm(-1j * a * matrix))
-        else:
-            expd = self.cp.diag(self.cp.exp(-1j * a * eigenvalues))
-            ud = self.cp.transpose(self.cp.conj(eigenvectors))
-            return self.cp.matmul(eigenvectors, self.cp.matmul(expd, ud))
+            _matrix = self.to_numpy(matrix) if is_sparse else matrix
+            _matrix = expm(phase * _matrix)
+
+            return self.cast(_matrix, dtype=_matrix.dtype)
+
+        expd = self.np.exp(phase * eigenvalues)
+        ud = self.np.transpose(self.np.conj(eigenvectors))
+
+        return (eigenvectors * expd) @ ud
 
     def calculate_matrix_power(
         self, matrix, power: Union[float, int], precision_singularity: float = 1e-14
@@ -615,25 +604,35 @@ class CuQuantumBackend(CupyBackend):  # pragma: no cover
         if hasattr(self, "cusv"):
             self.cusv.destroy(self.handle)
 
-    def set_precision(self, precision):
-        if precision != self.precision:
-            super().set_precision(precision)
+    def set_dtype(self, dtype):
+        if dtype in ("float32", "float64"):
+            raise_error(
+                NotImplementedError,
+                "``CuQuantumBackend only supports data types ``complex64`` and ``complex128``.",
+            )
+
+        if dtype != self.dtype:
+            super().set_dtype(dtype)
             if self.custom_matrices:
                 self.custom_matrices = CustomCuQuantumMatrices(self.dtype)
 
     def get_cuda_type(self, dtype="complex64"):
+        if dtype not in ("complex128", "complex64"):
+            raise_error(
+                NotImplementedError,
+                "``CuQuantumBackend only supports data types ``complex64`` and ``complex128``.",
+            )
+
         if dtype == "complex128":
             return (
                 self.cuquantum.cudaDataType.CUDA_C_64F,
                 self.cuquantum.ComputeType.COMPUTE_64F,
             )
-        elif dtype == "complex64":
-            return (
-                self.cuquantum.cudaDataType.CUDA_C_32F,
-                self.cuquantum.ComputeType.COMPUTE_32F,
-            )
-        else:
-            raise TypeError("Type can be either complex64 or complex128")
+
+        return (
+            self.cuquantum.cudaDataType.CUDA_C_32F,
+            self.cuquantum.ComputeType.COMPUTE_32F,
+        )
 
     def one_qubit_base(self, state, nqubits, target, kernel, gate, qubits=None):
         ntarget = 1
@@ -650,8 +649,8 @@ class CuQuantumBackend(CupyBackend):  # pragma: no cover
         adjoint = 0
         target = self.np.asarray([target], dtype=self.np.int32)
 
-        state = self.cast(state)
-        gate = self.cast(gate)
+        state = self.cast(state, dtype=self.dtype)
+        gate = self.cast(gate, dtype=self.dtype)
         assert state.dtype == gate.dtype
         data_type, compute_type = self.get_cuda_type(state.dtype)
         if isinstance(gate, self.cp.ndarray):
@@ -721,8 +720,8 @@ class CuQuantumBackend(CupyBackend):  # pragma: no cover
 
         adjoint = 0
 
-        state = self.cast(state)
-        gate = self.cast(gate)
+        state = self.cast(state, dtype=self.dtype)
+        gate = self.cast(gate, dtype=self.dtype)
 
         assert state.dtype == gate.dtype
         data_type, compute_type = self.get_cuda_type(state.dtype)
@@ -796,7 +795,7 @@ class CuQuantumBackend(CupyBackend):  # pragma: no cover
         return state
 
     def multi_qubit_base(self, state, nqubits, targets, gate, qubits=None):
-        state = self.cast(state)
+        state = self.cast(state, dtype=self.dtype)
         ntarget = len(targets)
         if qubits is None:
             qubits = sorted(nqubits - q - 1 for q in targets)
@@ -809,7 +808,7 @@ class CuQuantumBackend(CupyBackend):  # pragma: no cover
         )
         ncontrols = len(controls)
         adjoint = 0
-        gate = self.cast(gate)
+        gate = self.cast(gate, dtype=self.dtype)
         assert state.dtype == gate.dtype
         data_type, compute_type = self.get_cuda_type(state.dtype)
 
@@ -862,7 +861,7 @@ class CuQuantumBackend(CupyBackend):  # pragma: no cover
         return state
 
     def collapse_state(self, state, qubits, shot, nqubits, normalize=True):
-        state = self.cast(state)
+        state = self.cast(state, dtype=self.dtype)
         results = bin(int(shot)).replace("0b", "")
         results = list(map(int, "0" * (len(qubits) - len(results)) + results))[::-1]
         ntarget = 1

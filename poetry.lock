@@ -1473,7 +1473,7 @@ files = [
 
 [[package]]
 name = "qibo"
-version = "0.2.19"
+version = "0.2.22"
 description = "A framework for quantum computing with hardware acceleration."
 optional = false
 python-versions = ">=3.10,<3.14"
@@ -1500,7 +1500,7 @@ qulacs = ["qulacs (>=0.6.4,<0.7.0)"]
 type = "git"
 url = "https://github.com/qiboteam/qibo"
 reference = "qinfo_jit"
-resolved_reference = "eb5da240dc8c23a619ade9e8e987723006d6e6df"
+resolved_reference = "4fe2c2f6f1acb66905b1e76002cd83b7c79ded24"
 
 [[package]]
 name = "scipy"
