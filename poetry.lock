@@ -1499,8 +1499,8 @@ qulacs = ["qulacs (>=0.6.4,<0.7.0)"]
 [package.source]
 type = "git"
 url = "https://github.com/qiboteam/qibo"
-reference = "clifford_measurement_fix"
-resolved_reference = "9d913946baeec67e91637c9dc5c50f94b2982a0c"
+reference = "qinfo_jit"
+resolved_reference = "eb5da240dc8c23a619ade9e8e987723006d6e6df"
 
 [[package]]
 name = "scipy"
@@ -1850,4 +1850,4 @@ cuquantum = ["cuquantum-python-cu12"]
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.10,<3.14"
-content-hash = "86155f568486d240f3521065901b1115eb1c6d0684ff686ed28e294c2d9c332e"
+content-hash = "4df3ce926282c318e2ba453b1008f84b863e0f23492162ebb549479ef4aa67a0"
