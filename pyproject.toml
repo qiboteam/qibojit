@@ -30,7 +30,7 @@ cupy-cuda12x = { version = "^13.1.0", optional = true }
 cuquantum-python-cu12 = { version = "^24.1.0", optional = true }
 
 [tool.poetry.group.dev.dependencies]
-ipython = "^7.0"
+ipython = "^8.34.0"
 
 [tool.poetry.group.test]
 optional = true
