@@ -1,6 +1,5 @@
 """Set of custom Numba operations for the Clifford backend."""
 
-from functools import cache
 
 import numpy as np
 from numba import njit, prange, uint64
