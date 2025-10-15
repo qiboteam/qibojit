@@ -185,9 +185,31 @@ class CupyBackend(Backend):  # pragma: no cover
                 "Falling back to CPU due to lack of native ``linalg.eig`` implementation in"
                 + f"``cupy=={self.versions['cupy']}``."
             )
-            return np.linalg.eig(self.to_numpy(array), **kwargs)
+
+            eigvals, eigvecs = np.linalg.eig(self.to_numpy(array), **kwargs)
+            eigvals = self.cast(eigvals, dtype=eigvals.dtype)
+            eigvecs = self.cast(eigvecs, dtype=eigvecs.dtype)
+
+            return eigvals, eigvecs
 
         return super().eig(array, **kwargs)
+
+    def eigvals(self, array, **kwargs) -> "ndarray":
+        cp_version = self.versions["cupy"]
+        cp_version = int(cp_version.split(".")[0])
+
+        if cp_version <= 13:
+            log.warning(
+                "Falling back to CPU due to lack of native ``linalg.eigvals`` implementation"
+                f"in ``cupy=={self.versions['cupy']}``."
+            )
+
+            eigvals = np.linalg.eigvals(self.to_numpy(array), **kwargs)
+
+            return self.cast(eigvals, dtype=eigvals.dtype)
+
+        return super().eig(array, **kwargs)
+
 
     def expm(self, array) -> "ndarray":
         if self.is_sparse(array):
@@ -199,62 +221,13 @@ class CupyBackend(Backend):  # pragma: no cover
                 expm,
             )
 
-        return expm(array)
+        exp_matrix = expm(array)
+        
+        return self.cast(exp_matrix, dtype=exp_matrix.dtype)
 
     ########################################################################################
     ######## Methods related to linear algebra operations                           ########
     ########################################################################################
-
-    def calculate_eigenvalues(self, matrix, k: int = 6, hermitian: bool = True):
-        if not hermitian:
-            log.warning(
-                "Falling back to CPU for eigenvalue calculation of a non-Hermitian operator."
-            )
-
-            matrix_cpu = self.to_numpy(matrix)
-            eigenvalues = super().calculate_eigenvalues(matrix_cpu, k, hermitian)
-
-            return self.cast(eigenvalues, dtype=eigenvalues.dtype)
-
-        if self.is_sparse(matrix):
-            log.warning(
-                "Calculating sparse matrix eigenvectors because "
-                "sparse modules do not provide ``eigvals`` method."
-            )
-            return self.calculate_eigenvectors(matrix, k=k)[0]
-        return self.engine.linalg.eigvalsh(matrix)
-
-    def calculate_eigenvectors(self, matrix, k: int = 6, hermitian: bool = True):
-        if not hermitian:
-            log.warning(
-                "Falling back to CPU for eigenvector calculation of a non-Hermitian operator."
-            )
-
-            matrix_cpu = self.to_numpy(matrix)
-            eigenvalues, eigenvectors = super().calculate_eigenvectors(
-                matrix_cpu, k, hermitian
-            )
-            eigenvalues = self.cast(eigenvalues, dtype=eigenvalues.dtype)
-            eigenvectors = self.cast(eigenvectors, dtype=eigenvectors.dtype)
-
-            return eigenvalues, eigenvectors
-
-        if self.is_sparse(matrix):
-            if k < matrix.shape[0]:
-                # Fallback to numpy because cupy's ``sparse.eigh`` does not support 'SA'
-                from scipy.sparse.linalg import eigsh  # pylint: disable=import-error
-
-                result = eigsh(matrix.get(), k=k, which="SA")
-                return self.cast(result[0]), self.cast(result[1])
-            matrix = matrix.toarray()
-        if self.is_hip:
-            # Fallback to numpy because eigh is not implemented in rocblas
-            result = self.eigh(matrix)
-            result_0 = self.cast(result[0], dtype=result[0].dtype)
-            result_1 = self.cast(result[1], dtype=result[1].dtype)
-            return result_0, result_1
-
-        return self.engine.linalg.eigh(matrix)
 
     def matrix_exp(
         self,
@@ -310,7 +283,7 @@ class CupyBackend(Backend):  # pragma: no cover
         )
 
         copied = self.to_numpy(matrix)
-        copied = super().calculate_matrix_power(
+        copied = super().matrix_power(
             copied,
             power=power,
             precision_singularity=precision_singularity,
