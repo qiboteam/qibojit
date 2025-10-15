@@ -1,10 +1,18 @@
-from typing import Union
+"""Module defining the Cupy and CuQuantum backends."""
+
+from typing import List, Tuple, Union
 
 import numpy as np
 from qibo.backends import Backend
 from qibo.config import log, raise_error
+from qibo.gates.abstract import ParametrizedGate
+from qibo.gates.gates import Unitary
+from qibo.gates.measurements import M
+from qibo.gates.special import CallbackGate, FusedGate
+from qibo.result import CircuitResult, QuantumState
 from scipy import sparse
 
+from qibojit.backends.cpu import NumbaBackend
 from qibojit.backends.matrices import (
     CupyMatrices,
     CustomCuQuantumMatrices,
@@ -122,8 +130,8 @@ class CupyBackend(Backend):  # pragma: no cover
             )
         self.device = device
 
-    def set_seed(self, seed):
-        super().set_seed(seed)
+    def set_seed(self, seed: int):
+        np.random.seed(seed)
         self.engine.random.seed(seed)
 
     def cast(self, array, dtype=None, copy=False):
@@ -164,6 +172,20 @@ class CupyBackend(Backend):  # pragma: no cover
     def is_sparse(self, array):
         return self.sparse.issparse(array) or self.npsparse.issparse(array)
 
+    ########################################################################################
+    ######## Methods related to the creation and manipulation of quantum objects    ########
+    ########################################################################################
+
+    def maximally_mixed_state(self, nqubits, dtype=None):
+        if dtype is None:
+            dtype = self.dtype
+
+        n = 1 << nqubits
+        state = self.identity(n, dtype=self.dtype)
+        self.engine.cuda.stream.get_current_stream().synchronize()
+
+        return state.reshape((n, n)) / 2**nqubits
+
     def zero_state(self, nqubits, density_matrix: bool = False, dtype=None):
         if dtype is None:
             dtype = self.dtype
@@ -177,32 +199,11 @@ class CupyBackend(Backend):  # pragma: no cover
 
         return state.reshape((n, n)) if density_matrix else state
 
-    def maximally_mixed_state(self, nqubits, dtype=None):
-        if dtype is None:
-            dtype = self.dtype
+    ########################################################################################
+    ######## Methods related to circuit execution                                   ########
+    ########################################################################################
 
-        n = 1 << nqubits
-        state = self.identity(n, dtype=self.dtype)
-        self.engine.cuda.stream.get_current_stream().synchronize()
-
-        return state.reshape((n, n)) / 2**nqubits
-
-    def calculate_blocks(self, nstates, block_size=DEFAULT_BLOCK_SIZE):
-        """Compute the number of blocks and of threads per block.
-
-        The total number of threads is always equal to ``nstates``, give that
-        the kernels are designed to execute only one out of ``nstates`` updates.
-        Therefore, the number of threads per block (``block_size``) changes also
-        the total number of blocks. By default, it is set to ``self.DEFAULT_BLOCK_SIZE``.
-        """
-        # Compute the number of blocks so that at least ``nstates`` threads are launched
-        nblocks = (nstates + block_size - 1) // block_size
-        if nstates < block_size:
-            nblocks = 1
-            block_size = nstates
-        return nblocks, block_size
-
-    def one_qubit_base(self, state, nqubits, target, kernel, gate, qubits):
+    def _one_qubit_base(self, state, nqubits, target, kernel, gate, qubits):
         ncontrols = len(qubits) - 1 if qubits is not None else 0
         m = nqubits - target - 1
         tk = 1 << m
@@ -218,12 +219,12 @@ class CupyBackend(Backend):  # pragma: no cover
         else:
             kernel = self.gates.get(f"{kernel}_kernel_{self.dtype}")
 
-        nblocks, block_size = self.calculate_blocks(nstates)
+        nblocks, block_size = self._calculate_blocks(nstates)
         kernel((nblocks,), (block_size,), args)
         self.engine.cuda.stream.get_current_stream().synchronize()
         return state
 
-    def two_qubit_base(self, state, nqubits, target1, target2, kernel, gate, qubits):
+    def _two_qubit_base(self, state, nqubits, target1, target2, kernel, gate, qubits):
         ncontrols = len(qubits) - 2 if qubits is not None else 0
         if target1 > target2:
             m1 = nqubits - target1 - 1
@@ -249,7 +250,7 @@ class CupyBackend(Backend):  # pragma: no cover
         else:
             kernel = self.gates.get(f"{kernel}_kernel_{self.dtype}")
 
-        nblocks, block_size = self.calculate_blocks(nstates)
+        nblocks, block_size = self._calculate_blocks(nstates)
         kernel((nblocks,), (block_size,), args)
         self.engine.cuda.stream.get_current_stream().synchronize()
         return state
@@ -267,12 +268,12 @@ class CupyBackend(Backend):  # pragma: no cover
                 f" but is {ntargets}."
             )
         nactive = len(qubits)
-        targets = self.engine.asarray(
+        targets = self.cast(
             tuple(1 << (nqubits - t - 1) for t in targets[::-1]),
-            dtype=self.engine.int64,
+            dtype=self.int64,
         )
         nstates = 1 << (nqubits - nactive)
-        nblocks, block_size = self.calculate_blocks(nstates)
+        nblocks, block_size = self._calculate_blocks(nstates)
         kernel = self.gates.get(
             f"apply_multi_qubit_gate_kernel_{self.dtype}_{ntargets}"
         )
@@ -288,24 +289,49 @@ class CupyBackend(Backend):  # pragma: no cover
         return self.cast(sorted(qubits), dtype=self.int32)
 
     def _as_custom_matrix(self, gate):
-        from qibo.gates import Unitary
-
         if isinstance(gate, Unitary):
             matrix = gate.parameters[0]
             if isinstance(matrix, self.engine.ndarray):
                 return matrix.ravel()
 
-        matrix = super()._as_custom_matrix(gate)
-        return self.engine.asarray(matrix.ravel())
+        name = gate.__class__.__name__
+        _matrix = getattr(self.custom_matrices, name)
 
-    def collapse_state(self, state, qubits, shot, nqubits, normalize=True):
+        if name == "FanOut":
+            matrix = _matrix(*gate.init_args)
+        elif isinstance(gate, ParametrizedGate):
+            if name == "GeneralizedRBS":  # pragma: no cover
+                # this is tested in qibo tests
+                theta = gate.init_kwargs["theta"]
+                phi = gate.init_kwargs["phi"]
+                matrix = _matrix(gate.init_args[0], gate.init_args[1], theta, phi)
+            else:
+                matrix = _matrix(*gate.parameters)
+        elif isinstance(gate, FusedGate):  # pragma: no cover
+            matrix = self.matrix_fused(gate)
+        else:
+            matrix = (
+                _matrix(2 ** len(gate.target_qubits)) if callable(_matrix) else _matrix
+            )
+
+        return self.cast(matrix.ravel(), dtype=matrix.dtype)
+
+    def collapse_state(
+        self,
+        state,
+        qubits: Union[Tuple[int, ...], List[int]],
+        shot: int,
+        nqubits: int,
+        normalize: bool = True,
+        density_matrix: bool = False,
+    ):
         ntargets = len(qubits)
         nstates = 1 << (nqubits - ntargets)
-        nblocks, block_size = self.calculate_blocks(nstates)
+        nblocks, block_size = self._calculate_blocks(nstates)
 
-        state = self.cast(state)
+        state = self.cast(state, dtype=state.dtype)
         qubits = self.cast(
-            [nqubits - q - 1 for q in reversed(qubits)], dtype=self.engine.int32
+            [nqubits - q - 1 for q in reversed(qubits)], dtype=self.int32
         )
         args = [state, qubits, int(shot), ntargets]
         kernel = self.gates.get(f"collapse_state_kernel_{self.dtype}")
@@ -313,10 +339,9 @@ class CupyBackend(Backend):  # pragma: no cover
         self.engine.cuda.stream.get_current_stream().synchronize()
 
         if normalize:
-            norm = self.engine.sqrt(
-                self.engine.sum(self.engine.square(self.engine.abs(state)))
-            )
+            norm = self.sqrt(self.sum(self.abs(state) ** 2))
             state = state / norm
+
         return state
 
     def execute_distributed_circuit(
@@ -325,9 +350,7 @@ class CupyBackend(Backend):  # pragma: no cover
         initial_state=None,
         nshots=1000,
     ):
-        import joblib
-        from qibo.gates import M
-        from qibo.result import CircuitResult, MeasurementOutcomes, QuantumState
+        import joblib  # pylint: disable=import-outside-toplevel
 
         if not circuit.queues.queues:
             circuit.queues.set(circuit.queue)
@@ -344,9 +367,7 @@ class CupyBackend(Backend):  # pragma: no cover
                     np.zeros(2**circuit.nlocal, dtype=self.dtype)
                     for _ in range(circuit.ndevices - 1)
                 )
-            elif isinstance(initial_state, CircuitResult) or isinstance(
-                initial_state, QuantumState
-            ):
+            elif isinstance(initial_state, (CircuitResult, QuantumState)):
                 # TODO: Implement this
                 if isinstance(initial_state.execution_result, list):
                     pieces = initial_state.execution_result
@@ -357,14 +378,14 @@ class CupyBackend(Backend):  # pragma: no cover
             else:
                 raise_error(
                     TypeError,
-                    "Initial state type {} is not supported by "
-                    "distributed circuits.".format(type(initial_state)),
+                    f"Initial state type {type(initial_state)} is not supported by "
+                    + "distributed circuits.",
                 )
             for gate in circuit.queue:
                 if isinstance(gate, M):
                     gate.result.backend = CupyBackend()
             special_gates = iter(circuit.queues.special_queue)
-            for i, queues in enumerate(circuit.queues.queues):
+            for queues in circuit.queues.queues:
                 if queues:  # standard gate
                     config = circuit.queues.device_to_ids.items()
                     pool = joblib.Parallel(n_jobs=circuit.ndevices, prefer="threads")
@@ -390,22 +411,25 @@ class CupyBackend(Backend):  # pragma: no cover
                 # here we necessarily have `density_matrix=True`, otherwise
                 # execute_circuit_repeated would have been called
                 if circuit.measurements:
-                    circuit._final_state = CircuitResult(
+                    circuit._final_state = CircuitResult(  # pylint: disable=W0212
                         state, circuit.measurements, self, nshots=nshots
                     )
-                    return circuit._final_state
-                else:
-                    circuit._final_state = QuantumState(state, self)
-                    return circuit._final_state
-            else:
-                if circuit.measurements:
-                    circuit._final_state = CircuitResult(
-                        state, circuit.measurements, self, nshots=nshots
-                    )
-                    return circuit._final_state
-                else:
-                    circuit._final_state = QuantumState(state, self)
-                    return circuit._final_state
+                    return circuit._final_state  # pylint: disable=W0212
+
+                circuit._final_state = QuantumState(
+                    state, self
+                )  # pylint: disable=W0212
+                return circuit._final_state  # pylint: disable=W0212
+
+            if circuit.measurements:
+                circuit._final_state = CircuitResult(  # pylint: disable=W0212
+                    state, circuit.measurements, self, nshots=nshots
+                )
+                return circuit._final_state  # pylint: disable=W0212
+
+            circuit._final_state = QuantumState(state, self)
+
+            return circuit._final_state  # pylint: disable=W0212
 
         except self.oom_error:
             raise_error(
@@ -541,14 +565,16 @@ class CupyBackend(Backend):  # pragma: no cover
     ):
 
         if isinstance(power, int) and power >= 0.0:
-            return self.engine.linalg.matrix_power(matrix, power)
+            return self.matrix_power(matrix, power)
 
         if power < 0.0:
             # negative powers of singular matrices via SVD
-            determinant = self.engine.linalg.det(matrix)
+            determinant = self.det(matrix)
             if abs(determinant) < precision_singularity:
                 return self._negative_power_singular_matrix(
-                    matrix, power, precision_singularity, self.cp, self
+                    matrix,
+                    power,
+                    precision_singularity,
                 )
 
         copied = self.to_numpy(matrix)
@@ -556,14 +582,29 @@ class CupyBackend(Backend):  # pragma: no cover
 
         return self.cast(copied, dtype=copied.dtype)
 
+    def _calculate_blocks(self, nstates, block_size=DEFAULT_BLOCK_SIZE):
+        """Compute the number of blocks and of threads per block.
+
+        The total number of threads is always equal to ``nstates``, give that
+        the kernels are designed to execute only one out of ``nstates`` updates.
+        Therefore, the number of threads per block (``block_size``) changes also
+        the total number of blocks. By default, it is set to ``self.DEFAULT_BLOCK_SIZE``.
+        """
+        # Compute the number of blocks so that at least ``nstates`` threads are launched
+        nblocks = (nstates + block_size - 1) // block_size
+        if nstates < block_size:
+            nblocks = 1
+            block_size = nstates
+        return nblocks, block_size
+
 
 class CuQuantumBackend(CupyBackend):  # pragma: no cover
     # CI does not test for GPU
 
     def __init__(self):
         super().__init__()
-        import cuquantum  # pylint: disable=import-error
-        from cuquantum import custatevec as cusv  # pylint: disable=import-error
+        import cuquantum  # pylint: disable=import-error,import-outside-toplevel
+        from cuquantum import custatevec as cusv  # pylint: disable=import-error,C0415
 
         self.cuquantum = cuquantum
         self.cusv = cusv
@@ -608,33 +649,29 @@ class CuQuantumBackend(CupyBackend):  # pragma: no cover
             self.cuquantum.ComputeType.COMPUTE_32F,
         )
 
-    def one_qubit_base(self, state, nqubits, target, kernel, gate, qubits=None):
+    def _one_qubit_base(self, state, nqubits, target, kernel, gate, qubits=None):
         ntarget = 1
         target = nqubits - target - 1
         if qubits is not None:
-            qubits = self.to_numpy(qubits)
             ncontrols = len(qubits) - 1
-            controls = self.np.asarray(
-                [i for i in qubits if i != target], dtype="int32"
-            )
+            controls = set(list(self.to_numpy(qubits))) ^ {target}
+            controls = self.cast(controls, dtype=self.int32)
         else:
             ncontrols = 0
-            controls = self.np.empty(0)
+            controls = self.empty(0)
         adjoint = 0
-        target = self.np.asarray([target], dtype=self.np.int32)
+        target = self.cast([target], dtype=self.int32)
 
-        state = self.cast(state, dtype=self.dtype)
-        gate = self.cast(gate, dtype=self.dtype)
         assert state.dtype == gate.dtype
         data_type, compute_type = self.get_cuda_type(state.dtype)
         if isinstance(gate, self.engine.ndarray):
             gate_ptr = gate.data.ptr
-        elif isinstance(gate, self.np.ndarray):
+        elif isinstance(gate, np.ndarray):
             gate_ptr = gate.ctypes.data
         else:
             raise ValueError
 
-        workspaceSize = self.cusv.apply_matrix_get_workspace_size(
+        workspace_size = self.cusv.apply_matrix_get_workspace_size(
             self.handle,
             data_type,
             nqubits,
@@ -648,8 +685,8 @@ class CuQuantumBackend(CupyBackend):  # pragma: no cover
         )
 
         # check the size of external workspace
-        if workspaceSize > 0:
-            workspace = self.engine.cuda.memory.alloc(workspaceSize)
+        if workspace_size > 0:
+            workspace = self.engine.cuda.memory.alloc(workspace_size)
             workspace_ptr = workspace.ptr
         else:
             workspace_ptr = 0
@@ -670,23 +707,23 @@ class CuQuantumBackend(CupyBackend):  # pragma: no cover
             ncontrols,
             compute_type,
             workspace_ptr,
-            workspaceSize,
+            workspace_size,
         )
 
         return state
 
-    def two_qubit_base(
+    def _two_qubit_base(
         self, state, nqubits, target1, target2, kernel, gate, qubits=None
     ):
         ntarget = 2
         target1 = nqubits - target1 - 1
         target2 = nqubits - target2 - 1
-        target = self.np.asarray([target2, target1], dtype=self.np.int32)
+        target = np.asarray([target2, target1], dtype=self.int32)
         if qubits is not None:
             ncontrols = len(qubits) - 2
             qubits = self.to_numpy(qubits)
             controls = np.asarray(
-                [i for i in qubits if i not in [target1, target2]], dtype=self.np.int32
+                [i for i in qubits if i not in [target1, target2]], dtype=self.int32
             )
         else:
             ncontrols = 0
@@ -704,7 +741,7 @@ class CuQuantumBackend(CupyBackend):  # pragma: no cover
             n_bit_swaps = 1
             bit_swaps = [(target1, target2)]
             mask_len = ncontrols
-            mask_bit_string = self.engine.ones(ncontrols)
+            mask_bit_string = self.ones(ncontrols)
             mask_ordering = controls
 
             self.cusv.swap_index_bits(
@@ -727,7 +764,7 @@ class CuQuantumBackend(CupyBackend):  # pragma: no cover
         else:
             raise ValueError
 
-        workspaceSize = self.cusv.apply_matrix_get_workspace_size(
+        workspace_size = self.cusv.apply_matrix_get_workspace_size(
             self.handle,
             data_type,
             nqubits,
@@ -741,8 +778,8 @@ class CuQuantumBackend(CupyBackend):  # pragma: no cover
         )
 
         # check the size of external workspace
-        if workspaceSize > 0:
-            workspace = self.engine.cuda.memory.alloc(workspaceSize)
+        if workspace_size > 0:
+            workspace = self.engine.cuda.memory.alloc(workspace_size)
             workspace_ptr = workspace.ptr
         else:
             workspace_ptr = 0
@@ -763,7 +800,7 @@ class CuQuantumBackend(CupyBackend):  # pragma: no cover
             ncontrols,
             compute_type,
             workspace_ptr,
-            workspaceSize,
+            workspace_size,
         )
 
         return state
@@ -776,10 +813,8 @@ class CuQuantumBackend(CupyBackend):  # pragma: no cover
         else:
             qubits = self.to_numpy(qubits)
         target = [nqubits - q - 1 for q in targets]
-        target = self.np.asarray(target[::-1], dtype=self.np.int32)
-        controls = self.np.asarray(
-            [i for i in qubits if i not in target], dtype=self.np.int32
-        )
+        target = np.asarray(target[::-1], dtype=self.int32)
+        controls = np.asarray([i for i in qubits if i not in target], dtype=self.int32)
         ncontrols = len(controls)
         adjoint = 0
         gate = self.cast(gate, dtype=self.dtype)
@@ -788,12 +823,12 @@ class CuQuantumBackend(CupyBackend):  # pragma: no cover
 
         if isinstance(gate, self.engine.ndarray):
             gate_ptr = gate.data.ptr
-        elif isinstance(gate, self.np.ndarray):
+        elif isinstance(gate, np.ndarray):
             gate_ptr = gate.ctypes.data
         else:
             raise ValueError
 
-        workspaceSize = self.cusv.apply_matrix_get_workspace_size(
+        workspace_size = self.cusv.apply_matrix_get_workspace_size(
             self.handle,
             data_type,
             nqubits,
@@ -807,8 +842,8 @@ class CuQuantumBackend(CupyBackend):  # pragma: no cover
         )
 
         # check the size of external workspace
-        if workspaceSize > 0:
-            workspace = self.engine.cuda.memory.alloc(workspaceSize)
+        if workspace_size > 0:
+            workspace = self.engine.cuda.memory.alloc(workspace_size)
             workspace_ptr = workspace.ptr
         else:
             workspace_ptr = 0
@@ -829,20 +864,26 @@ class CuQuantumBackend(CupyBackend):  # pragma: no cover
             ncontrols,
             compute_type,
             workspace_ptr,
-            workspaceSize,
+            workspace_size,
         )
 
         return state
 
-    def collapse_state(self, state, qubits, shot, nqubits, normalize=True):
+    def collapse_state(
+        self,
+        state,
+        qubits: Union[Tuple[int, ...], List[int]],
+        shot: int,
+        nqubits: int,
+        normalize: bool = True,
+        density_matrix: bool = False,
+    ):
         state = self.cast(state, dtype=self.dtype)
         results = bin(int(shot)).replace("0b", "")
         results = list(map(int, "0" * (len(qubits) - len(results)) + results))[::-1]
         ntarget = 1
-        qubits = self.np.asarray(
-            [nqubits - q - 1 for q in reversed(qubits)], dtype="int32"
-        )
-        data_type, compute_type = self.get_cuda_type(state.dtype)
+        qubits = np.asarray([nqubits - q - 1 for q in reversed(qubits)], dtype="int32")
+        data_type, _ = self.get_cuda_type(state.dtype)
 
         for i in range(len(results)):
             self.cusv.collapse_on_z_basis(
@@ -928,8 +969,6 @@ class MultiGpuOps:  # pragma: no cover
         This method calculates the full state vector because special gates
         are not implemented for state pieces.
         """
-        from qibo.gates import CallbackGate
-
         # Reverse all global SWAPs that happened so far
         pieces = self.revert_swaps(pieces, reversed(gate.swap_reset))
         state = self.to_tensor(pieces)

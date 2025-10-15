@@ -1,3 +1,5 @@
+"""Module defining the Numba backend."""
+
 import sys
 from collections import Counter
 from typing import List, Tuple, Union
@@ -8,6 +10,7 @@ from qibo.config import SHOT_METROPOLIS_THRESHOLD
 from qibo.gates.abstract import ParametrizedGate
 from qibo.gates.special import FusedGate
 
+from qibojit import __version__ as qibojit_version
 from qibojit.backends.matrices import CustomMatrices
 
 GATE_OPS = {
@@ -32,9 +35,6 @@ class NumbaBackend(Backend):
         import numba  # pylint: disable=import-outside-toplevel
         import psutil  # pylint: disable=import-outside-toplevel
 
-        from qibojit import (
-            __version__ as qibojit_version,  # pylint: disable=import-outside-toplevel
-        )
         from qibojit.custom_operators import (  # pylint: disable=import-outside-toplevel
             gates,
             ops,
@@ -78,17 +78,17 @@ class NumbaBackend(Backend):
         else:
             self.set_threads(len(psutil.Process().cpu_affinity()))
 
-    def cast(self, x, dtype=None, copy: bool = False):
+    def cast(self, array, dtype=None, copy: bool = False):
         if dtype is None:
             dtype = self.dtype
 
-        if isinstance(x, self.tensor_types):
-            return x.astype(dtype, copy=copy)
+        if isinstance(array, self.tensor_types):
+            return array.astype(dtype, copy=copy)
 
-        if self.is_sparse(x):
-            return x.astype(dtype, copy=copy)
+        if self.is_sparse(array):
+            return array.astype(dtype, copy=copy)
 
-        return self.engine.asarray(x, dtype=dtype, copy=copy if copy else None)
+        return self.engine.asarray(array, dtype=dtype, copy=copy if copy else None)
 
     def set_dtype(self, dtype):
         if dtype != self.dtype:
@@ -108,12 +108,16 @@ class NumbaBackend(Backend):
             return array.toarray()
         return array
 
+    ########################################################################################
+    ######## Methods related to the creation and manipulation of quantum objects    ########
+    ########################################################################################
+
     def zero_state(self, nqubits, density_matrix: bool = False, dtype=None):
         if dtype is None:
             dtype = self.dtype
 
-        size = 2**nqubits
-        shape = (size, size) if density_matrix else (size,)
+        dims = 2**nqubits
+        shape = 2 * (dims,) if density_matrix else dims
         state = self.empty(shape, dtype=dtype)
 
         func = (
@@ -123,6 +127,10 @@ class NumbaBackend(Backend):
         )
 
         return func(state)
+
+    ########################################################################################
+    ######## Methods related to circuit execution                                   ########
+    ########################################################################################
 
     def apply_channel(self, channel, state, nqubits: int):
         density_matrix = bool(len(state.shape) == 2)
@@ -155,7 +163,7 @@ class NumbaBackend(Backend):
             kernel = self.multi_qubit_kernels.get(len(targets))
         return kernel(state, gate, qubits, nstates, targets)
 
-    def one_qubit_base(self, state, nqubits: int, target, kernel, gate, qubits):
+    def _one_qubit_base(self, state, nqubits: int, target, kernel, gate, qubits):
         ncontrols = len(qubits) - 1 if qubits is not None else 0
         m = nqubits - target - 1
         nstates = 1 << (nqubits - ncontrols - 1)
@@ -184,6 +192,10 @@ class NumbaBackend(Backend):
         kernel = getattr(self.gates, f"{kernel}_kernel")
         return kernel(state, gate, nstates, m1, m2, swap_targets)
 
+    ########################################################################################
+    ######## Methods related to the execution and post-processing of measurements   ########
+    ########################################################################################
+
     def sample_frequencies(self, probabilities, nshots: int):
         if nshots < SHOT_METROPOLIS_THRESHOLD:
             return super().sample_frequencies(probabilities, nshots)
@@ -197,16 +209,20 @@ class NumbaBackend(Backend):
         )
         return Counter({i: f for i, f in enumerate(frequencies) if f > 0})
 
+    ########################################################################################
+    ######## Helper methods                                                         ########
+    ########################################################################################
+
     def _apply_channel_density_matrix(self, channel, state, nqubits):
         state = self.cast(state, dtype=state.dtype)
-        if not channel._all_unitary_operators:
+        if not channel._all_unitary_operators:  # pylint: disable=protected-access
             state_copy = self.cast(state, copy=True)
         new_state = (1 - channel.coefficient_sum) * state
         for coeff, gate in zip(channel.coefficients, channel.gates):
             state = self.apply_gate(gate, state, nqubits)
             new_state += coeff * state
             # reset the state
-            if not channel._all_unitary_operators:
+            if not channel._all_unitary_operators:  # pylint: disable=protected-access
                 state = self.cast(state_copy, copy=True)
             else:
                 state = self.apply_gate(gate, state, nqubits, inverse=True)
@@ -222,7 +238,7 @@ class NumbaBackend(Backend):
             matrix = self._as_custom_matrix(gate)
             qubits = self._create_qubits_tensor(gate, nqubits)
             op = GATE_OPS.get("CNOT")
-            state = self.one_qubit_base(state, nqubits, target, op, matrix, qubits)
+            state = self._one_qubit_base(state, nqubits, target, op, matrix, qubits)
 
         return state
 
@@ -230,11 +246,11 @@ class NumbaBackend(Backend):
         matrix = self._as_custom_matrix(gate)
         qubits = self._create_qubits_tensor(gate, nqubits)
         targets = gate.target_qubits
-        state = self.cast(state)
+        state = self.cast(state, dtype=state.dtype)
 
         if len(targets) == 1:
             op = GATE_OPS.get(gate.__class__.__name__, "apply_gate")
-            return self.one_qubit_base(state, nqubits, *targets, op, matrix, qubits)
+            return self._one_qubit_base(state, nqubits, *targets, op, matrix, qubits)
 
         if len(targets) == 2:
             op = GATE_OPS.get(gate.__class__.__name__, "apply_two_qubit_gate")
@@ -264,10 +280,10 @@ class NumbaBackend(Backend):
         shape = state.shape
         if len(targets) == 1:
             op = GATE_OPS.get(name, "apply_gate")
-            state = self.one_qubit_base(
+            state = self._one_qubit_base(
                 state.ravel(), 2 * nqubits, *targets, op, matrix, qubits_dm
             )
-            state = self.one_qubit_base(
+            state = self._one_qubit_base(
                 state, 2 * nqubits, *targets_dm, op, self.conj(matrix), qubits
             )
         elif len(targets) == 2:
@@ -296,11 +312,11 @@ class NumbaBackend(Backend):
         targets_dm = tuple(q + nqubits for q in targets)
         state = self.cast(state)
         shape = state.shape
-        state = self.one_qubit_base(
+        state = self._one_qubit_base(
             state.ravel(), 2 * nqubits, *targets, "apply_y", matrix, qubits_dm
         )
         # force using ``apply_gate`` kernel so that conjugate is properly applied
-        state = self.one_qubit_base(
+        state = self._one_qubit_base(
             state, 2 * nqubits, *targets_dm, "apply_gate", self.conj(matrix), qubits
         )
         return self.reshape(state, shape)

@@ -55,7 +55,9 @@ def test_one_qubit_base(backend, nqubits, target, use_qubits, dtype):
     qubits = qubits_tensor(nqubits, [target]) if use_qubits else None
     state = backend.cast(state)
     matrix = backend.cast(matrix)
-    state = backend.one_qubit_base(state, nqubits, target, "apply_gate", matrix, qubits)
+    state = backend._one_qubit_base(
+        state, nqubits, target, "apply_gate", matrix, qubits
+    )
     backend.assert_allclose(state, target_state, atol=ATOL.get(dtype))
 
 
