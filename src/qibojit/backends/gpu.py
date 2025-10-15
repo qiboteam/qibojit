@@ -1,10 +1,10 @@
 from typing import Union
 
 import numpy as np
-from scipy import sparse
-
 from qibo.backends import Backend
 from qibo.config import log, raise_error
+from scipy import sparse
+
 from qibojit.backends.matrices import (
     CupyMatrices,
     CustomCuQuantumMatrices,
@@ -286,7 +286,6 @@ class CupyBackend(Backend):  # pragma: no cover
         qubits = [nqubits - q - 1 for q in gate.control_qubits]
         qubits.extend(nqubits - q - 1 for q in gate.target_qubits)
         return self.cast(sorted(qubits), dtype=self.int32)
-
 
     def _as_custom_matrix(self, gate):
         from qibo.gates import Unitary
