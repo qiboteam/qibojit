@@ -148,7 +148,7 @@ class NumbaBackend(Backend):
 
         return self._apply_gate(gate, state, nqubits)
 
-    def multi_qubit_base(self, state, nqubits: int, targets, gate, qubits):
+    def _multi_qubit_base(self, state, nqubits: int, targets, gate, qubits):
         if qubits is None:
             qubits = self.cast(
                 sorted(nqubits - q - 1 for q in targets), dtype=self.int32
@@ -256,7 +256,7 @@ class NumbaBackend(Backend):
             op = GATE_OPS.get(gate.__class__.__name__, "apply_two_qubit_gate")
             return self.two_qubit_base(state, nqubits, *targets, op, matrix, qubits)
 
-        return self.multi_qubit_base(state, nqubits, targets, matrix, qubits)
+        return self._multi_qubit_base(state, nqubits, targets, matrix, qubits)
 
     def _apply_gate_density_matrix(self, gate, state, nqubits, inverse=False):
         name = gate.__class__.__name__
@@ -295,10 +295,10 @@ class NumbaBackend(Backend):
                 state, 2 * nqubits, *targets_dm, op, self.conj(matrix), qubits
             )
         else:
-            state = self.multi_qubit_base(
+            state = self._multi_qubit_base(
                 state.ravel(), 2 * nqubits, targets, matrix, qubits_dm
             )
-            state = self.multi_qubit_base(
+            state = self._multi_qubit_base(
                 state, 2 * nqubits, targets_dm, self.conj(matrix), qubits
             )
 

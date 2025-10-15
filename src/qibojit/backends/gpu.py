@@ -68,8 +68,8 @@ class CupyBackend(Backend):  # pragma: no cover
                 raise RuntimeError(
                     "Cannot use ``cupy`` backend if GPU is not available."
                 )
-        except self.engine.cuda.runtime.CUDARuntimeError:
-            raise ImportError("Could not detect ``cupy`` compatible devices.")
+        except self.engine.cuda.runtime.CUDARuntimeError as exc:
+            raise ImportError("Could not detect ``cupy`` compatible devices.") from exc
 
         self.kernels = (
             "apply_gate",
@@ -173,6 +173,153 @@ class CupyBackend(Backend):  # pragma: no cover
         return self.sparse.issparse(array) or self.npsparse.issparse(array)
 
     ########################################################################################
+    ######## Methods related to array manipulation                                  ########
+    ########################################################################################
+
+    def eig(self, array, **kwargs) -> "ndarray":
+        cp_version = self.versions["cupy"]
+        cp_version = int(cp_version.split(".")[0])
+
+        if cp_version <= 13:
+            log.warning(
+                "Falling back to CPU due to lack of native ``linalg.eig`` implementation in"
+                + f"``cupy=={self.versions['cupy']}``."
+            )
+            return np.linalg.eig(self.to_numpy(array), **kwargs)
+
+        return super().eig(array, **kwargs)
+
+    def expm(self, array) -> "ndarray":
+        if self.is_sparse(array):
+            from scipy.sparse.linalg import (  # pylint: disable=import-outside-toplevel
+                expm,
+            )
+        else:
+            from cupyx.scipy.linalg import (  # pylint: disable=import-outside-toplevel
+                expm,
+            )
+
+        return expm(array)
+
+    ########################################################################################
+    ######## Methods related to linear algebra operations                           ########
+    ########################################################################################
+
+    def calculate_eigenvalues(self, matrix, k: int = 6, hermitian: bool = True):
+        if not hermitian:
+            log.warning(
+                "Falling back to CPU for eigenvalue calculation of a non-Hermitian operator."
+            )
+
+            matrix_cpu = self.to_numpy(matrix)
+            eigenvalues = super().calculate_eigenvalues(matrix_cpu, k, hermitian)
+
+            return self.cast(eigenvalues, dtype=eigenvalues.dtype)
+
+        if self.is_sparse(matrix):
+            log.warning(
+                "Calculating sparse matrix eigenvectors because "
+                "sparse modules do not provide ``eigvals`` method."
+            )
+            return self.calculate_eigenvectors(matrix, k=k)[0]
+        return self.engine.linalg.eigvalsh(matrix)
+
+    def calculate_eigenvectors(self, matrix, k: int = 6, hermitian: bool = True):
+        if not hermitian:
+            log.warning(
+                "Falling back to CPU for eigenvector calculation of a non-Hermitian operator."
+            )
+
+            matrix_cpu = self.to_numpy(matrix)
+            eigenvalues, eigenvectors = super().calculate_eigenvectors(
+                matrix_cpu, k, hermitian
+            )
+            eigenvalues = self.cast(eigenvalues, dtype=eigenvalues.dtype)
+            eigenvectors = self.cast(eigenvectors, dtype=eigenvectors.dtype)
+
+            return eigenvalues, eigenvectors
+
+        if self.is_sparse(matrix):
+            if k < matrix.shape[0]:
+                # Fallback to numpy because cupy's ``sparse.eigh`` does not support 'SA'
+                from scipy.sparse.linalg import eigsh  # pylint: disable=import-error
+
+                result = eigsh(matrix.get(), k=k, which="SA")
+                return self.cast(result[0]), self.cast(result[1])
+            matrix = matrix.toarray()
+        if self.is_hip:
+            # Fallback to numpy because eigh is not implemented in rocblas
+            result = self.eigh(matrix)
+            result_0 = self.cast(result[0], dtype=result[0].dtype)
+            result_1 = self.cast(result[1], dtype=result[1].dtype)
+            return result_0, result_1
+
+        return self.engine.linalg.eigh(matrix)
+
+    def matrix_exp(
+        self,
+        matrix,
+        phase: Union[float, int, complex] = 1,
+        eigenvectors=None,
+        eigenvalues=None,
+    ):
+        if eigenvectors is None or self.is_sparse(matrix):
+
+            _matrix = self.to_numpy(matrix) if self.is_sparse(matrix) else matrix
+            _matrix = self.expm(phase * _matrix)
+
+            return self.cast(_matrix, dtype=_matrix.dtype)
+
+        expd = self.exp(phase * eigenvalues)
+        ud = self.transpose(self.conj(eigenvectors))
+
+        return (eigenvectors * expd) @ ud
+
+    def matrix_power(
+        self,
+        matrix,
+        power: Union[float, int],
+        precision_singularity: float = 1e-14,
+        dtype=None,
+    ):
+        if not isinstance(power, (float, int)):
+            raise_error(
+                TypeError,
+                f"``power`` must be either float or int, but it is type {type(power)}.",
+            )
+
+        if dtype is None:
+            dtype = self.dtype
+
+        if isinstance(power, int) and power >= 0.0:
+            return self.engine.linalg.matrix_power(matrix, power)
+
+        if power < 0.0:
+            # negative powers of singular matrices via SVD
+            determinant = self.det(matrix)
+            if abs(determinant) < precision_singularity:
+                return self._negative_power_singular_matrix(
+                    matrix,
+                    power,
+                    precision_singularity,
+                )
+
+        log.warning(
+            "Falling back to CPU due to lack of native ``linalg.fractional_matrix_power``"
+            + f"implementation in ``cupy=={self.versions['cupy']}``."
+        )
+
+        copied = self.to_numpy(matrix)
+        copied = super().calculate_matrix_power(
+            copied,
+            power=power,
+            precision_singularity=precision_singularity,
+            dtype=dtype,
+        )
+
+        return self.cast(copied, dtype=copied.dtype)
+
+    ########################################################################################
     ######## Methods related to the creation and manipulation of quantum objects    ########
     ########################################################################################
 
@@ -202,119 +349,6 @@ class CupyBackend(Backend):  # pragma: no cover
     ########################################################################################
     ######## Methods related to circuit execution                                   ########
     ########################################################################################
-
-    def _one_qubit_base(self, state, nqubits, target, kernel, gate, qubits):
-        ncontrols = len(qubits) - 1 if qubits is not None else 0
-        m = nqubits - target - 1
-        tk = 1 << m
-        nstates = 1 << (nqubits - ncontrols - 1)
-        if kernel in ("apply_x", "apply_y", "apply_z"):
-            args = (state, tk, m)
-        else:
-            args = (state, tk, m, gate)
-
-        if ncontrols:
-            kernel = self.gates.get(f"multicontrol_{kernel}_kernel_{self.dtype}")
-            args += (qubits, ncontrols + 1)
-        else:
-            kernel = self.gates.get(f"{kernel}_kernel_{self.dtype}")
-
-        nblocks, block_size = self._calculate_blocks(nstates)
-        kernel((nblocks,), (block_size,), args)
-        self.engine.cuda.stream.get_current_stream().synchronize()
-        return state
-
-    def _two_qubit_base(self, state, nqubits, target1, target2, kernel, gate, qubits):
-        ncontrols = len(qubits) - 2 if qubits is not None else 0
-        if target1 > target2:
-            m1 = nqubits - target1 - 1
-            m2 = nqubits - target2 - 1
-            tk1, tk2 = 1 << m1, 1 << m2
-            uk1, uk2 = tk2, tk1
-        else:
-            m1 = nqubits - target2 - 1
-            m2 = nqubits - target1 - 1
-            tk1, tk2 = 1 << m1, 1 << m2
-            uk1, uk2 = tk1, tk2
-        nstates = 1 << (nqubits - 2 - ncontrols)
-
-        if kernel == "apply_swap":
-            args = (state, tk1, tk2, m1, m2, uk1, uk2)
-        else:
-            args = (state, tk1, tk2, m1, m2, uk1, uk2, gate)
-            assert state.dtype == args[-1].dtype
-
-        if ncontrols:
-            kernel = self.gates.get(f"multicontrol_{kernel}_kernel_{self.dtype}")
-            args += (qubits, ncontrols + 2)
-        else:
-            kernel = self.gates.get(f"{kernel}_kernel_{self.dtype}")
-
-        nblocks, block_size = self._calculate_blocks(nstates)
-        kernel((nblocks,), (block_size,), args)
-        self.engine.cuda.stream.get_current_stream().synchronize()
-        return state
-
-    def multi_qubit_base(self, state, nqubits, targets, gate, qubits):
-        assert gate is not None
-        if qubits is None:
-            qubits = self.cast(
-                sorted(nqubits - q - 1 for q in targets), dtype=self.int32
-            )
-        ntargets = len(targets)
-        if ntargets > self.MAX_NUM_TARGETS:
-            raise ValueError(
-                f"Number of target qubits must be <= {self.MAX_NUM_TARGETS}"
-                f" but is {ntargets}."
-            )
-        nactive = len(qubits)
-        targets = self.cast(
-            tuple(1 << (nqubits - t - 1) for t in targets[::-1]),
-            dtype=self.int64,
-        )
-        nstates = 1 << (nqubits - nactive)
-        nblocks, block_size = self._calculate_blocks(nstates)
-        kernel = self.gates.get(
-            f"apply_multi_qubit_gate_kernel_{self.dtype}_{ntargets}"
-        )
-        args = (state, gate, qubits, targets, ntargets, nactive)
-        kernel((nblocks,), (block_size,), args)
-        self.engine.cuda.stream.get_current_stream().synchronize()
-        return state
-
-    def _create_qubits_tensor(self, gate, nqubits):
-        # TODO: Treat density matrices
-        qubits = [nqubits - q - 1 for q in gate.control_qubits]
-        qubits.extend(nqubits - q - 1 for q in gate.target_qubits)
-        return self.cast(sorted(qubits), dtype=self.int32)
-
-    def _as_custom_matrix(self, gate):
-        if isinstance(gate, Unitary):
-            matrix = gate.parameters[0]
-            if isinstance(matrix, self.engine.ndarray):
-                return matrix.ravel()
-
-        name = gate.__class__.__name__
-        _matrix = getattr(self.custom_matrices, name)
-
-        if name == "FanOut":
-            matrix = _matrix(*gate.init_args)
-        elif isinstance(gate, ParametrizedGate):
-            if name == "GeneralizedRBS":  # pragma: no cover
-                # this is tested in qibo tests
-                theta = gate.init_kwargs["theta"]
-                phi = gate.init_kwargs["phi"]
-                matrix = _matrix(gate.init_args[0], gate.init_args[1], theta, phi)
-            else:
-                matrix = _matrix(*gate.parameters)
-        elif isinstance(gate, FusedGate):  # pragma: no cover
-            matrix = self.matrix_fused(gate)
-        else:
-            matrix = (
-                _matrix(2 ** len(gate.target_qubits)) if callable(_matrix) else _matrix
-            )
-
-        return self.cast(matrix.ravel(), dtype=matrix.dtype)
 
     def collapse_state(
         self,
@@ -416,9 +450,9 @@ class CupyBackend(Backend):  # pragma: no cover
                     )
                     return circuit._final_state  # pylint: disable=W0212
 
-                circuit._final_state = QuantumState(
+                circuit._final_state = QuantumState( # pylint: disable=W0212
                     state, self
-                )  # pylint: disable=W0212
+                )
                 return circuit._final_state  # pylint: disable=W0212
 
             if circuit.measurements:
@@ -427,7 +461,7 @@ class CupyBackend(Backend):  # pragma: no cover
                 )
                 return circuit._final_state  # pylint: disable=W0212
 
-            circuit._final_state = QuantumState(state, self)
+            circuit._final_state = QuantumState(state, self)  # pylint: disable=W0212
 
             return circuit._final_state  # pylint: disable=W0212
 
@@ -438,6 +472,10 @@ class CupyBackend(Backend):  # pragma: no cover
                 "execution. Please create a new circuit with "
                 "different device configuration and try again.",
             )
+
+    ########################################################################################
+    ######## Methods related to the execution and post-processing of measurements   ########
+    ########################################################################################
 
     def calculate_probabilities(
         self, state, qubits, nqubits: int, density_matrix: bool = False
@@ -464,123 +502,37 @@ class CupyBackend(Backend):  # pragma: no cover
         probabilities = self.to_numpy(probabilities)
         return super().sample_frequencies(probabilities, nshots)
 
-    def calculate_expectation_state(self, matrix, state, normalize):
-        state = self.cast(state)
-        statec = self.engine.conj(state)
-        hstate = matrix @ state
-        ev = self.engine.real(self.engine.sum(statec * hstate))
-        if normalize:
-            norm = self.engine.sum(self.engine.square(self.engine.abs(state)))
-            ev = ev / norm
-        return ev
+    ########################################################################################
+    ######## Helper methods                                                         ########
+    ########################################################################################
 
-    def calculate_expectation_density_matrix(self, matrix, state, normalize):
-        state = self.cast(state)
-        ev = self.engine.real(self.engine.trace(matrix @ state))
-        if normalize:
-            norm = self.engine.real(self.engine.trace(state))
-            ev = ev / norm
-        return ev
+    def _as_custom_matrix(self, gate):
+        if isinstance(gate, Unitary):
+            matrix = gate.parameters[0]
+            if isinstance(matrix, self.engine.ndarray):
+                return matrix.ravel()
 
-    def calculate_eigenvalues(self, matrix, k: int = 6, hermitian: bool = True):
-        if not hermitian:
-            log.warning(
-                "Falling back to CPU for eigenvalue calculation of a non-Hermitian operator."
-            )
+        name = gate.__class__.__name__
+        _matrix = getattr(self.custom_matrices, name)
 
-            matrix_cpu = self.to_numpy(matrix)
-            eigenvalues = super().calculate_eigenvalues(matrix_cpu, k, hermitian)
-
-            return self.cast(eigenvalues, dtype=eigenvalues.dtype)
-
-        if self.is_sparse(matrix):
-            log.warning(
-                "Calculating sparse matrix eigenvectors because "
-                "sparse modules do not provide ``eigvals`` method."
-            )
-            return self.calculate_eigenvectors(matrix, k=k)[0]
-        return self.engine.linalg.eigvalsh(matrix)
-
-    def calculate_eigenvectors(self, matrix, k: int = 6, hermitian: bool = True):
-        if not hermitian:
-            log.warning(
-                "Falling back to CPU for eigenvector calculation of a non-Hermitian operator."
-            )
-
-            matrix_cpu = self.to_numpy(matrix)
-            eigenvalues, eigenvectors = super().calculate_eigenvectors(
-                matrix_cpu, k, hermitian
-            )
-            eigenvalues = self.cast(eigenvalues, dtype=eigenvalues.dtype)
-            eigenvectors = self.cast(eigenvectors, dtype=eigenvectors.dtype)
-
-            return eigenvalues, eigenvectors
-
-        if self.is_sparse(matrix):
-            if k < matrix.shape[0]:
-                # Fallback to numpy because cupy's ``sparse.eigh`` does not support 'SA'
-                from scipy.sparse.linalg import eigsh  # pylint: disable=import-error
-
-                result = eigsh(matrix.get(), k=k, which="SA")
-                return self.cast(result[0]), self.cast(result[1])
-            matrix = matrix.toarray()
-        if self.is_hip:
-            # Fallback to numpy because eigh is not implemented in rocblas
-            result = self.eigh(matrix)
-            result_0 = self.cast(result[0], dtype=result[0].dtype)
-            result_1 = self.cast(result[1], dtype=result[1].dtype)
-            return result_0, result_1
-
-        return self.engine.linalg.eigh(matrix)
-
-    def calculate_matrix_exp(
-        self,
-        matrix,
-        phase: Union[float, int, complex] = 1,
-        eigenvectors=None,
-        eigenvalues=None,
-    ):
-        if eigenvectors is None or self.is_sparse(matrix):
-            is_sparse = self.is_sparse(matrix)
-
-            if is_sparse:
-                from scipy.sparse.linalg import (  # pylint: disable=import-outside-toplevel
-                    expm,
-                )
+        if name == "FanOut":
+            matrix = _matrix(*gate.init_args)
+        elif isinstance(gate, ParametrizedGate):
+            if name == "GeneralizedRBS":  # pragma: no cover
+                # this is tested in qibo tests
+                theta = gate.init_kwargs["theta"]
+                phi = gate.init_kwargs["phi"]
+                matrix = _matrix(gate.init_args[0], gate.init_args[1], theta, phi)
             else:
-                from cupyx.scipy.linalg import expm  # pylint: disable=import-error
+                matrix = _matrix(*gate.parameters)
+        elif isinstance(gate, FusedGate):  # pragma: no cover
+            matrix = self.matrix_fused(gate)
+        else:
+            matrix = (
+                _matrix(2 ** len(gate.target_qubits)) if callable(_matrix) else _matrix
+            )
 
-            _matrix = self.to_numpy(matrix) if is_sparse else matrix
-            _matrix = expm(phase * _matrix)
-
-            return self.cast(_matrix, dtype=_matrix.dtype)
-
-        expd = self.exp(phase * eigenvalues)
-        ud = self.transpose(self.conj(eigenvectors))
-
-        return (eigenvectors * expd) @ ud
-
-    def calculate_matrix_power(
-        self, matrix, power: Union[float, int], precision_singularity: float = 1e-14
-    ):
-
-        if isinstance(power, int) and power >= 0.0:
-            return self.matrix_power(matrix, power)
-
-        if power < 0.0:
-            # negative powers of singular matrices via SVD
-            determinant = self.det(matrix)
-            if abs(determinant) < precision_singularity:
-                return self._negative_power_singular_matrix(
-                    matrix,
-                    power,
-                    precision_singularity,
-                )
-
-        copied = self.to_numpy(matrix)
-        copied = super().calculate_matrix_power(copied, power, precision_singularity)
-
-        return self.cast(copied, dtype=copied.dtype)
+        return self.cast(matrix.ravel(), dtype=matrix.dtype)
 
     def _calculate_blocks(self, nstates, block_size=DEFAULT_BLOCK_SIZE):
         """Compute the number of blocks and of threads per block.
@@ -596,6 +548,91 @@ class CupyBackend(Backend):  # pragma: no cover
             nblocks = 1
             block_size = nstates
         return nblocks, block_size
+
+    def _create_qubits_tensor(self, gate, nqubits):
+        # TODO: Treat density matrices
+        qubits = [nqubits - q - 1 for q in gate.control_qubits]
+        qubits.extend(nqubits - q - 1 for q in gate.target_qubits)
+        return self.cast(sorted(qubits), dtype=self.int32)
+
+    def _multi_qubit_base(self, state, nqubits, targets, gate, qubits):
+        assert gate is not None
+        if qubits is None:
+            qubits = self.cast(
+                sorted(nqubits - q - 1 for q in targets), dtype=self.int32
+            )
+        ntargets = len(targets)
+        if ntargets > self.MAX_NUM_TARGETS:
+            raise ValueError(
+                f"Number of target qubits must be <= {self.MAX_NUM_TARGETS}"
+                f" but is {ntargets}."
+            )
+        nactive = len(qubits)
+        targets = self.cast(
+            tuple(1 << (nqubits - t - 1) for t in targets[::-1]),
+            dtype=self.int64,
+        )
+        nstates = 1 << (nqubits - nactive)
+        nblocks, block_size = self._calculate_blocks(nstates)
+        kernel = self.gates.get(
+            f"apply_multi_qubit_gate_kernel_{self.dtype}_{ntargets}"
+        )
+        args = (state, gate, qubits, targets, ntargets, nactive)
+        kernel((nblocks,), (block_size,), args)
+        self.engine.cuda.stream.get_current_stream().synchronize()
+        return state
+
+    def _one_qubit_base(self, state, nqubits, target, kernel, gate, qubits):
+        ncontrols = len(qubits) - 1 if qubits is not None else 0
+        m = nqubits - target - 1
+        tk = 1 << m
+        nstates = 1 << (nqubits - ncontrols - 1)
+        if kernel in ("apply_x", "apply_y", "apply_z"):
+            args = (state, tk, m)
+        else:
+            args = (state, tk, m, gate)
+
+        if ncontrols:
+            kernel = self.gates.get(f"multicontrol_{kernel}_kernel_{self.dtype}")
+            args += (qubits, ncontrols + 1)
+        else:
+            kernel = self.gates.get(f"{kernel}_kernel_{self.dtype}")
+
+        nblocks, block_size = self._calculate_blocks(nstates)
+        kernel((nblocks,), (block_size,), args)
+        self.engine.cuda.stream.get_current_stream().synchronize()
+        return state
+
+    def _two_qubit_base(self, state, nqubits, target1, target2, kernel, gate, qubits):
+        ncontrols = len(qubits) - 2 if qubits is not None else 0
+        if target1 > target2:
+            m1 = nqubits - target1 - 1
+            m2 = nqubits - target2 - 1
+            tk1, tk2 = 1 << m1, 1 << m2
+            uk1, uk2 = tk2, tk1
+        else:
+            m1 = nqubits - target2 - 1
+            m2 = nqubits - target1 - 1
+            tk1, tk2 = 1 << m1, 1 << m2
+            uk1, uk2 = tk1, tk2
+        nstates = 1 << (nqubits - 2 - ncontrols)
+
+        if kernel == "apply_swap":
+            args = (state, tk1, tk2, m1, m2, uk1, uk2)
+        else:
+            args = (state, tk1, tk2, m1, m2, uk1, uk2, gate)
+            assert state.dtype == args[-1].dtype
+
+        if ncontrols:
+            kernel = self.gates.get(f"multicontrol_{kernel}_kernel_{self.dtype}")
+            args += (qubits, ncontrols + 2)
+        else:
+            kernel = self.gates.get(f"{kernel}_kernel_{self.dtype}")
+
+        nblocks, block_size = self._calculate_blocks(nstates)
+        kernel((nblocks,), (block_size,), args)
+        self.engine.cuda.stream.get_current_stream().synchronize()
+        return state
 
 
 class CuQuantumBackend(CupyBackend):  # pragma: no cover
@@ -805,7 +842,7 @@ class CuQuantumBackend(CupyBackend):  # pragma: no cover
 
         return state
 
-    def multi_qubit_base(self, state, nqubits, targets, gate, qubits=None):
+    def _multi_qubit_base(self, state, nqubits, targets, gate, qubits=None):
         state = self.cast(state, dtype=self.dtype)
         ntarget = len(targets)
         if qubits is None:

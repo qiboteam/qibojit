@@ -82,8 +82,8 @@ def test_backend_eigh(backend, sparse_type):
 
         m = rand(16, 16, format=sparse_type)
         m = m + m.T
-        eigvals1, eigvecs1 = backend.calculate_eigenvectors(backend.cast(m), k=16)
-        eigvals2, eigvecs2 = backend.calculate_eigenvectors(backend.cast(m.toarray()))
+        eigvals1, eigvecs1 = backend.eigenvectors(backend.cast(m), k=16)
+        eigvals2, eigvecs2 = backend.eigenvectors(backend.cast(m.toarray()))
     backend.assert_allclose(eigvals1, eigvals2, atol=1e-10)
     eigvecs1 = backend.to_numpy(eigvecs1)
     eigvecs2 = backend.to_numpy(eigvecs2)
@@ -95,14 +95,14 @@ def test_backend_eigvalsh(backend, sparse_type):
     if sparse_type is None:
         m = np.random.random((16, 16))
         target = np.linalg.eigvalsh(m)
-        result = backend.calculate_eigenvalues(backend.cast(m))
+        result = backend.eigenvalues(backend.cast(m))
     else:
         from scipy.sparse import rand
 
         m = rand(16, 16, format=sparse_type)
         m = m + m.T
-        result = backend.calculate_eigenvalues(backend.cast(m), k=16)
-        target, _ = backend.calculate_eigenvectors(backend.cast(m.toarray()))
+        result = backend.eigenvalues(backend.cast(m), k=16)
+        target, _ = backend.eigenvectors(backend.cast(m.toarray()))
     backend.assert_allclose(target, result, atol=1e-10)
 
 

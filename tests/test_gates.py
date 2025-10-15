@@ -413,7 +413,7 @@ def test_apply_multi_qubit_base(backend, nqubits, targets, use_qubits, dtype):
         qubits = None
     state = backend.cast(state)
     matrix = backend.cast(matrix)
-    state = backend.multi_qubit_base(state, nqubits, targets, matrix, qubits)
+    state = backend._multi_qubit_base(state, nqubits, targets, matrix, qubits)
     backend.assert_allclose(state, target_state, atol=ATOL.get(dtype))
 
 
