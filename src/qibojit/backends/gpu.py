@@ -450,7 +450,7 @@ class CupyBackend(Backend):  # pragma: no cover
                     )
                     return circuit._final_state  # pylint: disable=W0212
 
-                circuit._final_state = QuantumState( # pylint: disable=W0212
+                circuit._final_state = QuantumState(  # pylint: disable=W0212
                     state, self
                 )
                 return circuit._final_state  # pylint: disable=W0212
