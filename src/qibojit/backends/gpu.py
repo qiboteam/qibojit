@@ -1,18 +1,20 @@
 from typing import Union
 
 import numpy as np
-from qibo.config import log, raise_error
 from scipy import sparse
 
-from qibojit.backends.cpu import NumbaBackend
+from qibo.backends import Backend
+from qibo.config import log, raise_error
 from qibojit.backends.matrices import (
     CupyMatrices,
     CustomCuQuantumMatrices,
     CustomMatrices,
 )
+from qibojit.custom_operators import raw_kernels
+from qibojit.custom_operators.ops import measure_frequencies
 
 
-class CupyBackend(NumbaBackend):  # pragma: no cover
+class CupyBackend(Backend):  # pragma: no cover
     # CI does not have GPUs
 
     DEFAULT_BLOCK_SIZE = 1024
@@ -21,45 +23,47 @@ class CupyBackend(NumbaBackend):  # pragma: no cover
     def __init__(self):
         super().__init__()
 
-        import cupy as cp  # pylint: disable=import-error
-        import cupy_backends  # pylint: disable=import-error
-        import cupyx.scipy.sparse as cp_sparse  # pylint: disable=import-error
+        import cupy as cp  # pylint: disable=import-error,import-outside-toplevel
+        import cupy_backends  # pylint: disable=import-error,import-outside-toplevel
+        import cupyx.scipy.sparse as cp_sparse  # pylint: disable=import-error,import-outside-toplevel
 
         self.engine = cp
+        self.npsparse = sparse
+        self.sparse = cp_sparse
+        self.is_hip = cupy_backends.cuda.api.runtime.is_hip
+        self.measure_frequencies_op = measure_frequencies
+        # number of available GPUs (for multigpu)
+        self.ngpus = self.engine.cuda.runtime.getDeviceCount()
 
         self.name = "qibojit"
         self.platform = "cupy"
-        self.versions["cupy"] = cp.__version__
+        self.versions["cupy"] = self.engine.__version__
 
         self.supports_multigpu = True
-        self.numeric_types = (
-            int,
-            float,
-            complex,
-            cp.int32,
-            cp.int64,
-            cp.float32,
-            cp.float64,
-            cp.complex64,
-            cp.complex128,
+        self.numeric_types += (
+            self.int32,
+            self.int64,
+            self.float32,
+            self.float64,
+            self.complex64,
+            self.complex128,
         )
-        self.tensor_types = (np.ndarray, cp.ndarray)
+        self.tensor_types = (np.ndarray, self.engine.ndarray)
 
-        self.npsparse = sparse
-        self.sparse = cp_sparse
         self.device = "/GPU:0"
         self.matrices = CupyMatrices(self.dtype)
         self.custom_matrices = CustomMatrices(self.dtype)
         self.custom_matrices._cast = self.matrices._cast
 
         try:
-            if not cp.cuda.runtime.getDeviceCount():  # pragma: no cover
-                raise RuntimeError("Cannot use cupy backend if GPU is not available.")
-        except cp.cuda.runtime.CUDARuntimeError:
-            raise ImportError("Could not detect cupy compatible devices.")
+            if not self.engine.cuda.runtime.getDeviceCount():  # pragma: no cover
+                raise RuntimeError(
+                    "Cannot use ``cupy`` backend if GPU is not available."
+                )
+        except self.engine.cuda.runtime.CUDARuntimeError:
+            raise ImportError("Could not detect ``cupy`` compatible devices.")
 
-        self.is_hip = cupy_backends.cuda.api.runtime.is_hip
-        self.KERNELS = (
+        self.kernels = (
             "apply_gate",
             "apply_x",
             "apply_y",
@@ -72,7 +76,6 @@ class CupyBackend(NumbaBackend):  # pragma: no cover
 
         # load core kernels
         self.gates = {}
-        from qibojit.custom_operators import raw_kernels
 
         type_replacements = {
             "float32": "float",
@@ -91,11 +94,11 @@ class CupyBackend(NumbaBackend):  # pragma: no cover
                     else f"state[0] = {type_replacements[dtype]}(1, 0);"
                 )
                 code = code.replace("<BODY>", body)
-            gate = cp.RawKernel(code, name, ("--std=c++11",))
+            gate = self.engine.RawKernel(code, name, ("--std=c++11",))
             self.gates[f"{name}_{dtype}"] = gate
 
-        for dtype in type_replacements.keys():
-            for name in self.KERNELS:
+        for dtype, _ in type_replacements.items():
+            for name in self.kernels:
                 kernel_loader(f"{name}_kernel", dtype)
                 kernel_loader(f"multicontrol_{name}_kernel", dtype)
             kernel_loader("collapse_state_kernel", dtype)
@@ -109,113 +112,80 @@ class CupyBackend(NumbaBackend):  # pragma: no cover
                 code = code.replace("T", ctype)
                 code = code.replace("nsubstates", str(2**ntargets))
                 code = code.replace("MAX_BLOCK_SIZE", str(self.DEFAULT_BLOCK_SIZE))
-                gate = cp.RawKernel(code, name, ("--std=c++11",))
+                gate = self.engine.RawKernel(code, name, ("--std=c++11",))
                 self.gates[f"{name}_{dtype}_{ntargets}"] = gate
-
-        # load numba op for measuring frequencies
-        from qibojit.custom_operators.ops import measure_frequencies
-
-        self.measure_frequencies_op = measure_frequencies
-
-        # number of available GPUs (for multigpu)
-        self.ngpus = cp.cuda.runtime.getDeviceCount()
 
     def set_device(self, device):
         if "GPU" not in device:
             raise_error(
                 ValueError, f"Device {device} is not available for {self} backend."
             )
-        # TODO: Raise error if GPU is not available
         self.device = device
 
     def set_seed(self, seed):
         super().set_seed(seed)
         self.engine.random.seed(seed)
 
-    def zeros(self, shape, dtype=None):
-        if dtype is None:
-            dtype = self.dtype
-        return self.engine.zeros(shape, dtype=dtype)
-
-    def random_choice(self, a, **kwargs):
-        return self.engine.random.choice(a, **kwargs)
-
-    def cast(self, x, dtype=None, copy=False):
+    def cast(self, array, dtype=None, copy=False):
         if dtype is None:
             dtype = self.dtype
 
-        if self.sparse.issparse(x):
-            if dtype != x.dtype:
-                return x.astype(dtype)
+        if self.sparse.issparse(array):
+            if dtype != array.dtype:
+                return array.astype(dtype)
 
-            return x
+            return array
 
-        if self.npsparse.issparse(x):
-            class_ = getattr(self.sparse, x.__class__.__name__)
+        if self.npsparse.issparse(array):
+            class_ = getattr(self.sparse, array.__class__.__name__)
 
-            return class_(x, dtype=dtype)
+            return class_(array, dtype=dtype)
 
-        if isinstance(x, self.engine.ndarray) and copy:
-            return self.engine.copy(self.engine.asarray(x, dtype=dtype))
+        if isinstance(array, self.engine.ndarray) and copy:
+            return self.engine.copy(self.engine.asarray(array, dtype=dtype))
 
-        return self.engine.asarray(x, dtype=dtype)
+        return self.engine.asarray(array, dtype=dtype)
 
-    def to_numpy(self, x):
-        if isinstance(x, self.engine.ndarray):
-            return x.get()
+    def to_numpy(self, array):
+        if isinstance(array, self.engine.ndarray):
+            return array.get()
 
-        if isinstance(x, list):
-            return self.engine.asarray(x).get()
+        if isinstance(array, list):
+            return self.engine.asarray(array).get()
 
-        if self.sparse.issparse(x):
-            return x.toarray().get()
+        if self.sparse.issparse(array):
+            return array.toarray().get()
 
-        if self.npsparse.issparse(x):
-            return x.toarray()
+        if self.npsparse.issparse(array):
+            return array.toarray()
 
-        return np.asarray(x)
+        return np.asarray(array)
 
-    def is_sparse(self, x):
-        return self.sparse.issparse(x) or self.npsparse.issparse(x)
+    def is_sparse(self, array):
+        return self.sparse.issparse(array) or self.npsparse.issparse(array)
 
-    def zero_state(self, nqubits, density_matrix: bool = False):
+    def zero_state(self, nqubits, density_matrix: bool = False, dtype=None):
+        if dtype is None:
+            dtype = self.dtype
+
         n = 1 << nqubits
         shape = n * n if density_matrix else n
         kernel = self.gates.get(f"initial_state_kernel_{self.dtype}")
-        state = self.engine.zeros(shape, dtype=self.dtype)
+        state = self.zeros(shape, dtype=dtype)
         kernel((1,), (1,), [state])
         self.engine.cuda.stream.get_current_stream().synchronize()
+
         return state.reshape((n, n)) if density_matrix else state
 
-    # def zero_density_matrix(self, nqubits):
-    #     n = 1 << nqubits
-    #     kernel = self.gates.get(f"initial_state_kernel_{self.dtype}")
-    #     state = self.engine.zeros(n * n, dtype=self.dtype)
-    #     kernel((1,), (1,), [state])
-    #     self.engine.cuda.stream.get_current_stream().synchronize()
-    #     return state.reshape((n, n))
+    def maximally_mixed_state(self, nqubits, dtype=None):
+        if dtype is None:
+            dtype = self.dtype
 
-    def identity_density_matrix(self, nqubits, normalize: bool = True):
         n = 1 << nqubits
-        state = self.engine.eye(n, dtype=self.dtype)
+        state = self.identity(n, dtype=self.dtype)
         self.engine.cuda.stream.get_current_stream().synchronize()
-        if normalize:
-            state /= 2**nqubits
-        return state.reshape((n, n))
 
-    def plus_state(self, nqubits):
-        state = self.engine.ones(2**nqubits, dtype=self.dtype)
-        state /= self.engine.sqrt(2**nqubits)
-        return state
-
-    def plus_density_matrix(self, nqubits):
-        state = self.engine.ones(2 * (2**nqubits,), dtype=self.dtype)
-        state /= 2**nqubits
-        return state
-
-    def matrix_fused(self, gate):
-        npmatrix = super().matrix_fused(gate)
-        return self.cast(npmatrix, dtype=self.dtype)
+        return state.reshape((n, n)) / 2**nqubits
 
     def calculate_blocks(self, nstates, block_size=DEFAULT_BLOCK_SIZE):
         """Compute the number of blocks and of threads per block.
@@ -288,7 +258,7 @@ class CupyBackend(NumbaBackend):  # pragma: no cover
         assert gate is not None
         if qubits is None:
             qubits = self.cast(
-                sorted(nqubits - q - 1 for q in targets), dtype=self.engine.int32
+                sorted(nqubits - q - 1 for q in targets), dtype=self.int32
             )
         ntargets = len(targets)
         if ntargets > self.MAX_NUM_TARGETS:
@@ -302,7 +272,6 @@ class CupyBackend(NumbaBackend):  # pragma: no cover
             dtype=self.engine.int64,
         )
         nstates = 1 << (nqubits - nactive)
-        nsubstates = 1 << ntargets
         nblocks, block_size = self.calculate_blocks(nstates)
         kernel = self.gates.get(
             f"apply_multi_qubit_gate_kernel_{self.dtype}_{ntargets}"
@@ -313,8 +282,11 @@ class CupyBackend(NumbaBackend):  # pragma: no cover
         return state
 
     def _create_qubits_tensor(self, gate, nqubits):
-        qubits = super()._create_qubits_tensor(gate, nqubits)
-        return self.engine.asarray(qubits, dtype=self.engine.int32)
+        # TODO: Treat density matrices
+        qubits = [nqubits - q - 1 for q in gate.control_qubits]
+        qubits.extend(nqubits - q - 1 for q in gate.target_qubits)
+        return self.cast(sorted(qubits), dtype=self.int32)
+
 
     def _as_custom_matrix(self, gate):
         from qibo.gates import Unitary
@@ -531,8 +503,10 @@ class CupyBackend(NumbaBackend):  # pragma: no cover
             matrix = matrix.toarray()
         if self.is_hip:
             # Fallback to numpy because eigh is not implemented in rocblas
-            result = self.np.linalg.eigh(self.to_numpy(matrix))
-            return self.cast(result[0]), self.cast(result[1])
+            result = self.eigh(matrix)
+            result_0 = self.cast(result[0], dtype=result[0].dtype)
+            result_1 = self.cast(result[1], dtype=result[1].dtype)
+            return result_0, result_1
 
         return self.engine.linalg.eigh(matrix)
 
@@ -558,8 +532,8 @@ class CupyBackend(NumbaBackend):  # pragma: no cover
 
             return self.cast(_matrix, dtype=_matrix.dtype)
 
-        expd = self.np.exp(phase * eigenvalues)
-        ud = self.np.transpose(self.np.conj(eigenvectors))
+        expd = self.exp(phase * eigenvalues)
+        ud = self.transpose(self.conj(eigenvectors))
 
         return (eigenvectors * expd) @ ud
 
@@ -712,12 +686,12 @@ class CuQuantumBackend(CupyBackend):  # pragma: no cover
         if qubits is not None:
             ncontrols = len(qubits) - 2
             qubits = self.to_numpy(qubits)
-            controls = self.np.asarray(
+            controls = np.asarray(
                 [i for i in qubits if i not in [target1, target2]], dtype=self.np.int32
             )
         else:
             ncontrols = 0
-            controls = self.np.empty(0)
+            controls = np.empty(0)
 
         adjoint = 0
 
@@ -728,28 +702,28 @@ class CuQuantumBackend(CupyBackend):  # pragma: no cover
         data_type, compute_type = self.get_cuda_type(state.dtype)
 
         if kernel == "apply_swap":
-            nBitSwaps = 1
-            bitSwaps = [(target1, target2)]
-            maskLen = ncontrols
-            maskBitString = self.engine.ones(ncontrols)
-            maskOrdering = controls
+            n_bit_swaps = 1
+            bit_swaps = [(target1, target2)]
+            mask_len = ncontrols
+            mask_bit_string = self.engine.ones(ncontrols)
+            mask_ordering = controls
 
             self.cusv.swap_index_bits(
                 self.handle,
                 state.data.ptr,
                 data_type,
                 nqubits,
-                bitSwaps,
-                nBitSwaps,
-                maskBitString,
-                maskOrdering,
-                maskLen,
+                bit_swaps,
+                n_bit_swaps,
+                mask_bit_string,
+                mask_ordering,
+                mask_len,
             )
             return state
 
         if isinstance(gate, self.engine.ndarray):
             gate_ptr = gate.data.ptr
-        elif isinstance(gate, self.np.ndarray):
+        elif isinstance(gate, np.ndarray):
             gate_ptr = gate.ctypes.data
         else:
             raise ValueError
@@ -941,7 +915,7 @@ class MultiGpuOps:  # pragma: no cover
         """Method that is parallelized using ``joblib``."""
         for i in ids:
             device_id = int(device.split(":")[-1]) % self.backend.ngpus
-            with self.backend.cp.cuda.Device(device_id):
+            with self.backend.engine.cuda.Device(device_id):
                 piece = self.backend.cast(pieces[i])
                 for gate in queues[i]:
                     piece = self.backend.apply_gate(gate, piece, self.circuit.nlocal)
