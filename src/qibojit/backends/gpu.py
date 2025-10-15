@@ -210,7 +210,6 @@ class CupyBackend(Backend):  # pragma: no cover
 
         return super().eig(array, **kwargs)
 
-
     def expm(self, array) -> "ndarray":
         if self.is_sparse(array):
             from scipy.sparse.linalg import (  # pylint: disable=import-outside-toplevel
@@ -222,7 +221,7 @@ class CupyBackend(Backend):  # pragma: no cover
             )
 
         exp_matrix = expm(array)
-        
+
         return self.cast(exp_matrix, dtype=exp_matrix.dtype)
 
     ########################################################################################
