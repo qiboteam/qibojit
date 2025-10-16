@@ -476,8 +476,8 @@ def test_unitary_channel(backend, dtype):
     state = random_density_matrix(2**4, backend=tbackend).astype(dtype)
 
     set_dtype(dtype, backend, tbackend)
-    target_state = tbackend.apply_channel_density_matrix(channel, np.copy(state), 4)
-    final_state = backend.apply_channel_density_matrix(channel, np.copy(state), 4)
+    target_state = tbackend.apply_channel(channel, np.copy(state), 4)
+    final_state = backend.apply_channel(channel, backend.cast(state, copy=True), 4)
     backend.assert_allclose(final_state, target_state)
 
 
@@ -488,9 +488,7 @@ def test_readout_error_channel(backend):
     rho = random_density_matrix(d, seed=1, backend=backend)
     P = random_stochastic_matrix(d, seed=1, backend=backend)
 
-    probability_sum = gates.ReadoutErrorChannel(0, P).apply_density_matrix(
-        backend, rho, 1
-    )
+    probability_sum = gates.ReadoutErrorChannel(0, P).apply(backend, rho, 1)
     probability_sum = np.diag(probability_sum).sum().real
 
     backend.assert_allclose(probability_sum - 1 < PRECISION_TOL, True)
