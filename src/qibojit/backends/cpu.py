@@ -12,7 +12,7 @@ from qibo.gates.special import FusedGate
 
 from qibojit.backends.matrices import CustomMatrices
 
-GATE_OPS = {
+gate_ops = {
     "X": "apply_x",
     "CNOT": "apply_x",
     "TOFFOLI": "apply_x",
@@ -156,50 +156,6 @@ class NumbaBackend(Backend):
 
         return self._apply_gate(gate, state, nqubits)
 
-    def _multi_qubit_base(self, state, nqubits: int, targets, gate, qubits):
-        if qubits is None:
-            qubits = self.cast(
-                sorted(nqubits - q - 1 for q in targets), dtype=self.int32
-            )
-        nstates = 1 << (nqubits - len(qubits))
-        targets = self.cast(
-            [1 << (nqubits - t - 1) for t in targets[::-1]], dtype=self.int64
-        )
-        if len(targets) > 5:
-            kernel = self.gates.apply_multi_qubit_gate_kernel
-        else:
-            kernel = self.multi_qubit_kernels.get(len(targets))
-        return kernel(state, gate, qubits, nstates, targets)
-
-    def _one_qubit_base(self, state, nqubits: int, target, kernel, gate, qubits):
-        ncontrols = len(qubits) - 1 if qubits is not None else 0
-        m = nqubits - target - 1
-        nstates = 1 << (nqubits - ncontrols - 1)
-        if ncontrols:
-            kernel = getattr(self.gates, f"multicontrol_{kernel}_kernel")
-            return kernel(state, gate, qubits, nstates, m)
-        kernel = getattr(self.gates, f"{kernel}_kernel")
-        return kernel(state, gate, nstates, m)
-
-    def two_qubit_base(
-        self, state, nqubits: int, target1, target2, kernel, gate, qubits
-    ):
-        ncontrols = len(qubits) - 2 if qubits is not None else 0
-        if target1 > target2:
-            swap_targets = True
-            m1 = nqubits - target1 - 1
-            m2 = nqubits - target2 - 1
-        else:
-            swap_targets = False
-            m1 = nqubits - target2 - 1
-            m2 = nqubits - target1 - 1
-        nstates = 1 << (nqubits - 2 - ncontrols)
-        if ncontrols:
-            kernel = getattr(self.gates, f"multicontrol_{kernel}_kernel")
-            return kernel(state, gate, qubits, nstates, m1, m2, swap_targets)
-        kernel = getattr(self.gates, f"{kernel}_kernel")
-        return kernel(state, gate, nstates, m1, m2, swap_targets)
-
     ########################################################################################
     ######## Methods related to the execution and post-processing of measurements   ########
     ########################################################################################
@@ -245,7 +201,7 @@ class NumbaBackend(Backend):
             gate = gates.CNOT(control, target)
             matrix = self._as_custom_matrix(gate)
             qubits = self._create_qubits_tensor(gate, nqubits)
-            op = GATE_OPS.get("CNOT")
+            op = gate_ops.get("CNOT")
             state = self._one_qubit_base(state, nqubits, target, op, matrix, qubits)
 
         return state
@@ -256,13 +212,16 @@ class NumbaBackend(Backend):
         targets = gate.target_qubits
         state = self.cast(state, dtype=state.dtype)
 
+        if gate.name == "fanout":
+            return self._apply_fanout_gate(gate, state, nqubits)
+
         if len(targets) == 1:
-            op = GATE_OPS.get(gate.__class__.__name__, "apply_gate")
+            op = gate_ops.get(gate.__class__.__name__, "apply_gate")
             return self._one_qubit_base(state, nqubits, *targets, op, matrix, qubits)
 
         if len(targets) == 2:
-            op = GATE_OPS.get(gate.__class__.__name__, "apply_two_qubit_gate")
-            return self.two_qubit_base(state, nqubits, *targets, op, matrix, qubits)
+            op = gate_ops.get(gate.__class__.__name__, "apply_two_qubit_gate")
+            return self._two_qubit_base(state, nqubits, *targets, op, matrix, qubits)
 
         return self._multi_qubit_base(state, nqubits, targets, matrix, qubits)
 
@@ -287,7 +246,7 @@ class NumbaBackend(Backend):
         state = self.cast(state)
         shape = state.shape
         if len(targets) == 1:
-            op = GATE_OPS.get(name, "apply_gate")
+            op = gate_ops.get(name, "apply_gate")
             state = self._one_qubit_base(
                 state.ravel(), 2 * nqubits, *targets, op, matrix, qubits_dm
             )
@@ -295,11 +254,11 @@ class NumbaBackend(Backend):
                 state, 2 * nqubits, *targets_dm, op, self.conj(matrix), qubits
             )
         elif len(targets) == 2:
-            op = GATE_OPS.get(name, "apply_two_qubit_gate")
-            state = self.two_qubit_base(
+            op = gate_ops.get(name, "apply_two_qubit_gate")
+            state = self._two_qubit_base(
                 state.ravel(), 2 * nqubits, *targets, op, matrix, qubits_dm
             )
-            state = self.two_qubit_base(
+            state = self._two_qubit_base(
                 state, 2 * nqubits, *targets_dm, op, self.conj(matrix), qubits
             )
         else:
@@ -389,3 +348,50 @@ class NumbaBackend(Backend):
         qubits = [nqubits - q - 1 for q in gate.control_qubits]
         qubits.extend(nqubits - q - 1 for q in gate.target_qubits)
         return self.cast(sorted(qubits), dtype=self.int32)
+
+    def _multi_qubit_base(self, state, nqubits: int, targets, gate, qubits):
+        if qubits is None:
+            qubits = self.cast(
+                sorted(nqubits - q - 1 for q in targets), dtype=self.int32
+            )
+        nstates = 1 << (nqubits - len(qubits))
+        targets = self.cast(
+            [1 << (nqubits - t - 1) for t in targets[::-1]], dtype=self.int64
+        )
+
+        kernel = (
+            self.gates.apply_multi_qubit_gate_kernel
+            if len(targets) > 5
+            else self.multi_qubit_kernels.get(len(targets))
+        )
+
+        return kernel(state, gate, qubits, nstates, targets)
+
+    def _one_qubit_base(self, state, nqubits: int, target, kernel, gate, qubits):
+        ncontrols = len(qubits) - 1 if qubits is not None else 0
+        m = nqubits - target - 1
+        nstates = 1 << (nqubits - ncontrols - 1)
+        if ncontrols:
+            kernel = getattr(self.gates, f"multicontrol_{kernel}_kernel")
+            return kernel(state, gate, qubits, nstates, m)
+        kernel = getattr(self.gates, f"{kernel}_kernel")
+        return kernel(state, gate, nstates, m)
+
+    def _two_qubit_base(
+        self, state, nqubits: int, target1, target2, kernel, gate, qubits
+    ):
+        ncontrols = len(qubits) - 2 if qubits is not None else 0
+        if target1 > target2:
+            swap_targets = True
+            m1 = nqubits - target1 - 1
+            m2 = nqubits - target2 - 1
+        else:
+            swap_targets = False
+            m1 = nqubits - target2 - 1
+            m2 = nqubits - target1 - 1
+        nstates = 1 << (nqubits - 2 - ncontrols)
+        if ncontrols:
+            kernel = getattr(self.gates, f"multicontrol_{kernel}_kernel")
+            return kernel(state, gate, qubits, nstates, m1, m2, swap_targets)
+        kernel = getattr(self.gates, f"{kernel}_kernel")
+        return kernel(state, gate, nstates, m1, m2, swap_targets)

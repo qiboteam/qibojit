@@ -37,8 +37,8 @@ def test_apply_gate(backend, nqubits, target, controls, dtype):
     gate = gates.Unitary(matrix, target).controlled_by(*controls)
 
     set_dtype(dtype, backend, tbackend)
-    target_state = tbackend.apply_gate(gate, np.copy(state), nqubits)
-    state = backend.apply_gate(gate, np.copy(state), nqubits)
+    target_state = tbackend.apply_gate(gate, backend.cast(state, copy=True), nqubits)
+    state = backend.apply_gate(gate, backend.cast(state, copy=True), nqubits)
     backend.assert_allclose(state, target_state, atol=ATOL.get(dtype))
 
 
@@ -53,8 +53,8 @@ def test_one_qubit_base(backend, nqubits, target, use_qubits, dtype):
     set_dtype(dtype, backend, tbackend)
     target_state = tbackend.apply_gate(gate, np.copy(state), nqubits)
     qubits = qubits_tensor(nqubits, [target]) if use_qubits else None
-    state = backend.cast(state)
-    matrix = backend.cast(matrix)
+    state = backend.cast(state, dtype=state.dtype)
+    matrix = backend.cast(matrix, dtype=matrix.dtype)
     state = backend._one_qubit_base(
         state, nqubits, target, "apply_gate", matrix, qubits
     )
@@ -82,7 +82,7 @@ def test_apply_pauli_gate(backend, nqubits, target, pauli, controls, dtype):
 
     set_dtype(dtype, backend, tbackend)
     target_state = tbackend.apply_gate(gate, np.copy(state), nqubits)
-    state = backend.apply_gate(gate, np.copy(state), nqubits)
+    state = backend.apply_gate(gate, backend.cast(state, copy=True), nqubits)
     backend.assert_allclose(state, target_state, atol=ATOL.get(dtype))
 
 
@@ -98,7 +98,7 @@ def test_apply_zpow_gate(backend, nqubits, target, controls, dtype):
 
     set_dtype(dtype, backend, tbackend)
     target_state = tbackend.apply_gate(gate, np.copy(state), nqubits)
-    state = backend.apply_gate(gate, np.copy(state), nqubits)
+    state = backend.apply_gate(gate, backend.cast(state, copy=True), nqubits)
     backend.assert_allclose(state, target_state, atol=ATOL.get(dtype))
 
 
@@ -129,12 +129,8 @@ def test_apply_two_qubit_gate(
     gate = gates.Unitary(matrix, *targets).controlled_by(*controls)
 
     set_dtype(dtype, backend, tbackend)
-    if density_matrix:
-        target_state = tbackend._apply_gate_density_matrix(gate, np.copy(state), nqubits)
-        state = backend._apply_gate_density_matrix(gate, np.copy(state), nqubits)
-    else:
-        target_state = tbackend.apply_gate(gate, np.copy(state), nqubits)
-        state = backend.apply_gate(gate, np.copy(state), nqubits)
+    target_state = tbackend.apply_gate(gate, np.copy(state), nqubits)
+    state = backend.apply_gate(gate, backend.cast(state, copy=True), nqubits)
     backend.assert_allclose(state, target_state, atol=ATOL.get(dtype))
 
 
@@ -149,9 +145,9 @@ def test_apply_two_qubit_base(backend, nqubits, targets, use_qubits, dtype):
     set_dtype(dtype, backend, tbackend)
     target_state = tbackend.apply_gate(gate, np.copy(state), nqubits)
     qubits = qubits_tensor(nqubits, targets) if use_qubits else None
-    state = backend.cast(state)
-    matrix = backend.cast(matrix)
-    state = backend.two_qubit_base(
+    state = backend.cast(state, dtype=state.dtype)
+    matrix = backend.cast(matrix, dtype=matrix.dtype)
+    state = backend._two_qubit_base(
         state, nqubits, targets[0], targets[1], "apply_two_qubit_gate", matrix, qubits
     )
     backend.assert_allclose(state, target_state, atol=ATOL.get(dtype))
@@ -290,7 +286,7 @@ def test_apply_swap(backend, nqubits, targets, controls, dtype):
 
     set_dtype(dtype, backend, tbackend)
     target_state = tbackend.apply_gate(gate, np.copy(state), nqubits)
-    state = backend.apply_gate(gate, np.copy(state), nqubits)
+    state = backend.apply_gate(gate, backend.cast(state, copy=True), nqubits)
     backend.assert_allclose(state, target_state, atol=ATOL.get(dtype))
 
 
@@ -319,7 +315,7 @@ def test_apply_fsim(backend, nqubits, targets, controls, dtype):
 
     set_dtype(dtype, backend, tbackend)
     target_state = tbackend.apply_gate(gate, np.copy(state), nqubits)
-    state = backend.apply_gate(gate, np.copy(state), nqubits)
+    state = backend.apply_gate(gate, backend.cast(state, copy=True), nqubits)
     backend.assert_allclose(state, target_state, atol=ATOL.get(dtype))
 
 
@@ -332,7 +328,7 @@ def test_apply_fanout(backend, nqubits):
     backend.assert_allclose(gate.matrix(backend), gate.matrix(tbackend))
 
     target_state = tbackend.apply_gate(gate, np.copy(state), nqubits)
-    state = backend.apply_gate(gate, np.copy(state), nqubits)
+    state = backend.apply_gate(gate, backend.cast(state, copy=True), nqubits)
     backend.assert_allclose(state, target_state, atol=PRECISION_TOL)
 
 
@@ -368,12 +364,8 @@ def test_apply_multiqubit_gate(
     gate = gates.Unitary(matrix, *targets).controlled_by(*controls)
 
     set_dtype(dtype, backend, tbackend)
-    if density_matrix:
-        target_state = tbackend._apply_gate_density_matrix(gate, np.copy(state), nqubits)
-        state = backend._apply_gate_density_matrix(gate, np.copy(state), nqubits)
-    else:
-        target_state = tbackend.apply_gate(gate, np.copy(state), nqubits)
-        state = backend.apply_gate(gate, np.copy(state), nqubits)
+    target_state = tbackend.apply_gate(gate, np.copy(state), nqubits)
+    state = backend.apply_gate(gate, backend.cast(state, copy=True), nqubits)
     backend.assert_allclose(state, target_state, atol=ATOL.get(dtype))
 
 

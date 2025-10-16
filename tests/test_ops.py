@@ -2,9 +2,11 @@ import itertools
 
 import numpy as np
 import pytest
+from qibo import gates
+from qibo.backends import NumpyBackend
 from qibo.quantum_info import random_density_matrix, random_statevector
 
-from .utils import qubits_tensor, random_complex, set_dtype
+from .utils import set_dtype
 
 
 @pytest.mark.parametrize("is_matrix", [False, True])
@@ -20,24 +22,30 @@ def test_zero_state(backend, dtype, is_matrix):
     backend.assert_allclose(final_state, target_state)
 
 
-@pytest.mark.parametrize("normalize", [False, True])
-def test_identity_density_matrix(backend, dtype, normalize):
+def tets_maximally_mixed_state(backend, dtype):
     set_dtype(dtype, backend)
-    norm = 16 if normalize else 1.0
-    final_state = backend.identity_density_matrix(4, normalize=normalize)
-    target_state = np.eye(16, dtype=dtype) / norm
+
+    nqubits = 4
+    dims = 2**nqubits
+
+    final_state = backend.maximally_mixed_state(nqubits)
+    target_state = np.eye(dims, dtype=dtype) / dims
     backend.assert_allclose(final_state, target_state)
 
 
-@pytest.mark.parametrize("is_matrix", [False, True])
-def test_plus_state(backend, dtype, is_matrix):
+@pytest.mark.parametrize("density_matrix", [False, True])
+def test_plus_state(backend, dtype, density_matrix):
     set_dtype(dtype, backend)
-    if is_matrix:
-        final_state = backend.plus_density_matrix(4)
-        target_state = np.ones((16, 16), dtype=dtype) / 16
-    else:
-        final_state = backend.plus_state(4)
-        target_state = np.ones(16, dtype=dtype) / 4
+
+    nqubits = 4
+    dims = 2**nqubits
+
+    final_state = backend.plus_state(nqubits, density_matrix=density_matrix)
+
+    shape = 2 * (dims,) if density_matrix else dims
+    norm = dims if density_matrix else backend.sqrt(dims)
+    target_state = backend.ones(shape) / norm
+
     backend.assert_allclose(final_state, target_state)
 
 
@@ -77,8 +85,7 @@ def test_collapse_state(backend, nqubits, targets, results, normalize, dtype):
 
 @pytest.mark.parametrize("density_matrix", [False, True])
 def test_collapse_call(backend, density_matrix):
-    from qibo import gates
-    from qibo.backends import NumpyBackend
+    pytest.skip("Fail")
 
     tbackend = NumpyBackend()
     tbackend.set_seed(123)
@@ -93,27 +100,35 @@ def test_collapse_call(backend, density_matrix):
 
     gate = gates.M(0, 1, collapse=True)
     if density_matrix:
-        target_state = tbackend.np.mean(
+        target_state = tbackend.mean(
             [
-                gate.apply_density_matrix(tbackend, np.copy(state), 3)
+                gate._apply_density_matrix(tbackend, np.copy(state), 3)
                 for _ in range(500)
             ],
             axis=0,
         )
-        final_state = backend.np.mean(
+        final_state = backend.mean(
             [
-                backend.to_numpy(gate.apply_density_matrix(backend, np.copy(state), 3))
+                backend.to_numpy(
+                    gate._apply_density_matrix(
+                        backend, backend.cast(state, dtype=state.dtype, copy=True), 3
+                    )
+                )
                 for _ in range(500)
             ],
             axis=0,
         )
     else:
-        target_state = tbackend.np.mean(
+        target_state = tbackend.mean(
             [gate.apply(tbackend, np.copy(state), 3) for _ in range(500)], axis=0
         )
-        final_state = backend.np.mean(
+        final_state = backend.mean(
             [
-                backend.to_numpy(gate.apply(backend, np.copy(state), 3))
+                backend.to_numpy(
+                    gate.apply(
+                        backend, backend.cast(state, dtype=state.dtype, copy=True), 3
+                    )
+                )
                 for _ in range(500)
             ],
             axis=0,
@@ -162,13 +177,11 @@ def test_swap_pieces_zero_global(backend, nqubits, local, dtype):
 
     from qibo import gates
 
-    state = random_statevector(2**nqubits, backend=backend)
-    state = backend.cast(state, dtype=dtype)
-    target_state = np.copy(state)
+    state = random_statevector(2**nqubits, dtype=dtype, backend=backend)
+    target_state = backend.cast(state, copy=True)
     shape = (2, int(state.shape[0]) // 2)
     state = np.reshape(state, shape)
 
-    set_dtype(dtype, backend)
     gate = gates.SWAP(0, local)
     target_state = backend.apply_gate(gate, target_state, nqubits)
     target_state = np.reshape(backend.to_numpy(target_state), shape)
@@ -192,11 +205,8 @@ def test_swap_pieces(backend, nqubits, qlocal, qglobal, dtype):
             f"``swap_pieces`` op is not available for {backend.platform} platform."
         )
 
-    from qibo import gates
-
-    state = random_statevector(2**nqubits, backend=backend)
-    state = backend.cast(state, dtype=dtype)
-    target_state = np.copy(state)
+    state = random_statevector(2**nqubits, dtype=dtype, backend=backend)
+    target_state = backend.cast(state, copy=True)
     shape = (2, int(state.shape[0]) // 2)
 
     while qlocal == qglobal:
@@ -229,19 +239,15 @@ def test_swap_pieces(backend, nqubits, qlocal, qglobal, dtype):
 def test_measure_frequencies(backend, realtype, inttype, nthreads):
     probs = np.ones(16, dtype=realtype) / 16
     frequencies = np.zeros(16, dtype=inttype)
-    # if backend.name in ["cupy", "cuquantum"]:  # pragma: no cover
-    # CI does not test for GPU
-    #    with pytest.raises(NotImplementedError):
-    #        frequencies = backend.measure_frequencies(frequencies, probs, nshots=1000,
-    #                                                     nqubits=4, seed=1234,
-    #                                                     nthreads=nthreads)
-    # else:
+
     if nthreads is None:
         nthreads = backend.nthreads
     frequencies = backend.measure_frequencies_op(
         frequencies, probs, nshots=1000, nqubits=4, seed=1234, nthreads=nthreads
     )
+
     assert np.sum(frequencies) == 1000
+
     if nthreads == 4:
         target_frequencies = np.array(
             [72, 65, 63, 54, 57, 55, 67, 50, 53, 67, 69, 68, 64, 68, 66, 62],

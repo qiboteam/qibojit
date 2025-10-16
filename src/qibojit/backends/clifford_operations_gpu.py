@@ -746,10 +746,12 @@ def _clifford_post_execution_reshape(state, nqubits):
     return _unpackbits(state.reshape(-1, dim), axis=0, count=dim)[:dim]
 
 
-def identity_density_matrix(nqubits, normalize: bool = True):
+def maximally_mixed_state(nqubits, dtype=None):
+    if dtype is None:
+        dtype = "complex128"
+
     n = 1 << nqubits
-    state = cp.eye(n, dtype="complex128")
+    state = cp.eye(n, dtype=dtype)
     cp.cuda.stream.get_current_stream().synchronize()
-    if normalize:
-        state /= 2**nqubits
+    state /= 2**nqubits
     return state.reshape((n, n))

@@ -675,14 +675,18 @@ class CuQuantumBackend(CupyBackend):  # pragma: no cover
         if qubits is not None:
             ncontrols = len(qubits) - 1
             controls = set(list(self.to_numpy(qubits))) ^ {target}
-            controls = self.cast(controls, dtype=self.int32)
         else:
             ncontrols = 0
             controls = self.empty(0)
         adjoint = 0
-        target = self.cast([target], dtype=self.int32)
+        target = self.to_numpy([target])
+        target = target.astype(np.int32)
+
+        controls = self.to_numpy(list(controls))
+        controls = controls.astype(np.int32)
 
         assert state.dtype == gate.dtype
+
         data_type, compute_type = self.get_cuda_type(state.dtype)
         if isinstance(gate, self.engine.ndarray):
             gate_ptr = gate.data.ptr
@@ -711,23 +715,25 @@ class CuQuantumBackend(CupyBackend):  # pragma: no cover
         else:
             workspace_ptr = 0
 
+        print(type(target))
+
         self.cusv.apply_matrix(
-            self.handle,
-            state.data.ptr,
-            data_type,
-            nqubits,
-            gate_ptr,
-            data_type,
-            self.cusv.MatrixLayout.ROW,
-            adjoint,
-            target.ctypes.data,
-            ntarget,
-            controls.ctypes.data,
-            0,
-            ncontrols,
-            compute_type,
-            workspace_ptr,
-            workspace_size,
+            handle=self.handle,
+            sv=state.data.ptr,
+            sv_data_type=data_type,
+            n_index_bits=nqubits,
+            matrix=gate_ptr,
+            matrix_data_type=data_type,
+            layout=self.cusv.MatrixLayout.ROW,
+            adjoint=adjoint,
+            targets=target.ctypes.data,
+            n_targets=ntarget,
+            controls=controls.ctypes.data,
+            control_bit_values=0,
+            n_controls=ncontrols,
+            compute_type=compute_type,
+            extra_workspace=workspace_ptr,
+            extra_workspace_size_in_bytes=workspace_size,
         )
 
         return state
