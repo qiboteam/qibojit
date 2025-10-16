@@ -85,7 +85,7 @@ def numba_transpose(array, axes):
 
 @njit(
     ["c16[:,::1](c16[:,:], i8)", "c16[:,::1](c16[:,:,:], i8)"],
-    parallel=True,
+    parallel=False,
     cache=True,
 )
 def _vectorization_row(state, dim: int):
@@ -119,7 +119,7 @@ def _vectorization_system(state, dim=0):
 
 @njit(
     ["c16[:,:,::1](c16[:,:], i8)", "c16[:,:,::1](c16[:,:,:], i8)"],
-    parallel=True,
+    parallel=False,
     cache=True,
 )
 def _unvectorization_row(state, dim: int):
@@ -183,7 +183,7 @@ def _post_sparse_pauli_basis_vectorization(basis, dim):
 
 @njit(
     "c16[:,::1](i8, c16[:,::1], c16[:,::1], c16[:,::1], c16[:,::1], f8)",
-    parallel=True,
+    parallel=False,
     cache=True,
 )
 def _vectorize_pauli_basis_row(
@@ -196,7 +196,7 @@ def _vectorize_pauli_basis_row(
 
 @njit(
     "c16[:,::1](i8, c16[:,::1], c16[:,::1], c16[:,::1], c16[:,::1], f8)",
-    parallel=True,
+    parallel=False,
     cache=True,
 )
 def _vectorize_pauli_basis_column(
@@ -216,7 +216,7 @@ def _vectorize_pauli_basis_column(
         nbt.complex128[:, ::1],
         nbt.float64,
     ),
-    parallel=True,
+    parallel=False,
     cache=True,
 )
 def _vectorize_sparse_pauli_basis_row(
@@ -238,7 +238,7 @@ def _vectorize_sparse_pauli_basis_row(
         nbt.complex128[:, ::1],
         nbt.float64,
     ),
-    parallel=True,
+    parallel=False,
     cache=True,
 )
 def _vectorize_sparse_pauli_basis_column(
@@ -260,7 +260,7 @@ def _vectorize_sparse_pauli_basis_column(
         nbt.complex128[:, ::1],
         nbt.float64,
     ),
-    parallel=True,
+    parallel=False,
     cache=True,
 )
 def _pauli_to_comp_basis_sparse_row(
@@ -319,7 +319,7 @@ def _choi_to_kraus_preamble(choi_super_op):
     return U, V, coefficients
 
 
-@njit("c16[:,:,:,:](c16[:,:,:], c16[:,:,:])", parallel=True, cache=True)
+@njit("c16[:,:,:,:](c16[:,:,:], c16[:,:,:])", parallel=False, cache=True)
 def _kraus_operators(kraus_left, kraus_right):
     kraus_ops = ENGINE.empty((2,) + kraus_left.shape, dtype=kraus_left.dtype)
     kraus_ops[0] = kraus_left
