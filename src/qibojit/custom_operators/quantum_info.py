@@ -285,7 +285,7 @@ def _pauli_to_comp_basis_sparse_row(
         nbt.complex128[:, ::1],
         nbt.float64,
     ),
-    parallel=True,
+    parallel=False,
     cache=True,
 )
 def _pauli_to_comp_basis_sparse_column(
@@ -370,7 +370,7 @@ def _random_statevector(dims: int):
     return state / ENGINE.linalg.norm(state)
 
 
-@njit("c16[:,:](i8, i8, f8, f8)", parallel=True, cache=True)
+@njit("c16[:,::1](i8, i8, f8, f8)", parallel=True, cache=True)
 def _random_gaussian_matrix(dims: int, rank: int, mean: float, stddev: float):
     matrix = ENGINE.empty((dims, rank), dtype=ENGINE.complex128)
     for i in prange(dims):
@@ -390,7 +390,9 @@ def _random_density_matrix_pure(dims: int):
 @njit("c16[:,:](i8, i8, f8, f8)", parallel=True, cache=True)
 def _random_density_matrix_hs_ginibre(dims: int, rank: int, mean: float, stddev: float):
     state = _random_gaussian_matrix(dims, rank, mean, stddev)
-    state = state @ ENGINE.transpose(ENGINE.conj(state), (1, 0))
+    state = state @ ENGINE.ascontiguousarray(
+        ENGINE.transpose(ENGINE.conj(state), (1, 0))
+    )
     return state / ENGINE.trace(state)
 
 
@@ -476,7 +478,9 @@ def _random_density_matrix_bures_inner(
     state = ENGINE.eye(dims, dtype=unitary.dtype)
     state += unitary
     state = state @ _random_gaussian_matrix(dims, rank, mean, stddev)
-    state = state @ ENGINE.transpose(ENGINE.conj(state), (1, 0))
+    state = state @ ENGINE.ascontiguousarray(
+        ENGINE.transpose(ENGINE.conj(state), (1, 0))
+    )
     return state / ENGINE.trace(state)
 
 
@@ -589,7 +593,7 @@ def _gamma_delta_matrices(nqubits: int, hadamards, permutations):
 
 
 @njit(
-    nbt.Tuple((nbt.complex128[:, ::1], nbt.complex128[:, :]))(nbt.int64, nbt.int64),
+    nbt.Tuple((nbt.complex128[:, ::1], nbt.complex128[:, ::1]))(nbt.int64, nbt.int64),
     parallel=True,
     cache=True,
 )
@@ -619,14 +623,14 @@ def _super_op_from_bcsz_measure_preamble(dims: int, rank: int):
     return operator, super_op
 
 
-@njit("c16[:,:](i8, i8)", parallel=True, cache=True)
+@njit("c16[:,:](i8, i8)", parallel=False, cache=True)
 def _super_op_from_bcsz_measure_row(dims: int, rank: int):
     operator, super_op = _super_op_from_bcsz_measure_preamble(dims, rank)
     operator = ENGINE.kron(ENGINE.eye(dims, dtype=operator.dtype), operator)
     return operator @ super_op @ operator
 
 
-@njit("c16[:,:](i8, i8)", parallel=True, cache=True)
+@njit("c16[:,:](i8, i8)", parallel=False, cache=True)
 def _super_op_from_bcsz_measure_column(dims: int, rank: int):
     operator, super_op = _super_op_from_bcsz_measure_preamble(dims, rank)
     operator = ENGINE.kron(operator, ENGINE.eye(dims, dtype=operator.dtype))
@@ -677,10 +681,10 @@ def _kraus_to_stinespring(kraus_ops, initial_state_env, dim_env: int):
     return prod
 
 
-@njit("c16[:,:,:](c16[:,::1], c16[:], i8, i8)", parallel=True, cache=True)
+@njit("c16[:,:,:](c16[:,::1], c16[::1], i8, i8)", parallel=True, cache=True)
 def _stinespring_to_kraus(stinespring, initial_state_env, dim: int, dim_env: int):
     stinespring = stinespring.reshape(dim, dim_env, dim, dim_env)
-    stinespring = ENGINE.swapaxes(stinespring, 1, 2)
+    stinespring = ENGINE.ascontiguousarray(ENGINE.swapaxes(stinespring, 1, 2))
     alphas = ENGINE.eye(dim_env, dtype=stinespring.dtype)
     tmp = ENGINE.empty(stinespring.shape, dtype=stinespring.dtype)
     for i in prange(dim):
@@ -708,13 +712,13 @@ def _to_choi_column(channel):
     return ENGINE.outer(channel, ENGINE.conj(channel))
 
 
-@njit("c16[:,:](c16[:,:])", parallel=True, cache=True)
+@njit("c16[:,:](c16[:,:])", parallel=False, cache=True)
 def _to_liouville_row(channel):
     channel = _to_choi_row(channel)
     return _reshuffling(channel, 1, 2)
 
 
-@njit("c16[:,:](c16[:,:])", parallel=True, cache=True)
+@njit("c16[:,:](c16[:,:])", parallel=False, cache=True)
 def _to_liouville_column(channel):
     channel = _to_choi_column(channel)
     return _reshuffling(channel, 0, 3)
