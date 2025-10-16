@@ -357,6 +357,12 @@ def _choi_to_kraus_column(choi_super_op):
     return kraus_ops, coefficients
 
 
+@njit("f8[:](i8)", parallel=True, cache=True)
+def _random_statevector_real(dims: int):
+    state = ENGINE.random.standard_normal(dims)
+    return state / ENGINE.linalg.norm(state)
+
+
 @njit("c16[:](i8)", parallel=True, cache=True)
 def _random_statevector(dims: int):
     state = ENGINE.random.standard_normal(dims)
@@ -784,6 +790,7 @@ for function in (
     _pauli_to_comp_basis_sparse_column,
     _choi_to_kraus_row,
     _choi_to_kraus_column,
+    _random_statevector_real,
     _random_statevector,
     _random_density_matrix_pure,
     _random_density_matrix_bures,
