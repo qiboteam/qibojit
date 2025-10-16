@@ -1,5 +1,10 @@
+import sys
+
 import numpy as np
 import pytest
+from qibo import hamiltonians
+from scipy import sparse
+from scipy.linalg import expm
 
 from qibojit.backends import MetaBackend
 
@@ -34,8 +39,6 @@ def test_cast(backend, array_type):
 @pytest.mark.parametrize("array_type", [None, "float32", "float64"])
 @pytest.mark.parametrize("format", ["coo", "csr", "csc", "dia"])
 def test_sparse_cast(backend, array_type, format):
-    from scipy import sparse
-
     sptarget = sparse.rand(512, 512, dtype=array_type, format=format)
     assert backend.is_sparse(sptarget)
     final = backend.to_numpy(backend.cast(sptarget))
@@ -58,12 +61,16 @@ def test_to_numpy(backend):
     backend.assert_allclose(final, target)
 
 
+@pytest.mark.skipif(
+    sys.platform == "win32"
+    and str(sys.version_info[0]) + "." + str(sys.version_info[0]) == "3.12"
+    and sparse_type == "dia"
+    and backend.platform == "numba",
+    reason="numba issues with Windows and Python 3.12",
+)
 @pytest.mark.parametrize("sparse_type", ["coo", "csr", "csc", "dia"])
 def test_backend_expm_sparse(backend, sparse_type):
-    from scipy.linalg import expm
-    from scipy.sparse import rand
-
-    m = rand(16, 16, format=sparse_type)
+    m = sparse.rand(16, 16, format=sparse_type)
     target = expm(m.toarray())
     result = backend.to_numpy(backend.matrix_exp(backend.cast(m, dtype=m.dtype)))
     backend.assert_allclose(target, result, atol=1e-10)
@@ -76,9 +83,7 @@ def test_backend_eigh(backend, sparse_type):
         eigvals1, eigvecs1 = backend.eigenvectors(backend.cast(m, dtype=m.dtype))
         eigvals2, eigvecs2 = np.linalg.eigh(m)
     else:
-        from scipy.sparse import rand
-
-        m = rand(16, 16, format=sparse_type)
+        m = sparse.rand(16, 16, format=sparse_type)
         m = m + m.T
         eigvals1, eigvecs1 = backend.eigenvectors(backend.cast(m), k=16)
         eigvals2, eigvecs2 = backend.eigenvectors(backend.cast(m.toarray()))
@@ -95,9 +100,7 @@ def test_backend_eigvalsh(backend, sparse_type):
         target = np.linalg.eigvalsh(m)
         result = backend.eigenvalues(backend.cast(m))
     else:
-        from scipy.sparse import rand
-
-        m = rand(16, 16, format=sparse_type)
+        m = sparse.rand(16, 16, format=sparse_type)
         m = m + m.T
         result = backend.eigenvalues(backend.cast(m), k=16)
         target, _ = backend.eigenvectors(backend.cast(m.toarray()))
@@ -107,14 +110,10 @@ def test_backend_eigvalsh(backend, sparse_type):
 @pytest.mark.parametrize("sparse_type", ["coo", "csr", "csc", "dia"])
 @pytest.mark.parametrize("k", [6, 8])
 def test_backend_eigh_sparse(backend, sparse_type, k):
-    from qibo import hamiltonians
-    from scipy import sparse
-    from scipy.sparse.linalg import eigsh
-
     ham = hamiltonians.TFIM(6, h=1.0, backend=backend)
     m = getattr(sparse, f"{sparse_type}_matrix")(backend.to_numpy(ham.matrix))
     eigvals1, _ = backend.eigenvectors(backend.cast(m), k)
-    eigvals2, _ = eigsh(m, k, which="SA")
+    eigvals2, _ = sparse.linalg.eigsh(m, k, which="SA")
     eigvals1 = backend.to_numpy(eigvals1)
     eigvals2 = backend.to_numpy(eigvals2)
     backend.assert_allclose(sorted(eigvals1), sorted(eigvals2))
