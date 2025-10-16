@@ -88,7 +88,10 @@ class NumbaBackend(NumpyBackend):
 
     def set_seed(self, seed):
         super().set_seed(seed)
-        self.ops.set_seed(self.np.random.get_state()[1][0])
+        if seed is not None:
+            # seed = self.np.random.get_state()[1][0]
+            self.ops.set_seed(seed)
+            self.qinfo.set_seed(seed)
 
     def zero_state(self, nqubits):
         size = 2**nqubits

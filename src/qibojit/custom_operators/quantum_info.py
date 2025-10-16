@@ -9,6 +9,11 @@ from scipy.linalg import expm
 ENGINE = qinfo.ENGINE  # this should be numpy
 
 
+@njit("(i8,)", cache=True)
+def set_seed(seed):
+    ENGINE.random.seed(seed)
+
+
 @njit("c16[:,:,::1](i8, c16[:,:,:,::1])", parallel=True, cache=True)
 def _pauli_basis_inner(
     nqubits,
@@ -470,14 +475,12 @@ def _random_density_matrix_bures_inner(
 
 
 # not entirely jittable because depends on random unitary
-
-
 def _random_density_matrix_bures(dims: int, rank: int, mean: float, stddev: float):
     unitary = _random_unitary(dims)
     return _random_density_matrix_bures_inner(unitary, dims, rank, mean, stddev)
 
 
-@njit(nbt.Tuple((nbt.int64[:], nbt.int64[:]))(nbt.int64), parallel=True, cache=True)
+@njit(nbt.Tuple((nbt.int64[:], nbt.int64[:]))(nbt.int64), parallel=False, cache=True)
 def _sample_from_quantum_mallows_distribution(nqubits: int):
     exponents = ENGINE.arange(nqubits, 0, -1, dtype=ENGINE.int64)
     powers = 4**exponents
@@ -488,11 +491,12 @@ def _sample_from_quantum_mallows_distribution(nqubits: int):
     hadamards = idx_le_exp.astype(ENGINE.int64)
     idx_gt_exp = idx_le_exp ^ True
     indexes[idx_gt_exp] = 2 * exponents[idx_gt_exp] - indexes[idx_gt_exp] - 1
-    mute_index = list(range(nqubits))
-    permutations = ENGINE.zeros(nqubits, dtype=ENGINE.int64)
+    permutations = ENGINE.empty(nqubits, dtype=ENGINE.int64)
+    mask = ENGINE.ones(nqubits, dtype=ENGINE.bool)
     for l, index in enumerate(indexes):
-        permutations[l] = mute_index[index]
-        del mute_index[index]
+        available = ENGINE.flatnonzero(mask)
+        permutations[l] = available[index]
+        mask[permutations[l]] = False
     return hadamards, permutations
 
 
@@ -764,6 +768,7 @@ QINFO = QinfoNumba()
 
 
 for function in (
+    set_seed,
     _pauli_basis,
     _vectorization_row,
     _vectorization_column,
