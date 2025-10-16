@@ -10,7 +10,6 @@ from qibo.config import SHOT_METROPOLIS_THRESHOLD
 from qibo.gates.abstract import ParametrizedGate
 from qibo.gates.special import FusedGate
 
-from qibojit import __version__ as qibojit_version
 from qibojit.backends.matrices import CustomMatrices
 
 GATE_OPS = {
@@ -35,6 +34,7 @@ class NumbaBackend(Backend):
         import numba  # pylint: disable=import-outside-toplevel
         import psutil  # pylint: disable=import-outside-toplevel
 
+        from qibojit import __version__ as qibojit_version  # pylint: disable=C0415
         from qibojit.custom_operators import (  # pylint: disable=import-outside-toplevel
             gates,
             ops,
