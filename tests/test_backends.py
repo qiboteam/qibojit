@@ -65,9 +65,7 @@ def test_backend_expm_sparse(backend, sparse_type):
 
     m = rand(16, 16, format=sparse_type)
     target = expm(m.toarray())
-    result = backend.to_numpy(
-        backend.calculate_matrix_exp(backend.cast(m, dtype=m.dtype))
-    )
+    result = backend.to_numpy(backend.matrix_exp(backend.cast(m, dtype=m.dtype)))
     backend.assert_allclose(target, result, atol=1e-10)
 
 
@@ -75,7 +73,7 @@ def test_backend_expm_sparse(backend, sparse_type):
 def test_backend_eigh(backend, sparse_type):
     if sparse_type is None:
         m = np.random.random((16, 16))
-        eigvals1, eigvecs1 = backend.calculate_eigenvectors(backend.cast(m))
+        eigvals1, eigvecs1 = backend.eigenvectors(backend.cast(m, dtype=m.dtype))
         eigvals2, eigvecs2 = np.linalg.eigh(m)
     else:
         from scipy.sparse import rand

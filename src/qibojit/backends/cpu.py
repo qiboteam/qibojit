@@ -6,7 +6,7 @@ from typing import List, Tuple, Union
 
 import numpy as np
 from qibo.backends import Backend, NumpyMatrices
-from qibo.config import SHOT_METROPOLIS_THRESHOLD
+from qibo.config import SHOT_METROPOLIS_THRESHOLD, raise_error
 from qibo.gates.abstract import ParametrizedGate
 from qibo.gates.special import FusedGate
 
@@ -31,9 +31,11 @@ GATE_OPS = {
 class NumbaBackend(Backend):
     def __init__(self):
         super().__init__()
+
         import numba  # pylint: disable=import-outside-toplevel
         import psutil  # pylint: disable=import-outside-toplevel
 
+        # avoiding circular imports
         from qibojit import __version__ as qibojit_version  # pylint: disable=C0415
         from qibojit.custom_operators import (  # pylint: disable=import-outside-toplevel
             gates,
@@ -89,6 +91,12 @@ class NumbaBackend(Backend):
             return array.astype(dtype, copy=copy)
 
         return self.engine.asarray(array, dtype=dtype, copy=copy if copy else None)
+
+    def set_device(self, device):
+        if device != "/CPU:0":
+            raise_error(
+                ValueError, f"Device {device} is not available for {self} backend."
+            )
 
     def set_dtype(self, dtype):
         if dtype != self.dtype:

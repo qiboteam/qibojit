@@ -123,17 +123,6 @@ class CupyBackend(Backend):  # pragma: no cover
                 gate = self.engine.RawKernel(code, name, ("--std=c++11",))
                 self.gates[f"{name}_{dtype}_{ntargets}"] = gate
 
-    def set_device(self, device):
-        if "GPU" not in device:
-            raise_error(
-                ValueError, f"Device {device} is not available for {self} backend."
-            )
-        self.device = device
-
-    def set_seed(self, seed: int):
-        np.random.seed(seed)
-        self.engine.random.seed(seed)
-
     def cast(self, array, dtype=None, copy=False):
         if dtype is None:
             dtype = self.dtype
@@ -154,6 +143,26 @@ class CupyBackend(Backend):  # pragma: no cover
 
         return self.engine.asarray(array, dtype=dtype)
 
+    def is_sparse(self, array):
+        return self.sparse.issparse(array) or self.npsparse.issparse(array)
+
+    def set_device(self, device):
+        if "GPU" not in device:
+            raise_error(
+                ValueError, f"Device {device} is not available for {self} backend."
+            )
+        self.device = device
+
+    def set_seed(self, seed: int):
+        np.random.seed(seed)
+        self.engine.random.seed(seed)
+
+    def set_threads(self, nthreads):
+        import numba  # pylint: disable=import-outside-toplevel
+
+        numba.set_num_threads(nthreads)
+        self.nthreads = nthreads
+
     def to_numpy(self, array):
         if isinstance(array, self.engine.ndarray):
             return array.get()
@@ -168,9 +177,6 @@ class CupyBackend(Backend):  # pragma: no cover
             return array.toarray()
 
         return np.asarray(array)
-
-    def is_sparse(self, array):
-        return self.sparse.issparse(array) or self.npsparse.issparse(array)
 
     ########################################################################################
     ######## Methods related to array manipulation                                  ########
@@ -212,9 +218,15 @@ class CupyBackend(Backend):  # pragma: no cover
 
     def expm(self, array) -> "ndarray":
         if self.is_sparse(array):
-            from scipy.sparse.linalg import (  # pylint: disable=import-outside-toplevel
+            from scipy.linalg import (  # pylint: disable=import-outside-toplevel
                 expm,
             )
+
+            log.warning(
+                "Falling back to CPU due to lack of native ``cupyx.scipy.sparse.linalg.expm``"
+                + f"implementation in ``cupy=={self.versions['cupy']}``."
+            )
+            array = self.to_numpy(array)
         else:
             from cupyx.scipy.linalg import (  # pylint: disable=import-error,C0415
                 expm,
@@ -237,8 +249,7 @@ class CupyBackend(Backend):  # pragma: no cover
     ):
         if eigenvectors is None or self.is_sparse(matrix):
 
-            _matrix = self.to_numpy(matrix) if self.is_sparse(matrix) else matrix
-            _matrix = self.expm(phase * _matrix)
+            _matrix = self.expm(phase * matrix)
 
             return self.cast(_matrix, dtype=_matrix.dtype)
 
