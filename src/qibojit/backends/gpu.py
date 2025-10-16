@@ -216,7 +216,7 @@ class CupyBackend(Backend):  # pragma: no cover
                 expm,
             )
         else:
-            from cupyx.scipy.linalg import (  # pylint: disable=import-outside-toplevel
+            from cupyx.scipy.linalg import (  # pylint: disable=import-error,C0415
                 expm,
             )
 
