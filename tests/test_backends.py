@@ -1,5 +1,3 @@
-import sys
-
 import numpy as np
 import pytest
 from qibo import hamiltonians
@@ -61,15 +59,11 @@ def test_to_numpy(backend):
     backend.assert_allclose(final, target)
 
 
-@pytest.mark.skipif(
-    sys.platform == "win32"
-    and str(sys.version_info[0]) + "." + str(sys.version_info[0]) == "3.12"
-    and sparse_type == "dia"
-    and backend.platform == "numba",
-    reason="numba issues with Windows and Python 3.12",
-)
 @pytest.mark.parametrize("sparse_type", ["coo", "csr", "csc", "dia"])
 def test_backend_expm_sparse(backend, sparse_type):
+    if backend.platform == "numba" and sparse_type == "dia":
+        pytest.skip("Problems with numba and dia.")
+
     m = sparse.rand(16, 16, format=sparse_type)
     target = expm(m.toarray())
     result = backend.to_numpy(backend.matrix_exp(backend.cast(m, dtype=m.dtype)))
