@@ -113,8 +113,8 @@ def test_backend_eigh_sparse(backend, sparse_type, k):
 
     ham = hamiltonians.TFIM(6, h=1.0, backend=backend)
     m = getattr(sparse, f"{sparse_type}_matrix")(backend.to_numpy(ham.matrix))
-    eigvals1, eigvecs1 = backend.calculate_eigenvectors(backend.cast(m), k)
-    eigvals2, eigvecs2 = eigsh(m, k, which="SA")
+    eigvals1, _ = backend.eigenvectors(backend.cast(m), k)
+    eigvals2, _ = eigsh(m, k, which="SA")
     eigvals1 = backend.to_numpy(eigvals1)
     eigvals2 = backend.to_numpy(eigvals2)
     backend.assert_allclose(sorted(eigvals1), sorted(eigvals2))
