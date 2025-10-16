@@ -1,6 +1,7 @@
 import numpy as np
 import pytest
-from qibo import hamiltonians
+from qibo import set_device
+from qibo.hamiltonians import TFIM
 from scipy import sparse
 from scipy.linalg import expm
 
@@ -12,6 +13,10 @@ from .conftest import AVAILABLE_BACKENDS, BACKENDS
 def test_device_setter(backend):
     if backend.platform == "numba":
         device = "/CPU:0"
+
+        with pytest.raises(ValueError):
+            set_device("/CPU:1")
+
     else:
         device = "/GPU:0"
     backend.set_device(device)
@@ -104,7 +109,7 @@ def test_backend_eigvalsh(backend, sparse_type):
 @pytest.mark.parametrize("sparse_type", ["coo", "csr", "csc", "dia"])
 @pytest.mark.parametrize("k", [6, 8])
 def test_backend_eigh_sparse(backend, sparse_type, k):
-    ham = hamiltonians.TFIM(6, h=1.0, backend=backend)
+    ham = TFIM(6, h=1.0, backend=backend)
     m = getattr(sparse, f"{sparse_type}_matrix")(backend.to_numpy(ham.matrix))
     eigvals1, _ = backend.eigenvectors(backend.cast(m), k)
     eigvals2, _ = sparse.linalg.eigsh(m, k, which="SA")

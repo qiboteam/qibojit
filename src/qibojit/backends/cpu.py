@@ -146,7 +146,7 @@ class NumbaBackend(Backend):
         if density_matrix:
             return self._apply_channel_density_matrix(channel, state, nqubits)
 
-        return super().apply_channel(channel, state, nqubits)
+        return super().apply_channel(channel, state, nqubits)  # pragma: no cover
 
     def apply_gate(self, gate, state, nqubits: int, inverse: bool = False):
         density_matrix = bool(len(state.shape) == 2)
@@ -309,21 +309,6 @@ class NumbaBackend(Backend):
             return self.matrix_fused(gate)
 
         return _matrix(2 ** len(gate.target_qubits)) if callable(_matrix) else _matrix
-
-    def _collapse_density_matrix(
-        self,
-        state,
-        qubits: Union[Tuple[int, ...], List[int]],
-        shot,
-        nqubits: int,
-        normalize: bool = True,
-    ):
-        state = self.cast(state, dtype=state.dtype)
-
-        if normalize:
-            state = state / self.trace(state)
-
-        return state
 
     def _collapse_statevector(
         self,
