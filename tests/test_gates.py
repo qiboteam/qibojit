@@ -130,8 +130,8 @@ def test_apply_two_qubit_gate(
 
     set_dtype(dtype, backend, tbackend)
     if density_matrix:
-        target_state = tbackend.apply_gate_density_matrix(gate, np.copy(state), nqubits)
-        state = backend.apply_gate_density_matrix(gate, np.copy(state), nqubits)
+        target_state = tbackend._apply_gate_density_matrix(gate, np.copy(state), nqubits)
+        state = backend._apply_gate_density_matrix(gate, np.copy(state), nqubits)
     else:
         target_state = tbackend.apply_gate(gate, np.copy(state), nqubits)
         state = backend.apply_gate(gate, np.copy(state), nqubits)
@@ -369,8 +369,8 @@ def test_apply_multiqubit_gate(
 
     set_dtype(dtype, backend, tbackend)
     if density_matrix:
-        target_state = tbackend.apply_gate_density_matrix(gate, np.copy(state), nqubits)
-        state = backend.apply_gate_density_matrix(gate, np.copy(state), nqubits)
+        target_state = tbackend._apply_gate_density_matrix(gate, np.copy(state), nqubits)
+        state = backend._apply_gate_density_matrix(gate, np.copy(state), nqubits)
     else:
         target_state = tbackend.apply_gate(gate, np.copy(state), nqubits)
         state = backend.apply_gate(gate, np.copy(state), nqubits)
