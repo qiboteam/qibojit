@@ -240,24 +240,6 @@ class CupyBackend(Backend):  # pragma: no cover
     ######## Methods related to linear algebra operations                           ########
     ########################################################################################
 
-    def matrix_exp(
-        self,
-        matrix,
-        phase: Union[float, int, complex] = 1,
-        eigenvectors=None,
-        eigenvalues=None,
-    ):
-        if eigenvectors is None or self.is_sparse(matrix):
-
-            _matrix = self.expm(phase * matrix)
-
-            return self.cast(_matrix, dtype=_matrix.dtype)
-
-        expd = self.exp(phase * eigenvalues)
-        ud = self.transpose(self.conj(eigenvectors))
-
-        return (eigenvectors * expd) @ ud
-
     def matrix_power(
         self,
         matrix,
