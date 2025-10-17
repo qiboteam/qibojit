@@ -4,7 +4,8 @@ import numba.types as nbt
 import qibo.quantum_info._quantum_info as qinfo
 from numba import njit, prange, void
 from numba.np.unsafe.ndarray import to_fixed_tuple
-from scipy.linalg import expm
+
+# from scipy.linalg import expm
 
 ENGINE = qinfo.ENGINE  # this should be numpy
 
@@ -128,11 +129,9 @@ def _unvectorization_row(state, dim: int):
 
 @njit(["c16[:,:,:](c16[:,:], i8)", "c16[:,:,:](c16[:,:,:], i8)"], cache=True)
 def _unvectorization_column(state, dim):
-    # axes = ENGINE.arange(state.ndim)[::-1]
     last_dim = state.shape[0]
-    state = state.T  # numba_transpose(state, axes)
+    state = state.T
     state = ENGINE.ascontiguousarray(state).reshape(dim, dim, last_dim)
-    # return numba_transpose(state, ENGINE.array([2, 1, 0], dtype=ENGINE.int64))
     return state.T
 
 
@@ -144,7 +143,6 @@ def _reshuffling(super_op, ax1: int, ax2: int):
     tmp = axes[ax1]
     axes[ax1] = axes[ax2]
     axes[ax2] = tmp
-    # axes[[ax1, ax2]] = axes[[ax2, ax1]]
     super_op = ENGINE.transpose(super_op, to_fixed_tuple(axes, 4))
     return ENGINE.reshape(ENGINE.ascontiguousarray(super_op), (dim**2, dim**2))
 
@@ -269,7 +267,6 @@ def _pauli_to_comp_basis_sparse_row(
     unitary = _vectorize_pauli_basis_row(
         nqubits, pauli_0, pauli_1, pauli_2, pauli_3, normalization
     )
-    # unitary = numba_transpose(unitary, ENGINE.arange(unitary.ndim)[::-1])
     unitary = unitary.T
     nonzero = ENGINE.nonzero(unitary)
     unitary = _array_at_2d_indices(unitary, nonzero)
@@ -309,13 +306,10 @@ def _pauli_to_comp_basis_sparse_column(
 )
 def _choi_to_kraus_preamble(choi_super_op):
     U, coefficients, V = ENGINE.linalg.svd(choi_super_op)
-    # U = ENGINE.ascontiguousarray(U)
-    # U = numba_transpose(U, ENGINE.arange(U.ndim)[::-1])
     U = U.T
     coefficients = ENGINE.sqrt(coefficients)
     V = ENGINE.conj(V)
     coefficients = coefficients.reshape(U.shape[0], 1, 1)
-    # V = ENGINE.ascontiguousarray(V)
     return U, V, coefficients
 
 
@@ -418,54 +412,145 @@ def _random_unitary_haar(dims: int):
     return ENGINE.ascontiguousarray(Q) @ R
 
 
-"""
-# double check whether this is correct
-#@njit
+@njit(["c16[:,:](c16[:,:])", "f8[:,:](f8[:,:])"], parallel=True, cache=True)
 def expm(A):
-    '''Compute expm(A) using the Padé approximant and scaling/squaring.'''
-    # Constants for Padé approximant
-    pade_coeffs = ENGINE.array([
-        64764752532480000.0, 32382376266240000.0, 7771770303897600.0,
-        1187353796428800.0, 129060195264000.0, 10559470521600.0,
-        670442572800.0, 33522128640.0, 1323241920.0, 40840800.0,
-        960960.0, 16380.0, 182.0, 1.0
-    ])
-
+    """
+    Matrix exponential using scaling & squaring
+    with adaptive Padé approximants.
+    Works very well up to ~8-9 qubits.
+    """
     n = A.shape[0]
-    A_norm = ENGINE.max(ENGINE.sum(ENGINE.abs(A), axis=1))  # Compute norm estimate
+    dtype = A.dtype
+    I = ENGINE.eye(n, dtype=dtype)
+    A_L1 = ENGINE.linalg.norm(A, 1)
 
-    # Scaling step
-    s = max(0, int(ENGINE.log2(A_norm)) - 4)
-    A_scaled = A / (2 ** s)
+    # θ_m values from Higham (2005)
+    theta = ENGINE.array(
+        [
+            1.495585217958292e-002,  # m=3
+            2.539398330063230e-001,  # m=5
+            9.504178996162932e-001,  # m=7
+            2.097847961257068e000,  # m=9
+            5.371920351148152e000,  # m=13
+        ]
+    )
 
-    # Compute Padé approximant
-    X = A_scaled @ A_scaled
-    U = ENGINE.eye(n, dtype=A.dtype) * pade_coeffs[1]
-    V = ENGINE.eye(n, dtype=A.dtype) * pade_coeffs[0]
+    # Padé coefficients for each order
+    pade_coefs = [
+        ENGINE.array([120, 60, 12, 1], dtype=dtype),
+        ENGINE.array([30240, 15120, 3360, 420, 30, 1], dtype=dtype),
+        ENGINE.array(
+            [17297280, 8648640, 1995840, 277200, 25200, 1512, 56, 1], dtype=dtype
+        ),
+        ENGINE.array(
+            [
+                17643225600,
+                8821612800,
+                2075673600,
+                302702400,
+                30270240,
+                2162160,
+                110880,
+                3960,
+                90,
+                1,
+            ],
+            dtype=dtype,
+        ),
+        ENGINE.array(
+            [
+                64764752532480000,
+                32382376266240000,
+                7771770303897600,
+                1187353796428800,
+                129060195264000,
+                10559470521600,
+                670442572800,
+                33522128640,
+                1323241920,
+                40840800,
+                960960,
+                16380,
+                182,
+                1,
+            ],
+            dtype=dtype,
+        ),
+    ]
 
-    for i in range(2, len(pade_coeffs)):
-        U = X @ U + pade_coeffs[i] * ENGINE.eye(n, dtype=A.dtype)
-        V = X @ V + pade_coeffs[i - 1] * ENGINE.eye(n, dtype=A.dtype)
+    # Choose the appropriate Padé order
+    orders = ENGINE.array([3, 5, 7, 9, 13])
+    order = 13
+    for i in range(5):
+        if A_L1 <= theta[i]:
+            order = orders[i]
+            break
 
-    U = A_scaled @ U
-    P = V + U
-    Q = V - U
+    b = pade_coefs[ENGINE.where(orders == order)[0][0]]
 
-    breakpoint()
-    # Solve (I - U)⁻¹ * (I + U)
-    F = ENGINE.linalg.solve(Q, P)
+    # Scaling
+    theta_order = theta[ENGINE.where(orders == order)[0][0]]
+    s = 0
+    if A_L1 > theta_order:
+        s = int(ENGINE.ceil(ENGINE.log2(A_L1 / theta_order)))
+    A_scaled = A / (2.0**s)
 
-    # Squaring step
+    # Matrix powers
+    A2 = A_scaled @ A_scaled
+    A4 = A2 @ A2
+    A6 = A4 @ A2
+
+    if order == 3:
+        U = A_scaled @ (b[3] * A2 + b[1] * I)
+        V = b[2] * A2 + b[0] * I
+    elif order == 5:
+        U = A_scaled @ (A2 @ (b[5] * A2 + b[3] * I) + b[1] * I)
+        V = A2 @ (b[4] * A2 + b[2] * I) + b[0] * I
+    elif order == 7:
+        U = A_scaled @ (A6 * b[7] + A4 * b[5] + A2 * b[3] + I * b[1])
+        V = A6 * b[6] + A4 * b[4] + A2 * b[2] + I * b[0]
+    elif order == 9:
+        A8 = A4 @ A4
+        U = A_scaled @ (A8 * b[9] + A6 * b[7] + A4 * b[5] + A2 * b[3] + I * b[1])
+        V = A8 * b[8] + A6 * b[6] + A4 * b[4] + A2 * b[2] + I * b[0]
+    else:  # order == 13
+        A8 = A4 @ A4
+        A10 = A8 @ A2
+        A12 = A6 @ A6
+        U = A_scaled @ (
+            A12 * b[13]
+            + A10 * b[11]
+            + A8 * b[9]
+            + A6 * b[7]
+            + A4 * b[5]
+            + A2 * b[3]
+            + I * b[1]
+        )
+        V = (
+            A12 * b[12]
+            + A10 * b[10]
+            + A8 * b[8]
+            + A6 * b[6]
+            + A4 * b[4]
+            + A2 * b[2]
+            + I * b[0]
+        )
+
+    # (V - U)^(-1) (V + U)
+    X = ENGINE.linalg.solve(V - U, V + U)
+    X = ENGINE.ascontiguousarray(X)
+
+    # Undo scaling
     for _ in range(s):
-        F = F @ F
+        X = X @ X
 
-    return F
-"""
+    return X
 
 
 # if we can implement the expm in pure numba
 # we will be able to completely jit random unitary
 # and the other functions that depend on it
+@njit("c16[:,:](i8)", parallel=True, cache=True)
 def _random_unitary(dims: int):
     H = _random_hermitian(dims)
     return expm(-1.0j * H / 2)
@@ -484,7 +569,7 @@ def _random_density_matrix_bures_inner(
     return state / ENGINE.trace(state)
 
 
-# not entirely jittable because depends on random unitary
+@njit("c16[:,:](i8, i8, f8, f8)", parallel=False, cache=True)
 def _random_density_matrix_bures(dims: int, rank: int, mean: float, stddev: float):
     unitary = _random_unitary(dims)
     return _random_density_matrix_bures_inner(unitary, dims, rank, mean, stddev)
@@ -528,68 +613,6 @@ def _sample_from_quantum_mallows_distribution(nqubits: int):
 def _set_array_at_2d_indices(array, indices, values):
     for i in prange(len(indices[0])):
         array[indices[0][i], indices[1][i]] = values[i]
-
-
-@njit(
-    nbt.Tuple((nbt.int64[:, :], nbt.int64[:, :], nbt.int64[:, :], nbt.int64[:, :]))(
-        nbt.int64, nbt.int64[:], nbt.int64[:]
-    ),
-    parallel=True,
-    cache=True,
-)
-def _gamma_delta_matrices(nqubits: int, hadamards, permutations):
-    delta_matrix = ENGINE.eye(nqubits, dtype=ENGINE.int64)
-    delta_matrix_prime = ENGINE.copy(delta_matrix)
-
-    gamma_matrix_prime = ENGINE.random.randint(0, 2, size=nqubits)
-    gamma_matrix_prime = ENGINE.diag(gamma_matrix_prime)
-
-    gamma_matrix = ENGINE.random.randint(0, 2, size=nqubits)
-    gamma_matrix = hadamards * gamma_matrix
-    gamma_matrix = ENGINE.diag(gamma_matrix)
-
-    tril_indices = ENGINE.tril_indices(nqubits, k=-1)
-    _set_array_at_2d_indices(
-        delta_matrix_prime,
-        tril_indices,
-        ENGINE.random.randint(0, 2, size=len(tril_indices[0])),
-    )
-
-    _set_array_at_2d_indices(
-        gamma_matrix_prime,
-        tril_indices,
-        ENGINE.random.randint(0, 2, size=len(tril_indices[0])),
-    )
-
-    triu_indices = ENGINE.triu_indices(nqubits, k=1)
-    _set_array_at_2d_indices(
-        gamma_matrix_prime,
-        triu_indices,
-        _array_at_2d_indices(gamma_matrix_prime, tril_indices),
-    )
-
-    p_col_gt_row = permutations[triu_indices[1]] > permutations[triu_indices[0]]
-    p_col_neq_row = permutations[triu_indices[1]] != permutations[triu_indices[0]]
-    p_col_le_row = p_col_gt_row ^ True
-    h_row_eq_0 = hadamards[triu_indices[0]] == 0
-    h_col_eq_0 = hadamards[triu_indices[1]] == 0
-
-    idx = (h_row_eq_0 * h_col_eq_0 ^ True) * p_col_neq_row
-    elements = ENGINE.random.randint(0, 2, size=len(idx.nonzero()[0]))
-    _set_array_at_2d_indices(
-        gamma_matrix, (triu_indices[0][idx], triu_indices[1][idx]), elements
-    )
-    _set_array_at_2d_indices(
-        gamma_matrix, (triu_indices[1][idx], triu_indices[0][idx]), elements
-    )
-
-    idx = p_col_gt_row | (p_col_le_row * h_row_eq_0 * h_col_eq_0)
-    elements = ENGINE.random.randint(0, 2, size=len(idx.nonzero()[0]))
-    _set_array_at_2d_indices(
-        delta_matrix, (triu_indices[1][idx], triu_indices[0][idx]), elements
-    )
-
-    return gamma_matrix, gamma_matrix_prime, delta_matrix, delta_matrix_prime
 
 
 @njit(
@@ -651,16 +674,14 @@ def _super_op_from_haar_measure_column(dims: int):
     return ENGINE.outer(super_op, ENGINE.conj(super_op))
 
 
-# these two can't be jitted (at least globally) because of
-# random unitary
-
-
+@njit("c16[:,:](i8)", parallel=True, cache=True)
 def _super_op_from_hermitian_measure_row(dims: int):
     super_op = _random_unitary(dims)
     super_op = _vectorization_row(super_op, dims)
     return ENGINE.outer(super_op, ENGINE.conj(super_op))
 
 
+@njit("c16[:,:](i8)", parallel=True, cache=True)
 def _super_op_from_hermitian_measure_column(dims: int):
     super_op = _random_unitary(dims)
     super_op = _vectorization_column(super_op, dims)
@@ -805,7 +826,6 @@ for function in (
     _random_unitary,
     _random_unitary_haar,
     _sample_from_quantum_mallows_distribution,
-    _gamma_delta_matrices,
     _super_op_from_bcsz_measure_row,
     _super_op_from_bcsz_measure_column,
     _super_op_from_haar_measure_row,

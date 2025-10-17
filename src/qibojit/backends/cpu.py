@@ -89,7 +89,6 @@ class NumbaBackend(NumpyBackend):
     def set_seed(self, seed):
         super().set_seed(seed)
         if seed is not None:
-            # seed = self.np.random.get_state()[1][0]
             self.ops.set_seed(seed)
             self.qinfo.set_seed(seed)
 
