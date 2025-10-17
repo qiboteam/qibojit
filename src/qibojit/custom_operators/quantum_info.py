@@ -5,8 +5,6 @@ import qibo.quantum_info._quantum_info as qinfo
 from numba import njit, prange, void
 from numba.np.unsafe.ndarray import to_fixed_tuple
 
-# from scipy.linalg import expm
-
 ENGINE = qinfo.ENGINE  # this should be numpy
 
 
@@ -417,7 +415,13 @@ def expm(A):
     """
     Matrix exponential using scaling & squaring
     with adaptive Padé approximants.
-    Works very well up to ~8-9 qubits.
+    Works very well up to ~8 qubits where each element of the matrix
+    differs from scipy.expm of ~1e-6. For nqubits > 9 the error on
+    the single elements grows substantially (~1e-2 for nqubits=9) even though
+    the norm of the difference matrix is still very small in relative terms:
+    np.linalg.norm(scipy.expm(m) - expm(m)) / np.linalg.norm(scipy.expm(m) ~ 1e-15.
+    At some point we may want to directly port scipy's code to numba:
+    https://github.com/scipy/scipy/blob/b1296b9b4393e251511fe8fdd3e58c22a1124899/scipy/linalg/_matfuncs.py#L233-L397
     """
     n = A.shape[0]
     dtype = A.dtype
@@ -547,9 +551,6 @@ def expm(A):
     return X
 
 
-# if we can implement the expm in pure numba
-# we will be able to completely jit random unitary
-# and the other functions that depend on it
 @njit("c16[:,:](i8)", parallel=True, cache=True)
 def _random_unitary(dims: int):
     H = _random_hermitian(dims)
@@ -844,26 +845,3 @@ for function in (
     _kraus_to_choi_column,
 ):
     setattr(QINFO, function.__name__, function)
-
-
-# it would be quite cool and spare us a lot of code repetition if
-# we could make a recursive approach like the one below working
-
-SIGNATURES = {
-    # "_random_hermitian": ("c16[:,:](i8)", {"parallel": True, "cache": True})
-    # "_vectorize_pauli_basis_row": ("c16[:,::1](i8, c16[:,::1], c16[:,::1], c16[:,::1], c16[:,::1], f8)", {"parallel": True, "cache": True}),
-    # "_vectorize_pauli_basis_column": ("c16[:,::1](i8, c16[:,::1], c16[:,::1], c16[:,::1], c16[:,::1], f8)", {"parallel": True, "cache": True}),
-}
-
-
-def jit_function(signature, function, **kwargs):
-    if isinstance(function, str):
-        function = getattr(qinfo, function)
-    return njit(signature, **kwargs)(function)
-
-
-for function, signature in SIGNATURES.items():
-    print(function)
-    jitted = jit_function(signature[0], function, **signature[1])
-    globals()[function] = jitted
-    setattr(QINFO, function, jitted)
