@@ -164,7 +164,7 @@ class NumbaBackend(Backend):
         if nshots < SHOT_METROPOLIS_THRESHOLD:
             return super().sample_frequencies(probabilities, nshots)
 
-        seed = self.random_integers(0, int(1e8), dtype=self.int64)
+        seed = self.random_integers(0, int(1e8), dtype=self.int64)[0]
         nqubits = int(self.log2(tuple(probabilities.shape)[0]))
         frequencies = self.zeros(2**nqubits, dtype=self.int64)
         # always fall back to numba CPU backend because for ops not implemented on GPU
