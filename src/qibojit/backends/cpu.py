@@ -11,6 +11,7 @@ from qibo.gates.abstract import ParametrizedGate
 from qibo.gates.special import FusedGate
 
 from qibojit.backends.matrices import CustomMatrices
+from qibojit.custom_operators.quantum_info import QINFO
 
 gate_ops = {
     "X": "apply_x",
@@ -80,6 +81,11 @@ class NumbaBackend(Backend):
         else:
             self.set_threads(len(psutil.Process().cpu_affinity()))
 
+        # load the quantum info custom operators
+        for method in dir(QINFO):
+            if method[:2] != "__":
+                setattr(self.qinfo, method, getattr(QINFO, method))
+
     def cast(self, array, dtype=None, copy: bool = False):
         if dtype is None:
             dtype = self.dtype
@@ -104,6 +110,12 @@ class NumbaBackend(Backend):
             self.matrices = NumpyMatrices(self.dtype)
             if self.custom_matrices:
                 self.custom_matrices = CustomMatrices(self.dtype)
+
+    def set_seed(self, seed):
+        super().set_seed(seed)
+        if seed is not None:
+            self.ops.set_seed(seed)
+            self.qinfo.set_seed(seed)
 
     def set_threads(self, nthreads):
         import numba  # pylint: disable=import-outside-toplevel

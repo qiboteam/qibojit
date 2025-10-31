@@ -3,6 +3,7 @@
 from typing import List, Tuple, Union
 
 import numpy as np
+from numpy.typing import ArrayLike
 from qibo.backends import Backend
 from qibo.config import log, raise_error
 from qibo.gates.abstract import ParametrizedGate
@@ -19,7 +20,7 @@ from qibojit.backends.matrices import (
     CustomMatrices,
 )
 from qibojit.custom_operators import raw_kernels
-from qibojit.custom_operators.ops import measure_frequencies
+from qibojit.custom_operators.ops import measure_frequencies, set_seed
 
 
 class CupyBackend(Backend):  # pragma: no cover
@@ -146,6 +147,13 @@ class CupyBackend(Backend):  # pragma: no cover
     def is_sparse(self, array):
         return self.sparse.issparse(array) or self.npsparse.issparse(array)
 
+        # set the engine of the quantum info operators
+        self.qinfo.ENGINE = cp
+
+        from cupyx.scipy.linalg import expm  # pylint: disable=import-error
+
+        self.qinfo.expm = expm
+
     def set_device(self, device):
         if "GPU" not in device:
             raise_error(
@@ -182,7 +190,7 @@ class CupyBackend(Backend):  # pragma: no cover
     ######## Methods related to array manipulation                                  ########
     ########################################################################################
 
-    def eig(self, array, **kwargs) -> "ndarray":
+    def eig(self, array, **kwargs) -> ArrayLike:
         cp_version = self.versions["cupy"]
         cp_version = int(cp_version.split(".")[0])
 
@@ -200,7 +208,7 @@ class CupyBackend(Backend):  # pragma: no cover
 
         return super().eig(array, **kwargs)
 
-    def eigvals(self, array, **kwargs) -> "ndarray":
+    def eigvals(self, array, **kwargs) -> ArrayLike:
         cp_version = self.versions["cupy"]
         cp_version = int(cp_version.split(".")[0])
 
@@ -216,7 +224,7 @@ class CupyBackend(Backend):  # pragma: no cover
 
         return super().eig(array, **kwargs)
 
-    def expm(self, array) -> "ndarray":
+    def expm(self, array) -> ArrayLike:
         if self.is_sparse(array):
             from scipy.linalg import (  # pylint: disable=import-outside-toplevel
                 expm,
