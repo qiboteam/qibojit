@@ -1,16 +1,17 @@
 """Module defining the Cupy and CuQuantum backends."""
 
-from typing import List, Tuple, Union
+from typing import List, Optional, Tuple, Union
 
 import numpy as np
-from numpy.typing import ArrayLike
+from numpy.typing import ArrayLike, DTypeLike
+from qibo import Circuit
 from qibo.backends import Backend
 from qibo.config import log, raise_error
-from qibo.gates.abstract import ParametrizedGate
+from qibo.gates.abstract import Gate, ParametrizedGate
 from qibo.gates.gates import Unitary
 from qibo.gates.measurements import M
 from qibo.gates.special import CallbackGate, FusedGate
-from qibo.result import CircuitResult, QuantumState
+from qibo.result import CircuitResult, MeasurementOutcomes, QuantumState
 from scipy import sparse
 
 from qibojit.backends.cpu import NumbaBackend
@@ -34,11 +35,11 @@ class CupyBackend(Backend):  # pragma: no cover
 
         import cupy as cp  # pylint: disable=import-error,import-outside-toplevel
         import cupy_backends  # pylint: disable=import-error,import-outside-toplevel
-        import cupyx.scipy.sparse as cp_sparse  # pylint: disable=import-error,import-outside-toplevel
+        import cupyx.scipy as cp_scipy  # pylint: disable=import-error,import-outside-toplevel
 
         self.engine = cp
-        self.npsparse = sparse
-        self.sparse = cp_sparse
+        self.np_sparse = sparse
+        self.cp_scipy = cp_scipy
         self.is_hip = cupy_backends.cuda.api.runtime.is_hip
         self.measure_frequencies_op = measure_frequencies
         # number of available GPUs (for multigpu)
@@ -124,18 +125,20 @@ class CupyBackend(Backend):  # pragma: no cover
                 gate = self.engine.RawKernel(code, name, ("--std=c++11",))
                 self.gates[f"{name}_{dtype}_{ntargets}"] = gate
 
-    def cast(self, array, dtype=None, copy=False):
+    def cast(
+        self, array: ArrayLike, dtype: Optional[DTypeLike] = None, copy: bool = False
+    ) -> ArrayLike:
         if dtype is None:
             dtype = self.dtype
 
-        if self.sparse.issparse(array):
+        if self.cp_scipy.sparse.issparse(array):
             if dtype != array.dtype:
                 return array.astype(dtype)
 
             return array
 
-        if self.npsparse.issparse(array):
-            class_ = getattr(self.sparse, array.__class__.__name__)
+        if self.np_sparse.issparse(array):
+            class_ = getattr(self.cp_scipy.sparse, array.__class__.__name__)
 
             return class_(array, dtype=dtype)
 
@@ -145,16 +148,9 @@ class CupyBackend(Backend):  # pragma: no cover
         return self.engine.asarray(array, dtype=dtype)
 
     def is_sparse(self, array):
-        return self.sparse.issparse(array) or self.npsparse.issparse(array)
+        return self.cp_scipy.sparse.issparse(array) or self.np_sparse.issparse(array)
 
-        # set the engine of the quantum info operators
-        self.qinfo.ENGINE = cp
-
-        from cupyx.scipy.linalg import expm  # pylint: disable=import-error
-
-        self.qinfo.expm = expm
-
-    def set_device(self, device):
+    def set_device(self, device: str):
         if "GPU" not in device:
             raise_error(
                 ValueError, f"Device {device} is not available for {self} backend."
@@ -165,23 +161,23 @@ class CupyBackend(Backend):  # pragma: no cover
         np.random.seed(seed)
         self.engine.random.seed(seed)
 
-    def set_threads(self, nthreads):
+    def set_threads(self, nthreads: int):
         import numba  # pylint: disable=import-outside-toplevel
 
         numba.set_num_threads(nthreads)
         self.nthreads = nthreads
 
-    def to_numpy(self, array):
+    def to_numpy(self, array: ArrayLike):
         if isinstance(array, self.engine.ndarray):
             return array.get()
 
         if isinstance(array, list):
             return self.engine.asarray(array).get()
 
-        if self.sparse.issparse(array):
+        if self.cp_scipy.sparse.issparse(array):
             return array.toarray().get()
 
-        if self.npsparse.issparse(array):
+        if self.np_sparse.issparse(array):
             return array.toarray()
 
         return np.asarray(array)
@@ -190,7 +186,7 @@ class CupyBackend(Backend):  # pragma: no cover
     ######## Methods related to array manipulation                                  ########
     ########################################################################################
 
-    def eig(self, array, **kwargs) -> ArrayLike:
+    def eig(self, array: ArrayLike, **kwargs) -> ArrayLike:
         cp_version = self.versions["cupy"]
         cp_version = int(cp_version.split(".")[0])
 
@@ -208,7 +204,7 @@ class CupyBackend(Backend):  # pragma: no cover
 
         return super().eig(array, **kwargs)
 
-    def eigvals(self, array, **kwargs) -> ArrayLike:
+    def eigvals(self, array: ArrayLike, **kwargs) -> ArrayLike:
         cp_version = self.versions["cupy"]
         cp_version = int(cp_version.split(".")[0])
 
@@ -224,7 +220,7 @@ class CupyBackend(Backend):  # pragma: no cover
 
         return super().eig(array, **kwargs)
 
-    def expm(self, array) -> ArrayLike:
+    def expm(self, array: ArrayLike) -> ArrayLike:
         if self.is_sparse(array):
             from scipy.linalg import (  # pylint: disable=import-outside-toplevel
                 expm,
@@ -236,13 +232,14 @@ class CupyBackend(Backend):  # pragma: no cover
             )
             array = self.to_numpy(array)
         else:
-            from cupyx.scipy.linalg import (  # pylint: disable=import-error,C0415
-                expm,
-            )
+            expm = self.cp_scipy.linalg.expm
 
         exp_matrix = expm(array)
 
         return self.cast(exp_matrix, dtype=exp_matrix.dtype)
+
+    def block_diag(self, *arrays: ArrayLike) -> ArrayLike:
+        return self.cp_scipy.linalg.block_diag(*arrays)
 
     ########################################################################################
     ######## Methods related to linear algebra operations                           ########
@@ -250,11 +247,11 @@ class CupyBackend(Backend):  # pragma: no cover
 
     def matrix_power(
         self,
-        matrix,
+        matrix: ArrayLike,
         power: Union[float, int],
         precision_singularity: float = 1e-14,
-        dtype=None,
-    ):
+        dtype: Optional[ArrayLike] = None,
+    ) -> ArrayLike:
         if not isinstance(power, (float, int)):
             raise_error(
                 TypeError,
@@ -296,7 +293,9 @@ class CupyBackend(Backend):  # pragma: no cover
     ######## Methods related to the creation and manipulation of quantum objects    ########
     ########################################################################################
 
-    def maximally_mixed_state(self, nqubits, dtype=None):
+    def maximally_mixed_state(
+        self, nqubits: int, dtype: Optional[DTypeLike] = None
+    ) -> ArrayLike:
         if dtype is None:
             dtype = self.dtype
 
@@ -306,7 +305,12 @@ class CupyBackend(Backend):  # pragma: no cover
 
         return state.reshape((n, n)) / 2**nqubits
 
-    def zero_state(self, nqubits, density_matrix: bool = False, dtype=None):
+    def zero_state(
+        self,
+        nqubits: int,
+        density_matrix: bool = False,
+        dtype: Optional[DTypeLike] = None,
+    ) -> ArrayLike:
         if dtype is None:
             dtype = self.dtype
 
@@ -325,13 +329,13 @@ class CupyBackend(Backend):  # pragma: no cover
 
     def collapse_state(
         self,
-        state,
+        state: ArrayLike,
         qubits: Union[Tuple[int, ...], List[int]],
         shot: int,
         nqubits: int,
         normalize: bool = True,
         density_matrix: bool = False,
-    ):
+    ) -> ArrayLike:
         ntargets = len(qubits)
         nstates = 1 << (nqubits - ntargets)
         nblocks, block_size = self._calculate_blocks(nstates)
@@ -353,10 +357,10 @@ class CupyBackend(Backend):  # pragma: no cover
 
     def execute_distributed_circuit(
         self,
-        circuit,
-        initial_state=None,
-        nshots=1000,
-    ):
+        circuit: Circuit,
+        initial_state: Optional[ArrayLike] = None,
+        nshots: int = 1000,
+    ) -> Union[CircuitResult, MeasurementOutcomes, QuantumState]:
         import joblib  # pylint: disable=import-outside-toplevel
 
         if not circuit.queues.queues:
@@ -451,8 +455,12 @@ class CupyBackend(Backend):  # pragma: no cover
     ########################################################################################
 
     def calculate_probabilities(
-        self, state, qubits, nqubits: int, density_matrix: bool = False
-    ):
+        self,
+        state: ArrayLike,
+        qubits: Union[List[int], Tuple[int, ...]],
+        nqubits: int,
+        density_matrix: bool = False,
+    ) -> ArrayLike:
         try:
             probs = super().calculate_probabilities(
                 state, qubits, nqubits, density_matrix
@@ -465,12 +473,12 @@ class CupyBackend(Backend):  # pragma: no cover
 
         return probs
 
-    def sample_shots(self, probabilities, nshots):
+    def sample_shots(self, probabilities: ArrayLike, nshots: int) -> ArrayLike:
         # Sample shots on CPU
         probabilities = self.to_numpy(probabilities)
         return super().sample_shots(probabilities, nshots)
 
-    def sample_frequencies(self, probabilities, nshots):
+    def sample_frequencies(self, probabilities: ArrayLike, nshots: int) -> ArrayLike:
         # Sample frequencies on CPU
         probabilities = self.to_numpy(probabilities)
         return super().sample_frequencies(probabilities, nshots)
@@ -479,7 +487,7 @@ class CupyBackend(Backend):  # pragma: no cover
     ######## Helper methods                                                         ########
     ########################################################################################
 
-    def _as_custom_matrix(self, gate):
+    def _as_custom_matrix(self, gate: Gate) -> ArrayLike:
         if isinstance(gate, Unitary):
             matrix = gate.parameters[0]
             if isinstance(matrix, self.engine.ndarray):
@@ -507,7 +515,9 @@ class CupyBackend(Backend):  # pragma: no cover
 
         return self.cast(matrix.ravel(), dtype=matrix.dtype)
 
-    def _calculate_blocks(self, nstates, block_size=DEFAULT_BLOCK_SIZE):
+    def _calculate_blocks(
+        self, nstates: int, block_size: int = DEFAULT_BLOCK_SIZE
+    ) -> Tuple[int, int]:
         """Compute the number of blocks and of threads per block.
 
         The total number of threads is always equal to ``nstates``, give that
@@ -522,13 +532,20 @@ class CupyBackend(Backend):  # pragma: no cover
             block_size = nstates
         return nblocks, block_size
 
-    def _create_qubits_tensor(self, gate, nqubits):
+    def _create_qubits_tensor(self, gate: Gate, nqubits: int) -> ArrayLike:
         # TODO: Treat density matrices
         qubits = [nqubits - q - 1 for q in gate.control_qubits]
         qubits.extend(nqubits - q - 1 for q in gate.target_qubits)
         return self.cast(sorted(qubits), dtype=self.int32)
 
-    def _multi_qubit_base(self, state, nqubits, targets, gate, qubits):
+    def _multi_qubit_base(
+        self,
+        state: ArrayLike,
+        nqubits: int,
+        targets: Union[List[int], Tuple[int, ...]],
+        gate: Gate,
+        qubits: Union[List[int], Tuple[int, ...]],
+    ) -> ArrayLike:
         assert gate is not None
         if qubits is None:
             qubits = self.cast(
@@ -555,7 +572,15 @@ class CupyBackend(Backend):  # pragma: no cover
         self.engine.cuda.stream.get_current_stream().synchronize()
         return state
 
-    def _one_qubit_base(self, state, nqubits, target, kernel, gate, qubits):
+    def _one_qubit_base(
+        self,
+        state: ArrayLike,
+        nqubits: int,
+        target: int,
+        kernel: str,
+        gate: Gate,
+        qubits: Union[List[int], Tuple[int, ...]],
+    ) -> ArrayLike:
         ncontrols = len(qubits) - 1 if qubits is not None else 0
         m = nqubits - target - 1
         tk = 1 << m
@@ -576,7 +601,16 @@ class CupyBackend(Backend):  # pragma: no cover
         self.engine.cuda.stream.get_current_stream().synchronize()
         return state
 
-    def _two_qubit_base(self, state, nqubits, target1, target2, kernel, gate, qubits):
+    def _two_qubit_base(
+        self,
+        state: ArrayLike,
+        nqubits: int,
+        target1: int,
+        target2: int,
+        kernel: str,
+        gate: Gate,
+        qubits: Union[List[int], Tuple[int, ...]],
+    ) -> ArrayLike:
         ncontrols = len(qubits) - 2 if qubits is not None else 0
         if target1 > target2:
             m1 = nqubits - target1 - 1
@@ -629,7 +663,7 @@ class CuQuantumBackend(CupyBackend):  # pragma: no cover
         if hasattr(self, "cusv"):
             self.cusv.destroy(self.handle)
 
-    def set_dtype(self, dtype):
+    def set_dtype(self, dtype: Union[DTypeLike, str]) -> None:
         if dtype in ("float32", "float64"):
             raise_error(
                 NotImplementedError,
@@ -641,7 +675,7 @@ class CuQuantumBackend(CupyBackend):  # pragma: no cover
             if self.custom_matrices:
                 self.custom_matrices = CustomCuQuantumMatrices(self.dtype)
 
-    def get_cuda_type(self, dtype="complex64"):
+    def get_cuda_type(self, dtype: str = "complex64") -> Tuple[DTypeLike, DTypeLike]:
         if dtype not in ("complex128", "complex64"):
             raise_error(
                 NotImplementedError,
@@ -659,7 +693,15 @@ class CuQuantumBackend(CupyBackend):  # pragma: no cover
             self.cuquantum.ComputeType.COMPUTE_32F,
         )
 
-    def _one_qubit_base(self, state, nqubits, target, kernel, gate, qubits=None):
+    def _one_qubit_base(
+        self,
+        state: ArrayLike,
+        nqubits: int,
+        target: int,
+        kernel: str,
+        gate: Gate,
+        qubits: Union[List[int], Tuple[int, ...]] = None,
+    ) -> ArrayLike:
         ntarget = 1
         target = nqubits - target - 1
         if qubits is not None:
@@ -705,8 +747,6 @@ class CuQuantumBackend(CupyBackend):  # pragma: no cover
         else:
             workspace_ptr = 0
 
-        print(type(target))
-
         self.cusv.apply_matrix(
             handle=self.handle,
             sv=state.data.ptr,
@@ -729,8 +769,15 @@ class CuQuantumBackend(CupyBackend):  # pragma: no cover
         return state
 
     def _two_qubit_base(
-        self, state, nqubits, target1, target2, kernel, gate, qubits=None
-    ):
+        self,
+        state: ArrayLike,
+        nqubits: int,
+        target1: int,
+        target2: int,
+        kernel: str,
+        gate: Gate,
+        qubits: Union[List[int], Tuple[int, ...]] = None,
+    ) -> ArrayLike:
         ntarget = 2
         target1 = nqubits - target1 - 1
         target2 = nqubits - target2 - 1
@@ -821,7 +868,14 @@ class CuQuantumBackend(CupyBackend):  # pragma: no cover
 
         return state
 
-    def _multi_qubit_base(self, state, nqubits, targets, gate, qubits=None):
+    def _multi_qubit_base(
+        self,
+        state: ArrayLike,
+        nqubits: int,
+        targets: Union[List[int], Tuple[int, ...]],
+        gate: Gate,
+        qubits: Union[List[int], Tuple[int, ...]] = None,
+    ) -> ArrayLike:
         state = self.cast(state, dtype=self.dtype)
         ntarget = len(targets)
         if qubits is None:
@@ -887,13 +941,13 @@ class CuQuantumBackend(CupyBackend):  # pragma: no cover
 
     def collapse_state(
         self,
-        state,
+        state: ArrayLike,
         qubits: Union[Tuple[int, ...], List[int]],
         shot: int,
         nqubits: int,
         normalize: bool = True,
         density_matrix: bool = False,
-    ):
+    ) -> ArrayLike:
         state = self.cast(state, dtype=self.dtype)
         results = bin(int(shot)).replace("0b", "")
         results = list(map(int, "0" * (len(qubits) - len(results)) + results))[::-1]
@@ -930,14 +984,16 @@ class MultiGpuOps:  # pragma: no cover
         self.circuit = circuit
         self.cpu_ops = cpu_backend.ops
 
-    def transpose_state(self, pieces, state, nqubits, order):
+    def transpose_state(
+        self, pieces: Union[list, tuple], state: ArrayLike, nqubits: int, order
+    ):
         original_shape = state.shape
         state = state.ravel()
         # always fall back to numba CPU backend because for ops not implemented on GPU
         state = self.cpu_ops.transpose_state(tuple(pieces), state, nqubits, order)
         return np.reshape(state, original_shape)
 
-    def to_pieces(self, state):
+    def to_pieces(self, state: ArrayLike):
         nqubits = self.circuit.nqubits
         qubits = self.circuit.queues.qubits
         shape = (self.circuit.ndevices, 2**self.circuit.nlocal)
@@ -951,7 +1007,7 @@ class MultiGpuOps:  # pragma: no cover
             pieces[i] = new_tensor[i]
         return pieces
 
-    def to_tensor(self, pieces):
+    def to_tensor(self, pieces: Union[list, tuple]):
         nqubits = self.circuit.nqubits
         qubits = self.circuit.queues.qubits
         if qubits.list == list(range(self.circuit.nglobal)):
@@ -967,7 +1023,7 @@ class MultiGpuOps:  # pragma: no cover
             )
         return tensor
 
-    def apply_gates(self, pieces, queues, ids, device):
+    def apply_gates(self, pieces: Union[list, tuple], queues, ids, device: str):
         """Method that is parallelized using ``joblib``."""
         for i in ids:
             device_id = int(device.split(":")[-1]) % self.backend.ngpus
@@ -978,7 +1034,7 @@ class MultiGpuOps:  # pragma: no cover
             pieces[i] = self.backend.to_numpy(piece)
             del piece
 
-    def apply_special_gate(self, pieces, gate):
+    def apply_special_gate(self, pieces: Union[list, tuple], gate: Gate):
         """Executes special gates on CPU.
 
         Currently special gates are ``Flatten`` or ``CallbackGate``.
@@ -997,7 +1053,7 @@ class MultiGpuOps:  # pragma: no cover
         pieces = self.revert_swaps(pieces, gate.swap_reset)
         return pieces
 
-    def swap(self, pieces, global_qubit, local_qubit):
+    def swap(self, pieces: Union[list, tuple], global_qubit, local_qubit):
         m = self.circuit.queues.qubits.reduced_global.get(global_qubit)
         m = self.circuit.nglobal - m - 1
         t = 1 << m
@@ -1009,7 +1065,9 @@ class MultiGpuOps:  # pragma: no cover
             )
         return pieces
 
-    def revert_swaps(self, pieces, swap_pairs):
+    def revert_swaps(
+        self, pieces: Union[list, tuple], swap_pairs: Union[List[int], Tuple[int, int]]
+    ):
         for q1, q2 in swap_pairs:
             if q1 not in self.circuit.queues.qubits.set:
                 q1, q2 = q2, q1
