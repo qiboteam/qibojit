@@ -35,11 +35,11 @@ class CupyBackend(Backend):  # pragma: no cover
 
         import cupy as cp  # pylint: disable=import-error,import-outside-toplevel
         import cupy_backends  # pylint: disable=import-error,import-outside-toplevel
-        import cupyx.scipy as cp_scipy  # pylint: disable=import-error,import-outside-toplevel
+        import cupyx.scipy.sparse as cp_sparse  # pylint: disable=import-error,import-outside-toplevel
 
         self.engine = cp
         self.np_sparse = sparse
-        self.cp_scipy = cp_scipy
+        self.cp_sparse = cp_sparse
         self.is_hip = cupy_backends.cuda.api.runtime.is_hip
         self.measure_frequencies_op = measure_frequencies
         # number of available GPUs (for multigpu)
@@ -131,14 +131,14 @@ class CupyBackend(Backend):  # pragma: no cover
         if dtype is None:
             dtype = self.dtype
 
-        if self.cp_scipy.sparse.issparse(array):
+        if self.cp_sparse.issparse(array):
             if dtype != array.dtype:
                 return array.astype(dtype)
 
             return array
 
         if self.np_sparse.issparse(array):
-            class_ = getattr(self.cp_scipy.sparse, array.__class__.__name__)
+            class_ = getattr(self.cp_sparse, array.__class__.__name__)
 
             return class_(array, dtype=dtype)
 
@@ -147,34 +147,34 @@ class CupyBackend(Backend):  # pragma: no cover
 
         return self.engine.asarray(array, dtype=dtype)
 
-    def is_sparse(self, array):
-        return self.cp_scipy.sparse.issparse(array) or self.np_sparse.issparse(array)
+    def is_sparse(self, array: ArrayLike) -> bool:
+        return self.cp_sparse.issparse(array) or self.np_sparse.issparse(array)
 
-    def set_device(self, device: str):
+    def set_device(self, device: str) -> None:
         if "GPU" not in device:
             raise_error(
                 ValueError, f"Device {device} is not available for {self} backend."
             )
         self.device = device
 
-    def set_seed(self, seed: int):
+    def set_seed(self, seed: int) -> None:
         np.random.seed(seed)
         self.engine.random.seed(seed)
 
-    def set_threads(self, nthreads: int):
+    def set_threads(self, nthreads: int) -> None:
         import numba  # pylint: disable=import-outside-toplevel
 
         numba.set_num_threads(nthreads)
         self.nthreads = nthreads
 
-    def to_numpy(self, array: ArrayLike):
+    def to_numpy(self, array: ArrayLike) -> ArrayLike:
         if isinstance(array, self.engine.ndarray):
             return array.get()
 
         if isinstance(array, list):
             return self.engine.asarray(array).get()
 
-        if self.cp_scipy.sparse.issparse(array):
+        if self.cp_sparse.issparse(array):
             return array.toarray().get()
 
         if self.np_sparse.issparse(array):
@@ -185,6 +185,9 @@ class CupyBackend(Backend):  # pragma: no cover
     ########################################################################################
     ######## Methods related to array manipulation                                  ########
     ########################################################################################
+
+    def csr_matrix(self, array: ArrayLike, **kwargs) -> ArrayLike:
+        return self.cp_sparse.csr_matrix(array, **kwargs)
 
     def eig(self, array: ArrayLike, **kwargs) -> ArrayLike:
         cp_version = self.versions["cupy"]
@@ -232,14 +235,20 @@ class CupyBackend(Backend):  # pragma: no cover
             )
             array = self.to_numpy(array)
         else:
-            expm = self.cp_scipy.linalg.expm
+            from cupyx.scipy.linalg import (  # pylint: disable=import-outside-toplevel
+                expm,
+            )
 
         exp_matrix = expm(array)
 
         return self.cast(exp_matrix, dtype=exp_matrix.dtype)
 
     def block_diag(self, *arrays: ArrayLike) -> ArrayLike:
-        return self.cp_scipy.linalg.block_diag(*arrays)
+        from cupyx.scipy.linalg import (  # pylint: disable=import-outside-toplevel
+            block_diag,
+        )
+
+        return block_diag(*arrays)
 
     ########################################################################################
     ######## Methods related to linear algebra operations                           ########
@@ -537,6 +546,12 @@ class CupyBackend(Backend):  # pragma: no cover
         qubits = [nqubits - q - 1 for q in gate.control_qubits]
         qubits.extend(nqubits - q - 1 for q in gate.target_qubits)
         return self.cast(sorted(qubits), dtype=self.int32)
+
+    def _identity_sparse(self, dims, dtype: Optional[DTypeLike] = None):
+        if dtype is None:
+            dtype = self.dtype
+
+        return self.cp_sparse.eye(dims, dtype=dtype)
 
     def _multi_qubit_base(
         self,
