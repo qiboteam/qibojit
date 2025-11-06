@@ -757,3 +757,16 @@ def maximally_mixed_state(nqubits, dtype=None):
     cp.cuda.stream.get_current_stream().synchronize()
     state /= 2**nqubits
     return state.reshape((n, n))
+
+
+def csr_matrix(array, **kwargs):
+    return cp_sparse.csr_matrix(array, **kwargs)
+
+
+def _identity_sparse(dims, dtype=None, **kwargs):
+    if dtype is None:  # pragma: no cover
+        dtype = "complex128"
+
+    sparsity_format = kwargs.get("format", "csr")
+
+    return cp_sparse.eye(dims, dtype=dtype, format=sparsity_format, **kwargs)

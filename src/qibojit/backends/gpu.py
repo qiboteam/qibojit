@@ -585,11 +585,14 @@ class CupyBackend(Backend):  # pragma: no cover
         self,
         dims: Union[int, List[int], Tuple[int, ...]],
         dtype: Optional[DTypeLike] = None,
+        **kwargs,
     ) -> ArrayLike:
         if dtype is None:
             dtype = self.dtype
 
-        return self.cp_sparse.eye(dims, dtype=dtype)
+        sparsity_format = kwargs.get("format", "csr")
+
+        return self.cp_sparse.eye(dims, dtype=dtype, format=sparsity_format, **kwargs)
 
     def _multi_qubit_base(
         self,
