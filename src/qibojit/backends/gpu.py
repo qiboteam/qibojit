@@ -1,5 +1,6 @@
 """Module defining the Cupy and CuQuantum backends."""
 
+from collections import Counter
 from typing import List, Optional, Tuple, Union
 
 import numpy as np
@@ -64,6 +65,7 @@ class CupyBackend(Backend):  # pragma: no cover
         self.matrices = CupyMatrices(self.dtype)
         self.custom_matrices = CustomMatrices(self.dtype)
         self.custom_matrices._cast = self.matrices._cast
+        self.qinfo.ENGINE = self
 
         try:
             if not self.engine.cuda.runtime.getDeviceCount():  # pragma: no cover
@@ -171,7 +173,7 @@ class CupyBackend(Backend):  # pragma: no cover
         if isinstance(array, self.engine.ndarray):
             return array.get()
 
-        if isinstance(array, list):
+        if isinstance(array, list) and not isinstance(array[0], (str, np.str_)):
             return self.engine.asarray(array).get()
 
         if self.cp_sparse.issparse(array):
@@ -185,6 +187,13 @@ class CupyBackend(Backend):  # pragma: no cover
     ########################################################################################
     ######## Methods related to array manipulation                                  ########
     ########################################################################################
+
+    def block_diag(self, *arrays: ArrayLike) -> ArrayLike:
+        from cupyx.scipy.linalg import (  # pylint: disable=import-outside-toplevel
+            block_diag,
+        )
+
+        return block_diag(*arrays)
 
     def csr_matrix(self, array: ArrayLike, **kwargs) -> ArrayLike:
         return self.cp_sparse.csr_matrix(array, **kwargs)
@@ -243,12 +252,32 @@ class CupyBackend(Backend):  # pragma: no cover
 
         return self.cast(exp_matrix, dtype=exp_matrix.dtype)
 
-    def block_diag(self, *arrays: ArrayLike) -> ArrayLike:
-        from cupyx.scipy.linalg import (  # pylint: disable=import-outside-toplevel
-            block_diag,
-        )
+    def random_choice(
+        self, array, size=None, replace=True, p=None, seed=None, **kwargs
+    ):
+        dtype = kwargs.get("dtype", self.float64)
 
-        return block_diag(*arrays)
+        if size is None:
+            size = 1
+
+        if not replace and p is not None:
+            log.warning(
+                "Falling back to CPU due to lack of native support for ``p``"
+                + "when ``replace=False``."
+            )
+
+            _array = self.to_numpy(array)
+            _prob = self.to_numpy(p)
+
+            if seed is not None:
+                local_state = self.default_rng(seed) if isinstance(seed, int) else seed
+                result = local_state.choice(_array, size=size, replace=replace, p=_prob)
+
+                return self.cast(result, dtype=dtype)
+
+            return np.random.choice(array, size=size, replace=replace, p=_prob)
+
+        return super().random_choice(array, size, replace, p, seed, **kwargs)
 
     ########################################################################################
     ######## Methods related to linear algebra operations                           ########
@@ -463,6 +492,12 @@ class CupyBackend(Backend):  # pragma: no cover
     ######## Methods related to the execution and post-processing of measurements   ########
     ########################################################################################
 
+    def calculate_frequencies(self, samples: ArrayLike) -> Counter:
+        # necessary since `cupy` does not deal with strings natively
+        samples = self.to_numpy(samples)
+        res, counts = np.unique(samples, return_counts=True)
+        return Counter(dict(zip(list(res), list(counts))))
+
     def calculate_probabilities(
         self,
         state: ArrayLike,
@@ -547,7 +582,11 @@ class CupyBackend(Backend):  # pragma: no cover
         qubits.extend(nqubits - q - 1 for q in gate.target_qubits)
         return self.cast(sorted(qubits), dtype=self.int32)
 
-    def _identity_sparse(self, dims, dtype: Optional[DTypeLike] = None):
+    def _identity_sparse(
+        self,
+        dims: Union[int, List[int], Tuple[int, ...]],
+        dtype: Optional[DTypeLike] = None,
+    ) -> ArrayLike:
         if dtype is None:
             dtype = self.dtype
 
