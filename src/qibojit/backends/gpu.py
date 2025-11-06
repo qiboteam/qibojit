@@ -65,7 +65,6 @@ class CupyBackend(Backend):  # pragma: no cover
         self.matrices = CupyMatrices(self.dtype)
         self.custom_matrices = CustomMatrices(self.dtype)
         self.custom_matrices._cast = self.matrices._cast
-        self.qinfo.ENGINE = self
 
         try:
             if not self.engine.cuda.runtime.getDeviceCount():  # pragma: no cover
