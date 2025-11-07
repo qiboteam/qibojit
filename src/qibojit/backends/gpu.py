@@ -14,6 +14,7 @@ from qibo.gates.measurements import M
 from qibo.gates.special import CallbackGate, FusedGate
 from qibo.result import CircuitResult, MeasurementOutcomes, QuantumState
 from scipy import sparse
+from scipy.linalg import logm
 
 from qibojit.backends.cpu import NumbaBackend
 from qibojit.backends.matrices import (
@@ -251,6 +252,16 @@ class CupyBackend(Backend):  # pragma: no cover
 
         return self.cast(exp_matrix, dtype=exp_matrix.dtype)
 
+    def logm(self, array: ArrayLike, **kwargs) -> ArrayLike:
+        log.warning(
+            "Falling back to CPU due to lack of native ``linalg.logm``"
+            + f"implementation in ``cupy``."
+        )
+
+        _array = self.to_numpy(array)
+
+        return self.cast(logm(_array, **kwargs), dtype=array.dtype)
+
     def random_choice(
         self, array, size=None, replace=True, p=None, seed=None, **kwargs
     ):
@@ -311,20 +322,17 @@ class CupyBackend(Backend):  # pragma: no cover
                     precision_singularity,
                 )
 
+        from scipy.linalg import fractional_matrix_power  # pylint: disable=C0415
+
         log.warning(
             "Falling back to CPU due to lack of native ``linalg.fractional_matrix_power``"
             + f"implementation in ``cupy=={self.versions['cupy']}``."
         )
 
         copied = self.to_numpy(matrix)
-        copied = super().matrix_power(
-            copied,
-            power=power,
-            precision_singularity=precision_singularity,
-            dtype=dtype,
-        )
+        copied = fractional_matrix_power(copied, power)
 
-        return self.cast(copied, dtype=copied.dtype)
+        return self.cast(copied, dtype=dtype)
 
     ########################################################################################
     ######## Methods related to the creation and manipulation of quantum objects    ########
