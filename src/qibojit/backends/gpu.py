@@ -189,7 +189,7 @@ class CupyBackend(Backend):  # pragma: no cover
     ########################################################################################
 
     def block_diag(self, *arrays: ArrayLike) -> ArrayLike:
-        from cupyx.scipy.linalg import (  # pylint: disable=import-outside-toplevel
+        from cupyx.scipy.linalg import (  # pylint: disable=C0415,E0401
             block_diag,
         )
 
@@ -217,7 +217,7 @@ class CupyBackend(Backend):  # pragma: no cover
         return super().eig(array, **kwargs)
 
     def eigsh(self, array: ArrayLike, **kwargs) -> ArrayLike:
-        from cupyx.scipy.sparse.linalg import eigsh  # pylint: disable=C0415
+        from cupyx.scipy.sparse.linalg import eigsh  # pylint: disable=C0415,E0401
 
         return eigsh(array, **kwargs)
 
@@ -249,7 +249,7 @@ class CupyBackend(Backend):  # pragma: no cover
             )
             array = self.to_numpy(array)
         else:
-            from cupyx.scipy.linalg import (  # pylint: disable=import-outside-toplevel
+            from cupyx.scipy.linalg import (  # pylint: disable=C0415,E0401
                 expm,
             )
 
