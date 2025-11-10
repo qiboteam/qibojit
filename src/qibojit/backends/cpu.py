@@ -2,13 +2,20 @@
 
 import sys
 from collections import Counter
-from typing import List, Tuple, Union
+from typing import List, Optional, Tuple, Union
 
 import numpy as np
+from numpy.typing import ArrayLike, DTypeLike
 from qibo.backends import Backend, NumpyMatrices
 from qibo.config import SHOT_METROPOLIS_THRESHOLD, raise_error
-from qibo.gates.abstract import ParametrizedGate
+from qibo.gates.abstract import Gate, ParametrizedGate
 from qibo.gates.special import FusedGate
+from scipy.linalg import block_diag, expm, fractional_matrix_power, logm
+from scipy.sparse import csr_matrix
+from scipy.sparse import eye as eye_sparse
+from scipy.sparse import issparse
+from scipy.sparse.linalg import eigsh
+from scipy.sparse.linalg import expm as expm_sparse
 
 from qibojit.backends.matrices import CustomMatrices
 from qibojit.custom_operators.quantum_info import QINFO
@@ -86,7 +93,9 @@ class NumbaBackend(Backend):
             if method[:2] != "__":
                 setattr(self.qinfo, method, getattr(QINFO, method))
 
-    def cast(self, array, dtype=None, copy: bool = False):
+    def cast(
+        self, array: ArrayLike, dtype: Optional[DTypeLike] = None, copy: bool = False
+    ) -> ArrayLike:
         if dtype is None:
             dtype = self.dtype
 
@@ -98,41 +107,109 @@ class NumbaBackend(Backend):
 
         return self.engine.asarray(array, dtype=dtype, copy=copy if copy else None)
 
-    def set_device(self, device):
+    def is_sparse(self, array: ArrayLike) -> bool:
+        """Determine if a given array is a sparse tensor."""
+        return issparse(array)
+
+    def set_device(self, device: str) -> None:
         if device != "/CPU:0":
             raise_error(
                 ValueError, f"Device {device} is not available for {self} backend."
             )
 
-    def set_dtype(self, dtype):
+    def set_dtype(self, dtype: DTypeLike) -> None:
         if dtype != self.dtype:
             super().set_dtype(dtype)
             self.matrices = NumpyMatrices(self.dtype)
             if self.custom_matrices:
                 self.custom_matrices = CustomMatrices(self.dtype)
 
-    def set_seed(self, seed):
+    def set_seed(self, seed: Union[int, None]) -> None:
         super().set_seed(seed)
         if seed is not None:
             self.ops.set_seed(seed)
             self.qinfo.set_seed(seed)
 
-    def set_threads(self, nthreads):
+    def set_threads(self, nthreads: int) -> None:
         import numba  # pylint: disable=import-outside-toplevel
 
         numba.set_num_threads(nthreads)
         self.nthreads = nthreads
 
-    def to_numpy(self, array):
+    def to_numpy(self, array: ArrayLike) -> ArrayLike:
         if self.is_sparse(array):
             return array.toarray()
         return array
 
     ########################################################################################
+    ######## Methods related to array manipulation                                  ########
+    ########################################################################################
+
+    def block_diag(self, *arrays: ArrayLike) -> ArrayLike:
+        return block_diag(*arrays)
+
+    def csr_matrix(self, array: ArrayLike, **kwargs) -> ArrayLike:
+        return csr_matrix(array, **kwargs)
+
+    def eigsh(self, array: ArrayLike, **kwargs) -> Tuple[ArrayLike, ArrayLike]:
+        return eigsh(array, **kwargs)
+
+    def expm(self, array: ArrayLike) -> ArrayLike:
+        func = expm_sparse if self.is_sparse(array) else expm
+        return func(array)
+
+    def logm(self, array: ArrayLike, **kwargs) -> ArrayLike:
+        return logm(array, **kwargs)
+
+    ########################################################################################
+    ######## Methods related to linear algebra operations                           ########
+    ########################################################################################
+
+    def matrix_power(
+        self,
+        matrix: ArrayLike,
+        power: Union[float, int],
+        precision_singularity: float = 1e-14,
+        dtype: Optional[DTypeLike] = None,
+    ) -> ArrayLike:
+        """Calculate the (fractional) ``power`` :math:`\\alpha` of ``matrix`` :math:`A`,
+        i.e. :math:`A^{\\alpha}`.
+
+        .. note::
+            For the ``pytorch`` backend, this method relies on a copy of the original tensor.
+            This may break the gradient flow. For the GPU backends (i.e. ``cupy`` and
+            ``cuquantum``), this method falls back to CPU whenever ``power`` is not
+            an integer.
+        """
+        if not isinstance(power, (float, int)):
+            raise_error(
+                TypeError,
+                f"``power`` must be either float or int, but it is type {type(power)}.",
+            )
+
+        if dtype is None:
+            dtype = self.dtype
+
+        if power < 0.0:
+            # negative powers of singular matrices via SVD
+            determinant = self.det(matrix)
+            if abs(determinant) < precision_singularity:
+                return self._negative_power_singular_matrix(
+                    matrix, power, precision_singularity, dtype=dtype
+                )
+
+        return fractional_matrix_power(matrix, power)
+
+    ########################################################################################
     ######## Methods related to the creation and manipulation of quantum objects    ########
     ########################################################################################
 
-    def zero_state(self, nqubits, density_matrix: bool = False, dtype=None):
+    def zero_state(
+        self,
+        nqubits: int,
+        density_matrix: bool = False,
+        dtype: Optional[DTypeLike] = None,
+    ) -> ArrayLike:
         if dtype is None:
             dtype = self.dtype
 
@@ -152,7 +229,9 @@ class NumbaBackend(Backend):
     ######## Methods related to circuit execution                                   ########
     ########################################################################################
 
-    def apply_channel(self, channel, state, nqubits: int):
+    def apply_channel(
+        self, channel: "Channel", state: ArrayLike, nqubits: int  # type: ignore
+    ) -> ArrayLike:
         density_matrix = bool(len(state.shape) == 2)
 
         if density_matrix:
@@ -160,7 +239,9 @@ class NumbaBackend(Backend):
 
         return super().apply_channel(channel, state, nqubits)  # pragma: no cover
 
-    def apply_gate(self, gate, state, nqubits: int, inverse: bool = False):
+    def apply_gate(
+        self, gate: Gate, state: ArrayLike, nqubits: int, inverse: bool = False
+    ) -> ArrayLike:
         density_matrix = bool(len(state.shape) == 2)
 
         if density_matrix:
@@ -172,7 +253,7 @@ class NumbaBackend(Backend):
     ######## Methods related to the execution and post-processing of measurements   ########
     ########################################################################################
 
-    def sample_frequencies(self, probabilities, nshots: int):
+    def sample_frequencies(self, probabilities: ArrayLike, nshots: int) -> Counter:
         if nshots < SHOT_METROPOLIS_THRESHOLD:
             return super().sample_frequencies(probabilities, nshots)
 
@@ -189,7 +270,9 @@ class NumbaBackend(Backend):
     ######## Helper methods                                                         ########
     ########################################################################################
 
-    def _apply_channel_density_matrix(self, channel, state, nqubits):
+    def _apply_channel_density_matrix(
+        self, channel: "Channel", state: ArrayLike, nqubits: int  # type: ignore
+    ) -> ArrayLike:
         state = self.cast(state, dtype=state.dtype)
         if not channel._all_unitary_operators:  # pylint: disable=protected-access
             state_copy = self.cast(state, copy=True)
@@ -204,7 +287,9 @@ class NumbaBackend(Backend):
                 state = self.apply_gate(gate, state, nqubits, inverse=True)
         return new_state
 
-    def _apply_fanout_gate(self, gate, state, nqubits):
+    def _apply_fanout_gate(
+        self, gate: Gate, state: ArrayLike, nqubits: int
+    ) -> ArrayLike:
         from qibo import gates  # pylint: disable=import-outside-toplevel
 
         control, targets = gate.control_qubits[0], gate.target_qubits
@@ -218,7 +303,7 @@ class NumbaBackend(Backend):
 
         return state
 
-    def _apply_gate(self, gate, state, nqubits):
+    def _apply_gate(self, gate: Gate, state: ArrayLike, nqubits: int) -> ArrayLike:
         matrix = self._as_custom_matrix(gate)
         qubits = self._create_qubits_tensor(gate, nqubits)
         targets = gate.target_qubits
@@ -237,7 +322,9 @@ class NumbaBackend(Backend):
 
         return self._multi_qubit_base(state, nqubits, targets, matrix, qubits)
 
-    def _apply_gate_density_matrix(self, gate, state, nqubits, inverse=False):
+    def _apply_gate_density_matrix(
+        self, gate: Gate, state: ArrayLike, nqubits: int, inverse: bool = False
+    ) -> ArrayLike:
         name = gate.__class__.__name__
         if name in ["Y", "CY"]:
             return self._apply_ygate_density_matrix(gate, state, nqubits)
@@ -283,7 +370,9 @@ class NumbaBackend(Backend):
 
         return self.reshape(state, shape)
 
-    def _apply_ygate_density_matrix(self, gate, state, nqubits):
+    def _apply_ygate_density_matrix(
+        self, gate: Gate, state: ArrayLike, nqubits: int
+    ) -> ArrayLike:
         matrix = self._as_custom_matrix(gate)
         qubits = self._create_qubits_tensor(gate, nqubits)
         qubits_dm = qubits + nqubits
@@ -300,7 +389,7 @@ class NumbaBackend(Backend):
         )
         return self.reshape(state, shape)
 
-    def _as_custom_matrix(self, gate):
+    def _as_custom_matrix(self, gate: Gate) -> ArrayLike:
         name = gate.__class__.__name__
         _matrix = getattr(self.custom_matrices, name)
 
@@ -324,12 +413,12 @@ class NumbaBackend(Backend):
 
     def _collapse_statevector(
         self,
-        state,
+        state: ArrayLike,
         qubits: Union[Tuple[int, ...], List[int]],
-        shot,
+        shot: int,
         nqubits: int,
         normalize: bool = True,
-    ):
+    ) -> ArrayLike:
         state = self.cast(state, dtype=state.dtype)
         qubits = self.cast(
             [nqubits - q - 1 for q in reversed(qubits)], dtype=self.int32
@@ -340,13 +429,30 @@ class NumbaBackend(Backend):
 
         return self.ops.collapse_state(state, qubits, int(shot), nqubits)
 
-    def _create_qubits_tensor(self, gate, nqubits):
+    def _create_qubits_tensor(self, gate: Gate, nqubits: int) -> ArrayLike:
         # TODO: Treat density matrices
         qubits = [nqubits - q - 1 for q in gate.control_qubits]
         qubits.extend(nqubits - q - 1 for q in gate.target_qubits)
         return self.cast(sorted(qubits), dtype=self.int32)
 
-    def _multi_qubit_base(self, state, nqubits: int, targets, gate, qubits):
+    def _identity_sparse(
+        self, dims: int, dtype: Optional[DTypeLike] = None, **kwargs
+    ) -> ArrayLike:
+        if dtype is None:  # pragma: no cover
+            dtype = self.dtype
+
+        sparsity_format = kwargs.get("format", "csr")
+
+        return eye_sparse(dims, dtype=dtype, format=sparsity_format, **kwargs)
+
+    def _multi_qubit_base(
+        self,
+        state: ArrayLike,
+        nqubits: int,
+        targets: Union[List[int], Tuple[int, ...]],
+        gate: Gate,
+        qubits: Union[List[int], Tuple[int, ...]],
+    ) -> ArrayLike:
         if qubits is None:
             qubits = self.cast(
                 sorted(nqubits - q - 1 for q in targets), dtype=self.int32
@@ -364,7 +470,9 @@ class NumbaBackend(Backend):
 
         return kernel(state, gate, qubits, nstates, targets)
 
-    def _one_qubit_base(self, state, nqubits: int, target, kernel, gate, qubits):
+    def _one_qubit_base(
+        self, state: ArrayLike, nqubits: int, target, kernel, gate, qubits
+    ):
         ncontrols = len(qubits) - 1 if qubits is not None else 0
         m = nqubits - target - 1
         nstates = 1 << (nqubits - ncontrols - 1)
