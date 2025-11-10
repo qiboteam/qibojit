@@ -216,6 +216,11 @@ class CupyBackend(Backend):  # pragma: no cover
 
         return super().eig(array, **kwargs)
 
+    def eigsh(self, array: ArrayLike, **kwargs) -> ArrayLike:
+        from cupyx.scipy.sparse.linalg import eigsh  # pylint: disable=C0415
+
+        return eigsh(array, **kwargs)
+
     def eigvals(self, array: ArrayLike, **kwargs) -> ArrayLike:
         cp_version = self.versions["cupy"]
         cp_version = int(cp_version.split(".")[0])
@@ -270,24 +275,36 @@ class CupyBackend(Backend):  # pragma: no cover
         if size is None:
             size = 1
 
-        if not replace and p is not None:
-            log.warning(
-                "Falling back to CPU due to lack of native support for ``p``"
-                + "when ``replace=False``."
-            )
+        # log.warning(
+        #     "Falling back to CPU due to lack of native support for ``random.choice``"
+        #     + "with local rng states."
+        # )
 
-            _array = self.to_numpy(array)
-            _prob = self.to_numpy(p)
+        _array = self.to_numpy(array)
+        _prob = self.to_numpy(p)
 
-            if seed is not None:
-                local_state = self.default_rng(seed) if isinstance(seed, int) else seed
-                result = local_state.choice(_array, size=size, replace=replace, p=_prob)
+        if seed is not None:
+            local_state = np.random.default_rng(seed) if isinstance(seed, int) else seed
+            result = local_state.choice(_array, size=size, replace=replace, p=_prob)
+        else:
+            print(_array)
+            print(size)
+            print(replace)
+            print(_prob)
+            result = np.random.choice(_array, size=size, replace=replace, p=_prob)
 
-                return self.cast(result, dtype=dtype)
+        return self.cast(result, dtype=dtype)
 
-            return np.random.choice(array, size=size, replace=replace, p=_prob)
+    def repeat(
+        self,
+        array: ArrayLike,
+        repeats: Union[int, List[int], Tuple[int, ...]],
+        axis: Optional[int] = None,
+    ) -> ArrayLike:
+        if isinstance(array, (int, float, complex)):
+            array = self.engine.array(array)
 
-        return super().random_choice(array, size, replace, p, seed, **kwargs)
+        return super().repeat(array, repeats, axis)
 
     ########################################################################################
     ######## Methods related to linear algebra operations                           ########
@@ -420,7 +437,7 @@ class CupyBackend(Backend):  # pragma: no cover
                 # Generate pieces for |000...0> state
                 pieces = [cpu_backend.zero_state(circuit.nlocal)]
                 pieces.extend(
-                    np.zeros(2**circuit.nlocal, dtype=self.dtype)
+                    cpu_backend.zeros(2**circuit.nlocal, dtype=self.dtype)
                     for _ in range(circuit.ndevices - 1)
                 )
             elif isinstance(initial_state, (CircuitResult, QuantumState)):
