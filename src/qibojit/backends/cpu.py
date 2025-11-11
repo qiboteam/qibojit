@@ -20,7 +20,7 @@ from scipy.sparse.linalg import expm as expm_sparse
 from qibojit.backends.matrices import CustomMatrices
 from qibojit.custom_operators.quantum_info import QINFO
 
-gate_ops = {
+GATE_OPS = {
     "X": "apply_x",
     "CNOT": "apply_x",
     "TOFFOLI": "apply_x",
@@ -298,7 +298,7 @@ class NumbaBackend(Backend):
             gate = gates.CNOT(control, target)
             matrix = self._as_custom_matrix(gate)
             qubits = self._create_qubits_tensor(gate, nqubits)
-            op = gate_ops.get("CNOT")
+            op = GATE_OPS.get("CNOT")
             state = self._one_qubit_base(state, nqubits, target, op, matrix, qubits)
 
         return state
@@ -313,11 +313,11 @@ class NumbaBackend(Backend):
             return self._apply_fanout_gate(gate, state, nqubits)
 
         if len(targets) == 1:
-            op = gate_ops.get(gate.__class__.__name__, "apply_gate")
+            op = GATE_OPS.get(gate.__class__.__name__, "apply_gate")
             return self._one_qubit_base(state, nqubits, *targets, op, matrix, qubits)
 
         if len(targets) == 2:
-            op = gate_ops.get(gate.__class__.__name__, "apply_two_qubit_gate")
+            op = GATE_OPS.get(gate.__class__.__name__, "apply_two_qubit_gate")
             return self._two_qubit_base(state, nqubits, *targets, op, matrix, qubits)
 
         return self._multi_qubit_base(state, nqubits, targets, matrix, qubits)
@@ -345,7 +345,7 @@ class NumbaBackend(Backend):
         state = self.cast(state)
         shape = state.shape
         if len(targets) == 1:
-            op = gate_ops.get(name, "apply_gate")
+            op = GATE_OPS.get(name, "apply_gate")
             state = self._one_qubit_base(
                 state.ravel(), 2 * nqubits, *targets, op, matrix, qubits_dm
             )
@@ -353,7 +353,7 @@ class NumbaBackend(Backend):
                 state, 2 * nqubits, *targets_dm, op, self.conj(matrix), qubits
             )
         elif len(targets) == 2:
-            op = gate_ops.get(name, "apply_two_qubit_gate")
+            op = GATE_OPS.get(name, "apply_two_qubit_gate")
             state = self._two_qubit_base(
                 state.ravel(), 2 * nqubits, *targets, op, matrix, qubits_dm
             )

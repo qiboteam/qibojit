@@ -85,7 +85,7 @@ def test_collapse_state(backend, nqubits, targets, results, normalize, dtype):
 
 @pytest.mark.parametrize("density_matrix", [False, True])
 def test_collapse_call(backend, density_matrix):
-    pytest.skip("Fail")
+    pytest.skip("Collapsing measurements currently failing for `numba`.")
 
     tbackend = NumpyBackend()
     tbackend.set_seed(123)
