@@ -3,7 +3,7 @@ import pytest
 from qibo import set_device
 from qibo.hamiltonians import TFIM
 from scipy import sparse
-from scipy.sparse.linalg import expm
+from scipy.sparse.linalg import expm as expm_sparse
 
 from qibojit.backends import MetaBackend
 
@@ -66,10 +66,15 @@ def test_to_numpy(backend):
 
 @pytest.mark.parametrize("sparse_type", ["coo", "csr", "csc", "dia"])
 def test_backend_expm_sparse(backend, sparse_type):
-    m = sparse.rand(16, 16, format=sparse_type)
-    target = expm(m.toarray())
-    result = backend.matrix_exp(backend.cast(m, dtype=m.dtype))
-    backend.assert_allclose(target, result, atol=1e-10)
+    matrix = sparse.rand(16, 16, format=sparse_type)
+    result = backend.cast(matrix, dtype=backend.float64, copy=True)
+
+    target = expm_sparse(matrix)
+    result = backend.matrix_exp(result)
+
+    backend.assert_allclose(
+        backend.to_numpy(target), backend.to_numpy(result), atol=1e-10
+    )
 
 
 @pytest.mark.parametrize("sparse_type", [None, "coo", "csr", "csc", "dia"])
