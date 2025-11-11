@@ -145,10 +145,10 @@ class NumbaBackend(Backend):
     ######## Methods related to array manipulation                                  ########
     ########################################################################################
 
-    def block_diag(self, *arrays: ArrayLike) -> ArrayLike:
+    def block_diag(self, *arrays: ArrayLike) -> ArrayLike:  # pragma: no cover
         return block_diag(*arrays)
 
-    def csr_matrix(self, array: ArrayLike, **kwargs) -> ArrayLike:
+    def csr_matrix(self, array: ArrayLike, **kwargs) -> ArrayLike:  # pragma: no cover
         return csr_matrix(array, **kwargs)
 
     def eigsh(self, array: ArrayLike, **kwargs) -> Tuple[ArrayLike, ArrayLike]:
@@ -158,7 +158,7 @@ class NumbaBackend(Backend):
         func = expm_sparse if self.is_sparse(array) else expm
         return func(array)
 
-    def logm(self, array: ArrayLike, **kwargs) -> ArrayLike:
+    def logm(self, array: ArrayLike, **kwargs) -> ArrayLike:  # pragma: no cover
         return logm(array, **kwargs)
 
     ########################################################################################
@@ -171,7 +171,7 @@ class NumbaBackend(Backend):
         power: Union[float, int],
         precision_singularity: float = 1e-14,
         dtype: Optional[DTypeLike] = None,
-    ) -> ArrayLike:
+    ) -> ArrayLike:  # pragma: no cover
         """Calculate the (fractional) ``power`` :math:`\\alpha` of ``matrix`` :math:`A`,
         i.e. :math:`A^{\\alpha}`.
 
@@ -437,8 +437,8 @@ class NumbaBackend(Backend):
 
     def _identity_sparse(
         self, dims: int, dtype: Optional[DTypeLike] = None, **kwargs
-    ) -> ArrayLike:
-        if dtype is None:  # pragma: no cover
+    ) -> ArrayLike:  # pragma: no cover
+        if dtype is None:
             dtype = self.dtype
 
         sparsity_format = kwargs.get("format", "csr")
