@@ -410,8 +410,8 @@ def _random_unitary_haar(dims: int):
     return ENGINE.ascontiguousarray(Q) @ R
 
 
-@njit(["c16[:,:](c16[:,:])", "f8[:,:](f8[:,:])"], parallel=True, cache=True)
-def expm(A):
+@njit(["c16[:,:](c16[:,:])", "f8[:,:](f8[:,:])"], parallel=False, cache=True)
+def expm_qinfo(A):
     """
     Matrix exponential using scaling & squaring
     with adaptive Padé approximants.
@@ -419,7 +419,7 @@ def expm(A):
     differs from scipy.expm of ~1e-6. For nqubits > 9 the error on
     the single elements grows substantially (~1e-2 for nqubits=9) even though
     the norm of the difference matrix is still very small in relative terms:
-    np.linalg.norm(scipy.expm(m) - expm(m)) / np.linalg.norm(scipy.expm(m) ~ 1e-15.
+    np.linalg.norm(scipy.expm(m) - expm(m)) / np.linalg.norm(scipy.expm(m)) ~ 1e-15.
     At some point we may want to directly port scipy's code to numba:
     https://github.com/scipy/scipy/blob/b1296b9b4393e251511fe8fdd3e58c22a1124899/scipy/linalg/_matfuncs.py#L233-L397
     """
@@ -554,7 +554,7 @@ def expm(A):
 @njit("c16[:,:](i8)", parallel=True, cache=True)
 def _random_unitary(dims: int):
     H = _random_hermitian(dims)
-    return expm(-1.0j * H / 2)
+    return expm_qinfo(-1.0j * H / 2)
 
 
 @njit("c16[:,:](c16[:,:], i8, i8, f8, f8)", parallel=True, cache=True)
