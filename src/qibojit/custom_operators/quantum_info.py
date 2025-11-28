@@ -410,7 +410,7 @@ def _random_unitary_haar(dims: int):
     return ENGINE.ascontiguousarray(Q) @ R
 
 
-@njit(["c16[:,:](c16[:,:])", "f8[:,:](f8[:,:])"], parallel=True, cache=True)
+@njit(["c16[:,:](c16[:,:])", "f8[:,:](f8[:,:])"], parallel=False, cache=True)
 def expm_qinfo(A):
     """
     Matrix exponential using scaling & squaring
