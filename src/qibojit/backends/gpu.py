@@ -275,7 +275,6 @@ class CupyBackend(Backend):  # pragma: no cover
         if size is None:
             size = 1
 
-
         _array = self.to_numpy(array)
         _prob = self.to_numpy(p)
 
