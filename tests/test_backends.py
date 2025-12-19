@@ -48,7 +48,7 @@ def test_sparse_cast(backend, array_type, format):
     target = sptarget.toarray()
     backend.assert_allclose(final, target)
     if backend.platform != "numba":
-        sptarget = getattr(backend.sparse, sptarget.__class__.__name__)(sptarget)
+        sptarget = getattr(backend.cp_sparse, sptarget.__class__.__name__)(sptarget)
         assert backend.is_sparse(sptarget)
         final = backend.to_numpy(backend.cast(sptarget))
         backend.assert_allclose(final, target)
@@ -86,7 +86,10 @@ def test_backend_eigh(backend, sparse_type):
     else:
         m = sparse.rand(16, 16, format=sparse_type)
         m = m + m.T
-        eigvals1, eigvecs1 = backend.eigenvectors(backend.cast(m), k=16)
+        if backend.platform == "numba":
+            eigvals1, eigvecs1 = backend.eigenvectors(backend.cast(m), k=16)
+        else:
+            eigvals1, eigvecs1 = backend.eigenvectors(backend.cast(m))
         eigvals2, eigvecs2 = backend.eigenvectors(backend.cast(m.toarray()))
     backend.assert_allclose(eigvals1, eigvals2, atol=1e-10)
     eigvecs1 = backend.to_numpy(eigvecs1)
@@ -103,7 +106,10 @@ def test_backend_eigvalsh(backend, sparse_type):
     else:
         m = sparse.rand(16, 16, format=sparse_type)
         m = m + m.T
-        result = backend.eigenvalues(backend.cast(m), k=16)
+        if backend.platform == "numba":
+            result = backend.eigenvalues(backend.cast(m), k=16)
+        else:
+            result = backend.eigenvalues(backend.cast(m))
         target, _ = backend.eigenvectors(backend.cast(m.toarray()))
     backend.assert_allclose(target, result, atol=1e-10)
 
