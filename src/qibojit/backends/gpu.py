@@ -275,10 +275,6 @@ class CupyBackend(Backend):  # pragma: no cover
         if size is None:
             size = 1
 
-        # log.warning(
-        #     "Falling back to CPU due to lack of native support for ``random.choice``"
-        #     + "with local rng states."
-        # )
 
         _array = self.to_numpy(array)
         _prob = self.to_numpy(p)
@@ -287,10 +283,6 @@ class CupyBackend(Backend):  # pragma: no cover
             local_state = np.random.default_rng(seed) if isinstance(seed, int) else seed
             result = local_state.choice(_array, size=size, replace=replace, p=_prob)
         else:
-            print(_array)
-            print(size)
-            print(replace)
-            print(_prob)
             result = np.random.choice(_array, size=size, replace=replace, p=_prob)
 
         return self.cast(result, dtype=dtype)
