@@ -73,7 +73,7 @@ def test_backend_expm_sparse(backend, sparse_type):
     result = backend.matrix_exp(result)
 
     backend.assert_allclose(
-        backend.to_numpy(target), backend.to_numpy(result), atol=1e-10
+        backend.to_numpy(result), backend.to_numpy(target), atol=1e-10
     )
 
 
@@ -86,11 +86,9 @@ def test_backend_eigh(backend, sparse_type):
     else:
         m = sparse.rand(16, 16, format=sparse_type)
         m = m + m.T
-        if backend.platform == "numba":
-            eigvals1, eigvecs1 = backend.eigenvectors(backend.cast(m), k=16)
-        else:
-            eigvals1, eigvecs1 = backend.eigenvectors(backend.cast(m))
-        eigvals2, eigvecs2 = backend.eigenvectors(backend.cast(m.toarray()))
+        m = backend.cast(m, dtype=m.dtype)
+        eigvals1, eigvecs1 = backend.eigenvectors(m, k=16)
+        eigvals2, eigvecs2 = backend.eigenvectors(m.toarray())
     backend.assert_allclose(eigvals1, eigvals2, atol=1e-10)
     eigvecs1 = backend.to_numpy(eigvecs1)
     eigvecs2 = backend.to_numpy(eigvecs2)
@@ -106,12 +104,10 @@ def test_backend_eigvalsh(backend, sparse_type):
     else:
         m = sparse.rand(16, 16, format=sparse_type)
         m = m + m.T
-        if backend.platform == "numba":
-            result = backend.eigenvalues(backend.cast(m), k=16)
-        else:
-            result = backend.eigenvalues(backend.cast(m))
-        target, _ = backend.eigenvectors(backend.cast(m.toarray()))
-    backend.assert_allclose(target, result, atol=1e-10)
+        m = backend.cast(m, dtype=m.dtype)
+        result = backend.eigenvalues(m, k=16)
+        target, _ = backend.eigenvectors(m.toarray())
+    backend.assert_allclose(result, target, atol=1e-10)
 
 
 @pytest.mark.parametrize("sparse_type", ["coo", "csr", "csc", "dia"])
