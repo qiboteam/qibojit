@@ -1512,7 +1512,7 @@ qulacs = ["qulacs (>=0.6.4,<0.7.0) ; python_version < \"3.13\""]
 type = "git"
 url = "https://github.com/qiboteam/qibo"
 reference = "eigvecs"
-resolved_reference = "b61e8aebebe0ccc4ee1df07302008e8904aa7b00"
+resolved_reference = "896dcc62b08f332d28be99c46b138d6f97223156"
 
 [[package]]
 name = "scipy"
