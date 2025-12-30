@@ -173,7 +173,11 @@ class CupyBackend(Backend):  # pragma: no cover
         if isinstance(array, self.engine.ndarray):
             return array.get()
 
-        if isinstance(array, list) and not isinstance(array[0], (str, np.str_)):
+        if (
+            isinstance(array, list)
+            and array != []
+            and not isinstance(array[0], (str, np.str_))
+        ):
             return self.engine.asarray(array).get()
 
         if self.cp_sparse.issparse(array):
@@ -720,7 +724,16 @@ class CuQuantumBackend(CupyBackend):  # pragma: no cover
     def __init__(self):
         super().__init__()
         import cuquantum  # pylint: disable=import-error,import-outside-toplevel
-        from cuquantum import custatevec as cusv  # pylint: disable=import-error,C0415
+
+        cuquantum_version = cuquantum.__version__.split(".")[0]
+        if cuquantum_version >= "25":
+            from cuquantum.bindings import (
+                custatevec as cusv,  # pylint: disable=import-error,C0415
+            )
+        else:
+            from cuquantum import (
+                custatevec as cusv,  # pylint: disable=import-error,C0415
+            )
 
         self.cuquantum = cuquantum
         self.cusv = cusv

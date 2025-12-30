@@ -22,7 +22,6 @@ classifiers = [
 [tool.poetry.dependencies]
 python = ">=3.10,<3.14"
 numba = "^0.61.0"
-# qibo = "^0.2.20"
 qibo = { git="https://github.com/qiboteam/qibo" , branch = "eigvecs" }
 scipy = "^1.10.1"
 psutil = "^5.9.5"
