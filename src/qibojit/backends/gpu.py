@@ -23,7 +23,7 @@ from qibojit.backends.matrices import (
     CustomMatrices,
 )
 from qibojit.custom_operators import raw_kernels
-from qibojit.custom_operators.ops import measure_frequencies, set_seed
+from qibojit.custom_operators.ops import measure_frequencies
 
 
 class CupyBackend(Backend):  # pragma: no cover
@@ -209,7 +209,8 @@ class CupyBackend(Backend):  # pragma: no cover
         if cp_version <= 13:
             log.warning(
                 "Falling back to CPU due to lack of native ``linalg.eig`` implementation in"
-                + f"``cupy=={self.versions['cupy']}``."
+                + "``cupy==%s``.",
+                self.versions["cupy"],
             )
 
             eigvals, eigvecs = np.linalg.eig(self.to_numpy(array), **kwargs)
@@ -232,7 +233,8 @@ class CupyBackend(Backend):  # pragma: no cover
         if cp_version <= 13:
             log.warning(
                 "Falling back to CPU due to lack of native ``linalg.eigvals`` implementation"
-                f"in ``cupy=={self.versions['cupy']}``."
+                + "in ``cupy==%s``.",
+                self.versions["cupy"],
             )
 
             eigvals = np.linalg.eigvals(self.to_numpy(array), **kwargs)
@@ -249,7 +251,8 @@ class CupyBackend(Backend):  # pragma: no cover
 
             log.warning(
                 "Falling back to CPU due to lack of native ``cupyx.scipy.sparse.linalg.expm``"
-                + f"implementation in ``cupy=={self.versions['cupy']}``."
+                + "implementation in ``cupy==%s``.",
+                self.versions["cupy"],
             )
             array = self.to_numpy(array)
         else:
@@ -264,7 +267,7 @@ class CupyBackend(Backend):  # pragma: no cover
     def logm(self, array: ArrayLike, **kwargs) -> ArrayLike:
         log.warning(
             "Falling back to CPU due to lack of native ``linalg.logm``"
-            + f"implementation in ``cupy``."
+            + "implementation in ``cupy``."
         )
 
         _array = self.to_numpy(array)
@@ -338,7 +341,8 @@ class CupyBackend(Backend):  # pragma: no cover
 
         log.warning(
             "Falling back to CPU due to lack of native ``linalg.fractional_matrix_power``"
-            + f"implementation in ``cupy=={self.versions['cupy']}``."
+            + "implementation in ``cupy==%s``.",
+            self.versions["cupy"],
         )
 
         copied = self.to_numpy(matrix)
@@ -726,17 +730,13 @@ class CuQuantumBackend(CupyBackend):  # pragma: no cover
         import cuquantum  # pylint: disable=import-error,import-outside-toplevel
 
         cuquantum_version = cuquantum.__version__.split(".")[0]
-        if cuquantum_version >= "25":
-            from cuquantum.bindings import (
-                custatevec as cusv,  # pylint: disable=import-error,C0415
-            )
+        if int(cuquantum_version) >= 25:
+            from cuquantum.bindings import custatevec  # pylint: disable=E0401,C0415
         else:
-            from cuquantum import (
-                custatevec as cusv,  # pylint: disable=import-error,C0415
-            )
+            from cuquantum import custatevec  # pylint: disable=E0611,E0401,C0415
 
         self.cuquantum = cuquantum
-        self.cusv = cusv
+        self.cusv = custatevec
         self.platform = "cuquantum"
         self.versions["cuquantum"] = self.cuquantum.__version__
         self.supports_multigpu = True
