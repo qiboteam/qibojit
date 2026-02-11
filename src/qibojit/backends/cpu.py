@@ -11,7 +11,7 @@ from qibo.config import SHOT_METROPOLIS_THRESHOLD, raise_error
 from qibo.gates.abstract import Gate, ParametrizedGate
 from qibo.gates.special import FusedGate
 from scipy.linalg import block_diag, expm, fractional_matrix_power, logm
-from scipy.sparse import csr_matrix, coo_matrix
+from scipy.sparse import coo_matrix, csr_matrix
 from scipy.sparse import eye as eye_sparse
 from scipy.sparse import issparse
 from scipy.sparse.linalg import eigsh
