@@ -199,7 +199,10 @@ class CupyBackend(Backend):  # pragma: no cover
 
         return block_diag(*arrays)
 
-    def csr_matrix(self, array: ArrayLike, **kwargs) -> ArrayLike:
+    def coo_matrix(self, array: ArrayLike, **kwargs) -> ArrayLike:  # pragma: no cover
+        return self.cp_sparse.coo_matrix(array, **kwargs)
+
+    def csr_matrix(self, array: ArrayLike, **kwargs) -> ArrayLike:  # pragma: no cover
         return self.cp_sparse.csr_matrix(array, **kwargs)
 
     def eig(self, array: ArrayLike, **kwargs) -> ArrayLike:
