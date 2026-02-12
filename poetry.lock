@@ -1536,8 +1536,8 @@ qulacs = ["qulacs (>=0.6.4,<0.7.0) ; python_version < \"3.13\""]
 [package.source]
 type = "git"
 url = "https://github.com/qiboteam/qibo"
-reference = "coo"
-resolved_reference = "172c1438f2b2bb2df85d8a08ee5f548ca57c0edd"
+reference = "HEAD"
+resolved_reference = "8ec7509d2c519b8caca2f8c053858e21167558a7"
 
 [[package]]
 name = "scipy"
@@ -1975,4 +1975,4 @@ cuquantum = ["cuquantum-python-cu12"]
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.10,<3.14"
-content-hash = "86bdf1143d95a3626b8e2f14106e84988426281f0c43dbf6682fd01dca92e483"
+content-hash = "4229dfaa7e4bda4998574f82614793d7f475635c6a703e9cdab4b4f6b9d25328"
