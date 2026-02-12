@@ -59,9 +59,7 @@ __device__ void _apply_H(unsigned char* symplectic_matrix, const int& q, const i
         symplectic_matrix[row_idx + qz] = tmp;
     };
 }
-""" + apply_one_qubit_kernel.format(
-    "H", "H"
-)
+""" + apply_one_qubit_kernel.format("H", "H")
 
 apply_H = cp.RawKernel(apply_H, "apply_H", options=("--std=c++11",))
 
@@ -89,9 +87,7 @@ __device__ void _apply_CNOT(unsigned char* symplectic_matrix, const int& control
         );
     };
 }
-""" + apply_two_qubits_kernel.format(
-    "CNOT", "CNOT"
-)
+""" + apply_two_qubits_kernel.format("CNOT", "CNOT")
 
 apply_CNOT = cp.RawKernel(apply_CNOT, "apply_CNOT", options=("--std=c++11",))
 
@@ -129,9 +125,7 @@ __device__ void _apply_CZ(unsigned char* symplectic_matrix, const int& control_q
         symplectic_matrix[row_idx + tqz] = z_target_q;
     };
 }
-""" + apply_two_qubits_kernel.format(
-    "CZ", "CZ"
-)
+""" + apply_two_qubits_kernel.format("CZ", "CZ")
 
 apply_CZ = cp.RawKernel(apply_CZ, "apply_CZ", options=("--std=c++11",))
 
@@ -156,9 +150,7 @@ __device__ void _apply_S(unsigned char* symplectic_matrix, const int& q, const i
         symplectic_matrix[row_idx + qz] = symplectic_matrix[row_idx + qz] ^ symplectic_matrix[row_idx + q];
     };
 }
-""" + apply_one_qubit_kernel.format(
-    "S", "S"
-)
+""" + apply_one_qubit_kernel.format("S", "S")
 
 apply_S = cp.RawKernel(apply_S, "apply_S", options=("--std=c++11",))
 
@@ -182,9 +174,7 @@ __device__ void _apply_Z(unsigned char* symplectic_matrix, const int& q, const i
         );
     };
 }
-""" + apply_one_qubit_kernel.format(
-    "Z", "Z"
-)
+""" + apply_one_qubit_kernel.format("Z", "Z")
 
 apply_Z = cp.RawKernel(apply_Z, "apply_Z", options=("--std=c++11",))
 
@@ -211,9 +201,7 @@ __device__ void _apply_X(unsigned char* symplectic_matrix, const int& q, const i
         );
     };
 }
-""" + apply_one_qubit_kernel.format(
-    "X", "X"
-)
+""" + apply_one_qubit_kernel.format("X", "X")
 
 apply_X = cp.RawKernel(apply_X, "apply_X", options=("--std=c++11",))
 
@@ -243,9 +231,7 @@ __device__ void _apply_Y(unsigned char* symplectic_matrix, const int& q, const i
         );
     };
 }
-""" + apply_one_qubit_kernel.format(
-    "Y", "Y"
-)
+""" + apply_one_qubit_kernel.format("Y", "Y")
 
 apply_Y = cp.RawKernel(apply_Y, "apply_Y", options=("--std=c++11",))
 
@@ -269,9 +255,7 @@ __device__ void _apply_SX(unsigned char* symplectic_matrix, const int& q, const 
         symplectic_matrix[row_idx + q] = symplectic_matrix[row_idx + qz] ^ symplectic_matrix[row_idx + q];
     };
 }
-""" + apply_one_qubit_kernel.format(
-    "SX", "SX"
-)
+""" + apply_one_qubit_kernel.format("SX", "SX")
 
 apply_SX = cp.RawKernel(apply_SX, "apply_SX", options=("--std=c++11",))
 
@@ -295,9 +279,7 @@ __device__ void _apply_SDG(unsigned char* symplectic_matrix, const int& q, const
         symplectic_matrix[row_idx + qz] = symplectic_matrix[row_idx + qz] ^ symplectic_matrix[row_idx + q];
     };
 }
-""" + apply_one_qubit_kernel.format(
-    "SDG", "SDG"
-)
+""" + apply_one_qubit_kernel.format("SDG", "SDG")
 
 apply_SDG = cp.RawKernel(apply_SDG, "apply_SDG", options=("--std=c++11",))
 
@@ -320,9 +302,7 @@ __device__ void _apply_SXDG(unsigned char* symplectic_matrix, const int& q, cons
         symplectic_matrix[row_idx + q] = symplectic_matrix[row_idx + qz] ^ symplectic_matrix[row_idx + q];
     };
 }
-""" + apply_one_qubit_kernel.format(
-    "SXDG", "SXDG"
-)
+""" + apply_one_qubit_kernel.format("SXDG", "SXDG")
 
 apply_SXDG = cp.RawKernel(apply_SXDG, "apply_SXDG", options=("--std=c++11",))
 
@@ -348,9 +328,7 @@ __device__ void _apply_RY_pi(unsigned char* symplectic_matrix, const int& q, con
         symplectic_matrix[row_idx + q] = zq;
     };
 }
-""" + apply_one_qubit_kernel.format(
-    "RY_pi", "RY_pi"
-)
+""" + apply_one_qubit_kernel.format("RY_pi", "RY_pi")
 
 apply_RY_pi = cp.RawKernel(apply_RY_pi, "apply_RY_pi", options=("--std=c++11",))
 
@@ -376,9 +354,7 @@ __device__ void _apply_RY_3pi_2(unsigned char* symplectic_matrix, const int& q, 
         symplectic_matrix[row_idx + q] = zq;
     };
 }
-""" + apply_one_qubit_kernel.format(
-    "RY_3pi_2", "RY_3pi_2"
-)
+""" + apply_one_qubit_kernel.format("RY_3pi_2", "RY_3pi_2")
 
 apply_RY_3pi_2 = cp.RawKernel(
     apply_RY_3pi_2, "apply_RY_3pi_2", options=("--std=c++11",)
@@ -430,9 +406,7 @@ __device__ void _apply_SWAP(unsigned char* symplectic_matrix, const int& control
         symplectic_matrix[row_idx + tqz] = z_cq;
     };
 }
-""" + apply_two_qubits_kernel.format(
-    "SWAP", "SWAP"
-)
+""" + apply_two_qubits_kernel.format("SWAP", "SWAP")
 
 apply_SWAP = cp.RawKernel(apply_SWAP, "apply_SWAP", options=("--std=c++11",))
 
@@ -508,9 +482,7 @@ __device__ void _apply_iSWAP(unsigned char* symplectic_matrix, const int& contro
         symplectic_matrix[row_idx + target_q] = tmp;
     };
 }
-""" + apply_two_qubits_kernel.format(
-    "iSWAP", "iSWAP"
-)
+""" + apply_two_qubits_kernel.format("iSWAP", "iSWAP")
 
 apply_iSWAP = cp.RawKernel(apply_iSWAP, "apply_iSWAP", options=("--std=c++11",))
 
@@ -557,9 +529,7 @@ __device__ void _apply_CY(unsigned char* symplectic_matrix, const int& control_q
         symplectic_matrix[row_idx + tqz] = z_target_q;
     };
 }
-""" + apply_two_qubits_kernel.format(
-    "CY", "CY"
-)
+""" + apply_two_qubits_kernel.format("CY", "CY")
 
 apply_CY = cp.RawKernel(apply_CY, "apply_CY", options=("--std=c++11",))
 
