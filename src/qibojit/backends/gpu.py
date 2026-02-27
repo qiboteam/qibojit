@@ -106,7 +106,7 @@ class CupyBackend(Backend):  # pragma: no cover
                     else f"state[0] = {type_replacements[dtype]}(1, 0);"
                 )
                 code = code.replace("<BODY>", body)
-            gate = self.engine.RawKernel(code, name, ("--std=c++11",))
+            gate = self.engine.RawKernel(code, name, ("--std=c++17",))
             self.gates[f"{name}_{dtype}"] = gate
 
         for dtype, _ in type_replacements.items():
