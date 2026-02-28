@@ -25,6 +25,21 @@ from qibojit.backends.matrices import (
 from qibojit.custom_operators import raw_kernels
 from qibojit.custom_operators.ops import measure_frequencies
 
+GATE_OPS = {
+    "X": "apply_x",
+    "CNOT": "apply_x",
+    "TOFFOLI": "apply_x",
+    "Y": "apply_y",
+    "Z": "apply_z",
+    "CY": "apply_y",
+    "CZ": "apply_z",
+    "U1": "apply_z_pow",
+    "CU1": "apply_z_pow",
+    "SWAP": "apply_swap",
+    "fSim": "apply_fsim",
+    "GeneralizedfSim": "apply_fsim",
+}
+
 
 class CupyBackend(Backend):  # pragma: no cover
     # CI does not have GPUs
@@ -391,6 +406,16 @@ class CupyBackend(Backend):  # pragma: no cover
     ######## Methods related to circuit execution                                   ########
     ########################################################################################
 
+    def apply_gate(
+        self, gate: Gate, state: ArrayLike, nqubits: int, inverse: bool = False
+    ) -> ArrayLike:
+        density_matrix = bool(len(state.shape) == 2)
+
+        if density_matrix:
+            return self._apply_gate_density_matrix(gate, state, nqubits, inverse)
+
+        return self._apply_gate(gate, state, nqubits)
+
     def collapse_state(
         self,
         state: ArrayLike,
@@ -556,6 +581,108 @@ class CupyBackend(Backend):  # pragma: no cover
     ########################################################################################
     ######## Helper methods                                                         ########
     ########################################################################################
+
+    def _apply_fanout_gate(
+        self, gate: Gate, state: ArrayLike, nqubits: int
+    ) -> ArrayLike:
+        from qibo import gates  # pylint: disable=import-outside-toplevel
+
+        control, targets = gate.control_qubits[0], gate.target_qubits
+
+        for target in targets:
+            gate = gates.CNOT(control, target)
+            matrix = self._as_custom_matrix(gate)
+            qubits = self._create_qubits_tensor(gate, nqubits)
+            op = GATE_OPS.get("CNOT")
+            state = self._one_qubit_base(state, nqubits, target, op, matrix, qubits)
+
+        return state
+
+    def _apply_gate(self, gate: Gate, state: ArrayLike, nqubits: int) -> ArrayLike:
+        matrix = self._as_custom_matrix(gate)
+        qubits = self._create_qubits_tensor(gate, nqubits)
+        targets = gate.target_qubits
+        state = self.cast(state, dtype=state.dtype)
+
+        if gate.name == "fanout":
+            return self._apply_fanout_gate(gate, state, nqubits)
+
+        if len(targets) == 1:
+            op = GATE_OPS.get(gate.__class__.__name__, "apply_gate")
+            return self._one_qubit_base(state, nqubits, *targets, op, matrix, qubits)
+
+        if len(targets) == 2:
+            op = GATE_OPS.get(gate.__class__.__name__, "apply_two_qubit_gate")
+            return self._two_qubit_base(state, nqubits, *targets, op, matrix, qubits)
+
+        return self._multi_qubit_base(state, nqubits, targets, matrix, qubits)
+
+    def _apply_gate_density_matrix(
+        self, gate: Gate, state: ArrayLike, nqubits: int, inverse: bool = False
+    ) -> ArrayLike:
+        name = gate.__class__.__name__
+        if name in ["Y", "CY"]:
+            return self._apply_ygate_density_matrix(gate, state, nqubits)
+
+        if inverse:
+            # used to reset the state when applying channels
+            # see :meth:`qibojit.backend.NumpyBackend.apply_channel_density_matrix` below
+            matrix = self.inv(gate.matrix(self))
+            matrix = self.cast(matrix)
+        else:
+            matrix = self._as_custom_matrix(gate)
+
+        qubits = self._create_qubits_tensor(gate, nqubits)
+        qubits_dm = qubits + nqubits
+        targets = gate.target_qubits
+        targets_dm = tuple(q + nqubits for q in targets)
+
+        state = self.cast(state)
+        shape = state.shape
+        if len(targets) == 1:
+            op = GATE_OPS.get(name, "apply_gate")
+            state = self._one_qubit_base(
+                state.ravel(), 2 * nqubits, *targets, op, matrix, qubits_dm
+            )
+            state = self._one_qubit_base(
+                state, 2 * nqubits, *targets_dm, op, self.conj(matrix), qubits
+            )
+        elif len(targets) == 2:
+            op = GATE_OPS.get(name, "apply_two_qubit_gate")
+            state = self._two_qubit_base(
+                state.ravel(), 2 * nqubits, *targets, op, matrix, qubits_dm
+            )
+            state = self._two_qubit_base(
+                state, 2 * nqubits, *targets_dm, op, self.conj(matrix), qubits
+            )
+        else:
+            state = self._multi_qubit_base(
+                state.ravel(), 2 * nqubits, targets, matrix, qubits_dm
+            )
+            state = self._multi_qubit_base(
+                state, 2 * nqubits, targets_dm, self.conj(matrix), qubits
+            )
+
+        return self.reshape(state, shape)
+
+    def _apply_ygate_density_matrix(
+        self, gate: Gate, state: ArrayLike, nqubits: int
+    ) -> ArrayLike:
+        matrix = self._as_custom_matrix(gate)
+        qubits = self._create_qubits_tensor(gate, nqubits)
+        qubits_dm = qubits + nqubits
+        targets = gate.target_qubits
+        targets_dm = tuple(q + nqubits for q in targets)
+        state = self.cast(state)
+        shape = state.shape
+        state = self._one_qubit_base(
+            state.ravel(), 2 * nqubits, *targets, "apply_y", matrix, qubits_dm
+        )
+        # force using ``apply_gate`` kernel so that conjugate is properly applied
+        state = self._one_qubit_base(
+            state, 2 * nqubits, *targets_dm, "apply_gate", self.conj(matrix), qubits
+        )
+        return self.reshape(state, shape)
 
     def _as_custom_matrix(self, gate: Gate) -> ArrayLike:
         if isinstance(gate, Unitary):
