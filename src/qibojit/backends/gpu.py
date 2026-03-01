@@ -591,7 +591,7 @@ class CupyBackend(Backend):  # pragma: no cover
 
         for target in targets:
             gate = gates.CNOT(control, target)
-            matrix = self._as_custom_matrix(gate)
+            matrix = self._as_custom_matrix(gate).astype(self.dtype)
             qubits = self._create_qubits_tensor(gate, nqubits)
             op = GATE_OPS.get("CNOT")
             state = self._one_qubit_base(state, nqubits, target, op, matrix, qubits)
@@ -599,7 +599,7 @@ class CupyBackend(Backend):  # pragma: no cover
         return state
 
     def _apply_gate(self, gate: Gate, state: ArrayLike, nqubits: int) -> ArrayLike:
-        matrix = self._as_custom_matrix(gate)
+        matrix = self._as_custom_matrix(gate).astype(self.dtype)
         qubits = self._create_qubits_tensor(gate, nqubits)
         targets = gate.target_qubits
         state = self.cast(state, dtype=state.dtype)
@@ -628,9 +628,9 @@ class CupyBackend(Backend):  # pragma: no cover
             # used to reset the state when applying channels
             # see :meth:`qibojit.backend.NumpyBackend.apply_channel_density_matrix` below
             matrix = self.inv(gate.matrix(self))
-            matrix = self.cast(matrix)
+            matrix = self.cast(matrix, dtype=self.dtype)
         else:
-            matrix = self._as_custom_matrix(gate)
+            matrix = self._as_custom_matrix(gate).astype(self.dtype)
 
         qubits = self._create_qubits_tensor(gate, nqubits)
         qubits_dm = qubits + nqubits
@@ -668,7 +668,7 @@ class CupyBackend(Backend):  # pragma: no cover
     def _apply_ygate_density_matrix(
         self, gate: Gate, state: ArrayLike, nqubits: int
     ) -> ArrayLike:
-        matrix = self._as_custom_matrix(gate)
+        matrix = self._as_custom_matrix(gate).astype(self.dtype)
         qubits = self._create_qubits_tensor(gate, nqubits)
         qubits_dm = qubits + nqubits
         targets = gate.target_qubits
