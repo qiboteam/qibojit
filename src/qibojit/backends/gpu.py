@@ -582,6 +582,30 @@ class CupyBackend(Backend):  # pragma: no cover
     ######## Helper methods                                                         ########
     ########################################################################################
 
+    def apply_channel(self, channel, state, nqubits):
+        density_matrix = bool(len(state.shape) == 2)
+        if density_matrix:
+            return self._apply_channel_density_matrix(channel, state, nqubits)
+
+        return super().apply_channel(channel, state, nqubits)
+
+    def _apply_channel_density_matrix(
+        self, channel: "Channel", state: ArrayLike, nqubits: int  # type: ignore
+    ) -> ArrayLike:
+        state = self.cast(state, dtype=state.dtype)
+        if not channel._all_unitary_operators:  # pylint: disable=protected-access
+            state_copy = self.cast(state, copy=True, dtype=state.dtype)
+        new_state = (1 - channel.coefficient_sum) * state
+        for coeff, gate in zip(channel.coefficients, channel.gates):
+            state = self.apply_gate(gate, state, nqubits)
+            new_state += coeff * state
+            # reset the state
+            if not channel._all_unitary_operators:  # pylint: disable=protected-access
+                state = self.cast(state_copy, copy=True, dtype=state_copy.dtype)
+            else:
+                state = self.apply_gate(gate, state, nqubits, inverse=True)
+        return new_state
+
     def _apply_fanout_gate(
         self, gate: Gate, state: ArrayLike, nqubits: int
     ) -> ArrayLike:
