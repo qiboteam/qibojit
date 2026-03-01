@@ -31,14 +31,21 @@ ATOL = {"complex64": 1e-4, "complex128": 1e-10}
     ],
 )
 def test_apply_gate(backend, nqubits, target, controls, dtype):
+    seed = 10
     tbackend = NumpyBackend()
-    state = random_statevector(2**nqubits, backend=tbackend).astype(dtype)
-    matrix = random_unitary(2**1, backend=tbackend).astype(dtype)
-    gate = gates.Unitary(matrix, target).controlled_by(*controls)
 
     set_dtype(dtype, backend, tbackend)
-    target_state = tbackend.apply_gate(gate, backend.cast(state, copy=True), nqubits)
-    state = backend.apply_gate(gate, backend.cast(state, copy=True), nqubits)
+
+    state = random_statevector(2**nqubits, dtype=dtype, seed=seed, backend=tbackend)
+    matrix = random_unitary(2**1, seed=seed, backend=tbackend).astype(dtype)
+    gate = gates.Unitary(matrix, target).controlled_by(*controls)
+
+    target_state = tbackend.apply_gate(
+        gate, backend.cast(state, copy=True, dtype=dtype), nqubits
+    )
+    state = backend.apply_gate(
+        gate, backend.cast(state, copy=True, dtype=dtype), nqubits
+    )
     backend.assert_allclose(state, target_state, atol=ATOL.get(dtype))
 
 
