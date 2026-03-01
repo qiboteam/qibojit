@@ -66,10 +66,11 @@ def test_to_numpy(backend):
 
 @pytest.mark.parametrize("sparse_type", ["coo", "csr", "csc", "dia"])
 def test_backend_expm_sparse(backend, sparse_type):
-    matrix = sparse.rand(16, 16, format=sparse_type)
-    result = backend.cast(matrix, dtype=backend.float64, copy=True)
-
+    rng = np.random.default_rng(10)
+    matrix = sparse.rand(16, 16, format=sparse_type, rng=rng)
     target = expm_sparse(matrix)
+
+    result = backend.cast(matrix, dtype=backend.float64, copy=True)
     result = backend.matrix_exp(result)
 
     backend.assert_allclose(
