@@ -471,15 +471,17 @@ def test_density_matrix_half_calls(backend, gatename):
 
 def test_unitary_channel(backend, dtype):
     tbackend = NumpyBackend()
+
+    set_dtype(dtype, backend, tbackend)
+
     a1 = gates.X(0).matrix(tbackend)
     a2 = gates.CNOT(0, 1).matrix(tbackend)
     qubits = [(0,), (2, 3)]
     probs = [0.4, 0.3]
     matrices = list(zip(probs, [a1, a2]))
     channel = gates.UnitaryChannel(qubits, matrices)
-    state = random_density_matrix(2**4, backend=tbackend).astype(dtype)
+    state = random_density_matrix(2**4, seed=10, backend=tbackend).astype(dtype)
 
-    set_dtype(dtype, backend, tbackend)
     target_state = tbackend.apply_channel(channel, np.copy(state), 4)
     final_state = backend.apply_channel(channel, backend.cast(state, copy=True), 4)
     backend.assert_allclose(final_state, target_state)
