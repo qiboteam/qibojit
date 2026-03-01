@@ -61,7 +61,7 @@ __device__ void _apply_H(unsigned char* symplectic_matrix, const int& q, const i
 }
 """ + apply_one_qubit_kernel.format("H", "H")
 
-apply_H = cp.RawKernel(apply_H, "apply_H", options=("--std=c++11",))
+apply_H = cp.RawKernel(apply_H, "apply_H", options=("--std=c++17",))
 
 
 def H(symplectic_matrix, q, nqubits):
@@ -89,7 +89,7 @@ __device__ void _apply_CNOT(unsigned char* symplectic_matrix, const int& control
 }
 """ + apply_two_qubits_kernel.format("CNOT", "CNOT")
 
-apply_CNOT = cp.RawKernel(apply_CNOT, "apply_CNOT", options=("--std=c++11",))
+apply_CNOT = cp.RawKernel(apply_CNOT, "apply_CNOT", options=("--std=c++17",))
 
 
 def CNOT(symplectic_matrix, control_q, target_q, nqubits):
@@ -127,7 +127,7 @@ __device__ void _apply_CZ(unsigned char* symplectic_matrix, const int& control_q
 }
 """ + apply_two_qubits_kernel.format("CZ", "CZ")
 
-apply_CZ = cp.RawKernel(apply_CZ, "apply_CZ", options=("--std=c++11",))
+apply_CZ = cp.RawKernel(apply_CZ, "apply_CZ", options=("--std=c++17",))
 
 
 def CZ(symplectic_matrix, control_q, target_q, nqubits):
@@ -152,7 +152,7 @@ __device__ void _apply_S(unsigned char* symplectic_matrix, const int& q, const i
 }
 """ + apply_one_qubit_kernel.format("S", "S")
 
-apply_S = cp.RawKernel(apply_S, "apply_S", options=("--std=c++11",))
+apply_S = cp.RawKernel(apply_S, "apply_S", options=("--std=c++17",))
 
 
 def S(symplectic_matrix, q, nqubits):
@@ -176,7 +176,7 @@ __device__ void _apply_Z(unsigned char* symplectic_matrix, const int& q, const i
 }
 """ + apply_one_qubit_kernel.format("Z", "Z")
 
-apply_Z = cp.RawKernel(apply_Z, "apply_Z", options=("--std=c++11",))
+apply_Z = cp.RawKernel(apply_Z, "apply_Z", options=("--std=c++17",))
 
 
 def Z(symplectic_matrix, q, nqubits):
@@ -203,7 +203,7 @@ __device__ void _apply_X(unsigned char* symplectic_matrix, const int& q, const i
 }
 """ + apply_one_qubit_kernel.format("X", "X")
 
-apply_X = cp.RawKernel(apply_X, "apply_X", options=("--std=c++11",))
+apply_X = cp.RawKernel(apply_X, "apply_X", options=("--std=c++17",))
 
 
 def X(symplectic_matrix, q, nqubits):
@@ -233,7 +233,7 @@ __device__ void _apply_Y(unsigned char* symplectic_matrix, const int& q, const i
 }
 """ + apply_one_qubit_kernel.format("Y", "Y")
 
-apply_Y = cp.RawKernel(apply_Y, "apply_Y", options=("--std=c++11",))
+apply_Y = cp.RawKernel(apply_Y, "apply_Y", options=("--std=c++17",))
 
 
 def Y(symplectic_matrix, q, nqubits):
@@ -257,7 +257,7 @@ __device__ void _apply_SX(unsigned char* symplectic_matrix, const int& q, const 
 }
 """ + apply_one_qubit_kernel.format("SX", "SX")
 
-apply_SX = cp.RawKernel(apply_SX, "apply_SX", options=("--std=c++11",))
+apply_SX = cp.RawKernel(apply_SX, "apply_SX", options=("--std=c++17",))
 
 
 def SX(symplectic_matrix, q, nqubits):
@@ -281,7 +281,7 @@ __device__ void _apply_SDG(unsigned char* symplectic_matrix, const int& q, const
 }
 """ + apply_one_qubit_kernel.format("SDG", "SDG")
 
-apply_SDG = cp.RawKernel(apply_SDG, "apply_SDG", options=("--std=c++11",))
+apply_SDG = cp.RawKernel(apply_SDG, "apply_SDG", options=("--std=c++17",))
 
 
 def SDG(symplectic_matrix, q, nqubits):
@@ -304,7 +304,7 @@ __device__ void _apply_SXDG(unsigned char* symplectic_matrix, const int& q, cons
 }
 """ + apply_one_qubit_kernel.format("SXDG", "SXDG")
 
-apply_SXDG = cp.RawKernel(apply_SXDG, "apply_SXDG", options=("--std=c++11",))
+apply_SXDG = cp.RawKernel(apply_SXDG, "apply_SXDG", options=("--std=c++17",))
 
 
 def SXDG(symplectic_matrix, q, nqubits):
@@ -330,7 +330,7 @@ __device__ void _apply_RY_pi(unsigned char* symplectic_matrix, const int& q, con
 }
 """ + apply_one_qubit_kernel.format("RY_pi", "RY_pi")
 
-apply_RY_pi = cp.RawKernel(apply_RY_pi, "apply_RY_pi", options=("--std=c++11",))
+apply_RY_pi = cp.RawKernel(apply_RY_pi, "apply_RY_pi", options=("--std=c++17",))
 
 
 def RY_pi(symplectic_matrix, q, nqubits):
@@ -357,7 +357,7 @@ __device__ void _apply_RY_3pi_2(unsigned char* symplectic_matrix, const int& q, 
 """ + apply_one_qubit_kernel.format("RY_3pi_2", "RY_3pi_2")
 
 apply_RY_3pi_2 = cp.RawKernel(
-    apply_RY_3pi_2, "apply_RY_3pi_2", options=("--std=c++11",)
+    apply_RY_3pi_2, "apply_RY_3pi_2", options=("--std=c++17",)
 )
 
 
@@ -408,7 +408,7 @@ __device__ void _apply_SWAP(unsigned char* symplectic_matrix, const int& control
 }
 """ + apply_two_qubits_kernel.format("SWAP", "SWAP")
 
-apply_SWAP = cp.RawKernel(apply_SWAP, "apply_SWAP", options=("--std=c++11",))
+apply_SWAP = cp.RawKernel(apply_SWAP, "apply_SWAP", options=("--std=c++17",))
 
 
 def SWAP(symplectic_matrix, control_q, target_q, nqubits):
@@ -484,7 +484,7 @@ __device__ void _apply_iSWAP(unsigned char* symplectic_matrix, const int& contro
 }
 """ + apply_two_qubits_kernel.format("iSWAP", "iSWAP")
 
-apply_iSWAP = cp.RawKernel(apply_iSWAP, "apply_iSWAP", options=("--std=c++11",))
+apply_iSWAP = cp.RawKernel(apply_iSWAP, "apply_iSWAP", options=("--std=c++17",))
 
 
 def iSWAP(symplectic_matrix, control_q, target_q, nqubits):
@@ -531,7 +531,7 @@ __device__ void _apply_CY(unsigned char* symplectic_matrix, const int& control_q
 }
 """ + apply_two_qubits_kernel.format("CY", "CY")
 
-apply_CY = cp.RawKernel(apply_CY, "apply_CY", options=("--std=c++11",))
+apply_CY = cp.RawKernel(apply_CY, "apply_CY", options=("--std=c++17",))
 
 
 def CY(symplectic_matrix, control_q, target_q, nqubits):
@@ -601,7 +601,7 @@ __global__ void apply_rowsum(unsigned char* symplectic_matrix, const long* h, co
 }}
 """
 
-apply_rowsum = cp.RawKernel(apply_rowsum, "apply_rowsum", options=("--std=c++11",))
+apply_rowsum = cp.RawKernel(apply_rowsum, "apply_rowsum", options=("--std=c++17",))
 
 
 def _rowsum(symplectic_matrix, h, i, nqubits, determined=False):

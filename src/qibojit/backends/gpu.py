@@ -121,7 +121,7 @@ class CupyBackend(Backend):  # pragma: no cover
                     else f"state[0] = {type_replacements[dtype]}(1, 0);"
                 )
                 code = code.replace("<BODY>", body)
-            gate = self.engine.RawKernel(code, name, ("--std=c++11",))
+            gate = self.engine.RawKernel(code, name, ("--std=c++17",))
             self.gates[f"{name}_{dtype}"] = gate
 
         for dtype, _ in type_replacements.items():
@@ -139,7 +139,7 @@ class CupyBackend(Backend):  # pragma: no cover
                 code = code.replace("T", ctype)
                 code = code.replace("nsubstates", str(2**ntargets))
                 code = code.replace("MAX_BLOCK_SIZE", str(self.DEFAULT_BLOCK_SIZE))
-                gate = self.engine.RawKernel(code, name, ("--std=c++11",))
+                gate = self.engine.RawKernel(code, name, ("--std=c++17",))
                 self.gates[f"{name}_{dtype}_{ntargets}"] = gate
 
     def cast(
