@@ -433,7 +433,7 @@ class CupyBackend(Backend):  # pragma: no cover
         qubits = self.cast(
             [nqubits - q - 1 for q in reversed(qubits)], dtype=self.int32
         )
-        args = [state, qubits, int(shot), ntargets]
+        args = [state, nstates, qubits, int(shot), ntargets]
         kernel = self.gates.get(f"collapse_state_kernel_{self.dtype}")
         kernel((nblocks,), (block_size,), args)
         self.engine.cuda.stream.get_current_stream().synchronize()
@@ -751,6 +751,7 @@ class CupyBackend(Backend):  # pragma: no cover
         if nstates < block_size:
             nblocks = 1
             block_size = nstates
+        nblocks = min(nblocks, 0xFFFFFFFF // block_size)
         return nblocks, block_size
 
     def _create_qubits_tensor(self, gate: Gate, nqubits: int) -> ArrayLike:
@@ -801,7 +802,7 @@ class CupyBackend(Backend):  # pragma: no cover
         kernel = self.gates.get(
             f"apply_multi_qubit_gate_kernel_{self.dtype}_{ntargets}"
         )
-        args = (state, gate, qubits, targets, ntargets, nactive)
+        args = (state, nstates, gate, qubits, targets, ntargets, nactive)
         kernel((nblocks,), (block_size,), args)
         self.engine.cuda.stream.get_current_stream().synchronize()
         return state
@@ -820,9 +821,9 @@ class CupyBackend(Backend):  # pragma: no cover
         tk = 1 << m
         nstates = 1 << (nqubits - ncontrols - 1)
         if kernel in ("apply_x", "apply_y", "apply_z"):
-            args = (state, tk, m)
+            args = (state, tk, m, nstates)
         else:
-            args = (state, tk, m, gate)
+            args = (state, tk, m, nstates, gate)
 
         if ncontrols:
             kernel = self.gates.get(f"multicontrol_{kernel}_kernel_{self.dtype}")
@@ -859,9 +860,9 @@ class CupyBackend(Backend):  # pragma: no cover
         nstates = 1 << (nqubits - 2 - ncontrols)
 
         if kernel == "apply_swap":
-            args = (state, tk1, tk2, m1, m2, uk1, uk2)
+            args = (state, tk1, tk2, m1, m2, uk1, uk2, nstates)
         else:
-            args = (state, tk1, tk2, m1, m2, uk1, uk2, gate)
+            args = (state, tk1, tk2, m1, m2, uk1, uk2, nstates, gate)
             assert state.dtype == args[-1].dtype
 
         if ncontrols:
