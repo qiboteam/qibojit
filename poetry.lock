@@ -1503,36 +1503,31 @@ files = [
 
 [[package]]
 name = "qibo"
-version = "0.3.0"
+version = "0.3.1"
 description = "A framework for quantum computing with hardware acceleration."
 optional = false
-python-versions = ">=3.10,<3.14"
+python-versions = "<3.14,>=3.10"
 groups = ["main"]
-files = []
-develop = false
+files = [
+    {file = "qibo-0.3.1-py3-none-any.whl", hash = "sha256:91b9839ee3d8e29602976696d7f0a487062a02eb34d89697320720c0752566c4"},
+    {file = "qibo-0.3.1.tar.gz", hash = "sha256:4464a9ea9573dfa601aec1fa04338a07dab34984695458ca98c20424dca84e22"},
+]
 
 [package.dependencies]
-cma = "^3.4.0"
-joblib = "^1.4.2"
-networkx = "^3.2.1"
-numpy = "^2.0.0"
-openqasm3 = {version = "^1.0.1", extras = ["parser"]}
-optuna = "^4.2.1"
-scipy = "^1.15.2"
-sympy = "^1.13.1"
-tabulate = "^0.9.0"
+cma = ">=3.4.0,<4.0.0"
+joblib = ">=1.4.2,<2.0.0"
+networkx = ">=3.2.1,<4.0.0"
+numpy = ">=2.0.0,<3.0.0"
+openqasm3 = {version = ">=1.0.1,<2.0.0", extras = ["parser"]}
+optuna = ">=4.2.1,<5.0.0"
+scipy = ">=1.15.2,<2.0.0"
+sympy = ">=1.13.1,<2.0.0"
+tabulate = ">=0.9.0,<0.10.0"
 
 [package.extras]
-cudaq = ["qbraid[cudaq,qir] (>=0.10.0,<0.11.0)", "qbraid[cudaq] (>=0.10.0,<0.11.0)", "qbraid[qir] (>=0.10.0,<0.11.0)"]
-qinfo = []
-qir = ["qbraid[cudaq,qir] (>=0.10.0,<0.11.0)", "qbraid[cudaq] (>=0.10.0,<0.11.0)", "qbraid[qir] (>=0.10.0,<0.11.0)"]
+cudaq = ["qbraid[cudaq,qir] (>=0.10.0,<0.11.0)", "qbraid[cudaq] (>=0.10.0,<0.11.0)"]
+qir = ["qbraid[cudaq,qir] (>=0.10.0,<0.11.0)", "qbraid[qir] (>=0.10.0,<0.11.0)"]
 qulacs = ["qulacs (>=0.6.4,<0.7.0) ; python_version < \"3.13\""]
-
-[package.source]
-type = "git"
-url = "https://github.com/qiboteam/qibo"
-reference = "HEAD"
-resolved_reference = "051799bed7c291f4232564977381101290278973"
 
 [[package]]
 name = "scipy"
