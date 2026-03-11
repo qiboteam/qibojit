@@ -2,18 +2,12 @@ import numpy as np
 from numba import njit, prange
 
 
-@njit("(i8,)", cache=True)
+@njit(cache=True)
 def set_seed(seed):
     np.random.seed(seed)
 
 
 @njit(
-    [
-        "float32[:](float32[:])",
-        "float64[:](float64[:])",
-        "complex64[:](complex64[:])",
-        "complex128[:](complex128[:])",
-    ],
     parallel=True,
     cache=True,
 )
@@ -25,12 +19,6 @@ def initial_state_vector(state):
 
 
 @njit(
-    [
-        "float32[:,:](float32[:,:])",
-        "float64[:,:](float64[:,:])",
-        "complex64[:,:](complex64[:,:])",
-        "complex128[:,:](complex128[:,:])",
-    ],
     parallel=True,
     cache=True,
 )
@@ -42,7 +30,7 @@ def initial_density_matrix(state):
     return state
 
 
-@njit("int64(int64, int64, int32[:])", cache=True)
+@njit(cache=True)
 def collapse_index(g, h, qubits):
     i = 0
     i += g
@@ -53,12 +41,6 @@ def collapse_index(g, h, qubits):
 
 
 @njit(
-    [
-        "float32[:](float32[:], int32[:], int32, int32)",
-        "float64[:](float64[:], int32[:], int64, int64)",
-        "complex64[:](complex64[:], int32[:], int64, int64)",
-        "complex128[:](complex128[:], int32[:], int64, int64)",
-    ],
     parallel=True,
     cache=True,
 )
@@ -75,12 +57,6 @@ def collapse_state(state, qubits, result, nqubits):
 
 
 @njit(
-    [
-        "float32[:](float32[:], int32[:], int32, int32)",
-        "float64[:](float64[:], int32[:], int64, int64)",
-        "complex64[:](complex64[:], int32[:], int64, int64)",
-        "complex128[:](complex128[:], int32[:], int64, int64)",
-    ],
     parallel=True,
     cache=True,
 )
@@ -104,12 +80,6 @@ def collapse_state_normalized(state, qubits, result, nqubits):
 
 
 @njit(
-    [
-        "int64[:](int64[:], float64[:], int64, optional(int64), int64, int64)",
-        "int32[:](int32[:], float32[:], int64, optional(int64), int64, int64)",
-        "int32[:](int32[:], float64[:], int64, optional(int64), int64, int64)",
-        "int64[:](int64[:], float32[:], int64, optional(int64), int64, int64)",
-    ],
     cache=True,
     parallel=True,
 )
@@ -155,12 +125,6 @@ def transpose_state(pieces, state, nqubits, order):
 
 
 @njit(
-    [
-        "void(float32[:], float32[:], int32, int32)",
-        "void(float64[:], float64[:], int64, int64)",
-        "void(complex64[:], complex64[:], int64, int64)",
-        "void(complex128[:], complex128[:], int64, int64)",
-    ],
     cache=True,
     parallel=True,
 )
