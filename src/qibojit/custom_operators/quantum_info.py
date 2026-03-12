@@ -28,7 +28,7 @@ def _pauli_basis_inner(
     return basis
 
 
-@njit(cache=True)
+@njit(parallel=True, cache=True)
 def _cartesian_product(arrays, n):
     num_arrays = len(arrays)
     num_elements = num_arrays**n  # Total number of combinations
@@ -36,18 +36,11 @@ def _cartesian_product(arrays, n):
         (num_elements, n, arrays[0].shape[0], arrays[0].shape[1]), dtype=arrays[0].dtype
     )
 
-    # Generate Cartesian product using a lexicographic order
-    indices = ENGINE.empty(n, dtype=ENGINE.int64)
-
-    for i in range(num_elements):
+    for i in prange(num_elements):  # pylint: disable=not-an-iterable
         temp = i
         for j in range(n - 1, -1, -1):  # Iterate right-to-left for lexicographic order
-            indices[j] = temp % num_arrays
+            result[i, j] = arrays[temp % num_arrays]
             temp //= num_arrays
-
-        # Fill the result array with selected elements
-        for j in range(n):  # pylint: disable=not-an-iterable
-            result[i, j] = arrays[indices[j]]
 
     return result
 

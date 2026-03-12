@@ -298,7 +298,7 @@ def _unpack_byte(byte):
     return bits
 
 
-@njit(cache=True)
+@njit(parallel=PARALLEL, cache=True)
 def _unpackbits(array, axis, count):
     # this is gonnna be used on 2d arrays only
     # i.e. portions of the symplectic matrix
@@ -312,7 +312,7 @@ def _unpackbits(array, axis, count):
     out_shape = (in_shape[0], count)
     out = np.zeros(out_shape, dtype=np.uint8)
 
-    for idx in range(in_shape[0]):
+    for idx in prange(in_shape[0]):  # pylint: disable=not-an-iterable
         for i in range(byte_len):
             byte = array[idx, i]
             byte_bits = _unpack_byte(byte)
