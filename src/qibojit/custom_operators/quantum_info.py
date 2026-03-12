@@ -8,12 +8,12 @@ from numba.np.unsafe.ndarray import to_fixed_tuple
 ENGINE = qinfo.ENGINE  # this should be numpy
 
 
-@njit("(i8,)", cache=True)
+@njit(cache=True)
 def set_seed(seed):
     ENGINE.random.seed(seed)
 
 
-@njit("c16[:,:,::1](i8, c16[:,:,:,::1])", parallel=True, cache=True)
+@njit(parallel=True, cache=True)
 def _pauli_basis_inner(
     nqubits,
     prod,
@@ -28,7 +28,7 @@ def _pauli_basis_inner(
     return basis
 
 
-@njit("c16[:,:,:,::1](c16[:,:,::1], i8)", parallel=False, cache=True)
+@njit(cache=True)
 def _cartesian_product(arrays, n):
     num_arrays = len(arrays)
     num_elements = num_arrays**n  # Total number of combinations
@@ -52,11 +52,7 @@ def _cartesian_product(arrays, n):
     return result
 
 
-@njit(
-    "c16[:,:,::1](i8, c16[:,::1], c16[:,::1], c16[:,::1], c16[:,::1], f8)",
-    parallel=True,
-    cache=True,
-)
+@njit(cache=True)
 def _pauli_basis(
     nqubits: int,
     pauli_0,
@@ -75,23 +71,19 @@ def _pauli_basis(
     return _pauli_basis_inner(nqubits, prod) / normalization
 
 
-@njit(["c16[:,:](c16[:,:], i8[:])", "c16[:,:,:](c16[:,:,:], i8[:])"], cache=True)
+@njit(cache=True)
 def numba_transpose(array, axes):
     axes = to_fixed_tuple(axes, array.ndim)
     array = ENGINE.transpose(array, axes)
     return array
 
 
-@njit(
-    ["c16[:,::1](c16[:,:], i8)", "c16[:,::1](c16[:,:,:], i8)"],
-    parallel=False,
-    cache=True,
-)
+@njit(cache=True)
 def _vectorization_row(state, dim: int):
     return ENGINE.reshape(ENGINE.ascontiguousarray(state), (-1, dim**2))
 
 
-@njit(["c16[:,::1](c16[:,:], i8)", "c16[:,::1](c16[:,:,:], i8)"], cache=True)
+@njit(cache=True)
 def _vectorization_column(state, dim):
     indices = ENGINE.arange(state.ndim)
     indices[-2:] = indices[-2:][::-1]
@@ -103,7 +95,7 @@ def _vectorization_column(state, dim):
 # dynamic tuple creation is not possible in numba
 # this might be jittable if we passed the shape
 # dim = (2,) * 2 * nqubits as inputs
-@njit
+@njit(cache=True)
 def _vectorization_system(state, dim=0):
     nqubits = int(ENGINE.log2(state.shape[-1]))
     new_axis = [
@@ -116,16 +108,12 @@ def _vectorization_system(state, dim=0):
     return ENGINE.reshape(state, (-1, 2 ** (2 * nqubits)))
 
 
-@njit(
-    ["c16[:,:,::1](c16[:,:], i8)", "c16[:,:,::1](c16[:,:,:], i8)"],
-    parallel=False,
-    cache=True,
-)
+@njit(cache=True)
 def _unvectorization_row(state, dim: int):
     return ENGINE.reshape(ENGINE.ascontiguousarray(state), (state.shape[0], dim, dim))
 
 
-@njit(["c16[:,:,:](c16[:,:], i8)", "c16[:,:,:](c16[:,:,:], i8)"], cache=True)
+@njit(cache=True)
 def _unvectorization_column(state, dim):
     last_dim = state.shape[0]
     state = state.T
@@ -133,7 +121,7 @@ def _unvectorization_column(state, dim):
     return state.T
 
 
-@njit("c16[:,:](c16[:,:], i8, i8)", parallel=True, cache=True)
+@njit(cache=True)
 def _reshuffling(super_op, ax1: int, ax2: int):
     dim = int(ENGINE.sqrt(super_op.shape[0]))
     super_op = ENGINE.reshape(ENGINE.ascontiguousarray(super_op), (dim, dim, dim, dim))
@@ -145,17 +133,7 @@ def _reshuffling(super_op, ax1: int, ax2: int):
     return ENGINE.reshape(ENGINE.ascontiguousarray(super_op), (dim**2, dim**2))
 
 
-@njit(
-    [
-        nbt.complex128[:](
-            nbt.complex128[:, :], nbt.Tuple((nbt.int64[:], nbt.int64[:]))
-        ),
-        nbt.float64[:](nbt.float64[:, :], nbt.Tuple((nbt.int64[:], nbt.int64[:]))),
-        nbt.int64[:](nbt.int64[:, :], nbt.Tuple((nbt.int64[:], nbt.int64[:]))),
-    ],
-    parallel=True,
-    cache=True,
-)
+@njit(parallel=True, cache=True)
 def _array_at_2d_indices(array, indices):
     empty = ENGINE.empty(indices[0].shape, dtype=array.dtype)
     for i in prange(len(indices[0])):
@@ -163,12 +141,7 @@ def _array_at_2d_indices(array, indices):
     return empty
 
 
-@njit(
-    nbt.Tuple((nbt.complex128[:, ::1], nbt.int64[:, ::1]))(
-        nbt.complex128[:, :], nbt.int64
-    ),
-    cache=True,
-)
+@njit(cache=True)
 def _post_sparse_pauli_basis_vectorization(basis, dim):
     indices = ENGINE.nonzero(basis)
     basis = _array_at_2d_indices(basis, indices)
@@ -177,11 +150,7 @@ def _post_sparse_pauli_basis_vectorization(basis, dim):
     return basis, indices
 
 
-@njit(
-    "c16[:,::1](i8, c16[:,::1], c16[:,::1], c16[:,::1], c16[:,::1], f8)",
-    parallel=False,
-    cache=True,
-)
+@njit(cache=True)
 def _vectorize_pauli_basis_row(
     nqubits: int, pauli_0, pauli_1, pauli_2, pauli_3, normalization: float = 1.0
 ):
@@ -190,11 +159,7 @@ def _vectorize_pauli_basis_row(
     return _vectorization_row(basis, dim)
 
 
-@njit(
-    "c16[:,::1](i8, c16[:,::1], c16[:,::1], c16[:,::1], c16[:,::1], f8)",
-    parallel=False,
-    cache=True,
-)
+@njit(cache=True)
 def _vectorize_pauli_basis_column(
     nqubits: int, pauli_0, pauli_1, pauli_2, pauli_3, normalization: float = 1.0
 ):
@@ -203,18 +168,7 @@ def _vectorize_pauli_basis_column(
     return _vectorization_column(basis, dim)
 
 
-@njit(
-    nbt.Tuple((nbt.complex128[:, ::1], nbt.int64[:, ::1]))(
-        nbt.int64,
-        nbt.complex128[:, ::1],
-        nbt.complex128[:, ::1],
-        nbt.complex128[:, ::1],
-        nbt.complex128[:, ::1],
-        nbt.float64,
-    ),
-    parallel=False,
-    cache=True,
-)
+@njit(cache=True)
 def _vectorize_sparse_pauli_basis_row(
     nqubits: int, pauli_0, pauli_1, pauli_2, pauli_3, normalization: float = 1.0
 ):
@@ -225,18 +179,7 @@ def _vectorize_sparse_pauli_basis_row(
     return _post_sparse_pauli_basis_vectorization(basis, dim)
 
 
-@njit(
-    nbt.Tuple((nbt.complex128[:, ::1], nbt.int64[:, ::1]))(
-        nbt.int64,
-        nbt.complex128[:, ::1],
-        nbt.complex128[:, ::1],
-        nbt.complex128[:, ::1],
-        nbt.complex128[:, ::1],
-        nbt.float64,
-    ),
-    parallel=False,
-    cache=True,
-)
+@njit(cache=True)
 def _vectorize_sparse_pauli_basis_column(
     nqubits: int, pauli_0, pauli_1, pauli_2, pauli_3, normalization: float = 1.0
 ):
@@ -247,18 +190,7 @@ def _vectorize_sparse_pauli_basis_column(
     return _post_sparse_pauli_basis_vectorization(basis, dim)
 
 
-@njit(
-    nbt.Tuple((nbt.complex128[:, ::1], nbt.int64[:]))(
-        nbt.int64,
-        nbt.complex128[:, ::1],
-        nbt.complex128[:, ::1],
-        nbt.complex128[:, ::1],
-        nbt.complex128[:, ::1],
-        nbt.float64,
-    ),
-    parallel=False,
-    cache=True,
-)
+@njit(cache=True)
 def _pauli_to_comp_basis_sparse_row(
     nqubits: int, pauli_0, pauli_1, pauli_2, pauli_3, normalization: float = 1.0
 ):
@@ -271,18 +203,7 @@ def _pauli_to_comp_basis_sparse_row(
     return ENGINE.ascontiguousarray(unitary).reshape(unitary.shape[0], -1), nonzero[1]
 
 
-@njit(
-    nbt.Tuple((nbt.complex128[:, ::1], nbt.int64[:]))(
-        nbt.int64,
-        nbt.complex128[:, ::1],
-        nbt.complex128[:, ::1],
-        nbt.complex128[:, ::1],
-        nbt.complex128[:, ::1],
-        nbt.float64,
-    ),
-    parallel=False,
-    cache=True,
-)
+@njit(cache=True)
 def _pauli_to_comp_basis_sparse_column(
     nqubits: int, pauli_0, pauli_1, pauli_2, pauli_3, normalization: float = 1.0
 ):
@@ -295,13 +216,7 @@ def _pauli_to_comp_basis_sparse_column(
     return ENGINE.ascontiguousarray(unitary).reshape(unitary.shape[0], -1), nonzero[1]
 
 
-@njit(
-    nbt.Tuple((nbt.complex128[:, :], nbt.complex128[:, :], nbt.float64[:, :, ::1]))(
-        nbt.complex128[:, :]
-    ),
-    parallel=True,
-    cache=True,
-)
+@njit(cache=True)
 def _choi_to_kraus_preamble(choi_super_op):
     U, coefficients, V = ENGINE.linalg.svd(choi_super_op)
     U = U.T
@@ -311,7 +226,7 @@ def _choi_to_kraus_preamble(choi_super_op):
     return U, V, coefficients
 
 
-@njit("c16[:,:,:,:](c16[:,:,:], c16[:,:,:])", parallel=False, cache=True)
+@njit(cache=True)
 def _kraus_operators(kraus_left, kraus_right):
     kraus_ops = ENGINE.empty((2,) + kraus_left.shape, dtype=kraus_left.dtype)
     kraus_ops[0] = kraus_left
@@ -319,12 +234,7 @@ def _kraus_operators(kraus_left, kraus_right):
     return kraus_ops
 
 
-@njit(
-    nbt.Tuple((nbt.complex128[:, :, :, :], nbt.float64[:, :, ::1]))(
-        nbt.complex128[:, ::1]
-    ),
-    cache=True,
-)
+@njit(cache=True)
 def _choi_to_kraus_row(choi_super_op):
     U, V, coefficients = _choi_to_kraus_preamble(choi_super_op)
     dim = int(ENGINE.sqrt(U.shape[-1]))
@@ -334,12 +244,7 @@ def _choi_to_kraus_row(choi_super_op):
     return kraus_ops, coefficients
 
 
-@njit(
-    nbt.Tuple((nbt.complex128[:, :, :, :], nbt.float64[:, :, ::1]))(
-        nbt.complex128[:, ::1]
-    ),
-    cache=True,
-)
+@njit(cache=True)
 def _choi_to_kraus_column(choi_super_op):
     U, V, coefficients = _choi_to_kraus_preamble(choi_super_op)
     dim = int(ENGINE.sqrt(U.shape[-1]))
@@ -349,20 +254,20 @@ def _choi_to_kraus_column(choi_super_op):
     return kraus_ops, coefficients
 
 
-@njit("f8[:](i8)", parallel=True, cache=True)
+@njit(cache=True)
 def _random_statevector_real(dims: int):
     state = ENGINE.random.standard_normal(dims)
     return state / ENGINE.linalg.norm(state)
 
 
-@njit("c16[:](i8)", parallel=True, cache=True)
+@njit(cache=True)
 def _random_statevector(dims: int):
     state = ENGINE.random.standard_normal(dims)
     state = state + 1.0j * ENGINE.random.standard_normal(dims)
     return state / ENGINE.linalg.norm(state)
 
 
-@njit("c16[:,::1](i8, i8, f8, f8)", parallel=True, cache=True)
+@njit(parallel=True, cache=True)
 def _random_gaussian_matrix(dims: int, rank: int, mean: float, stddev: float):
     matrix = ENGINE.empty((dims, rank), dtype=ENGINE.complex128)
     for i in prange(dims):
@@ -373,13 +278,13 @@ def _random_gaussian_matrix(dims: int, rank: int, mean: float, stddev: float):
     return matrix
 
 
-@njit("c16[:,:](i8)", parallel=True, cache=True)
+@njit(cache=True)
 def _random_density_matrix_pure(dims: int):
     state = _random_statevector(dims)
     return ENGINE.outer(state, ENGINE.conj(state).T)
 
 
-@njit("c16[:,:](i8, i8, f8, f8)", parallel=True, cache=True)
+@njit(cache=True)
 def _random_density_matrix_hs_ginibre(dims: int, rank: int, mean: float, stddev: float):
     state = _random_gaussian_matrix(dims, rank, mean, stddev)
     state = state @ ENGINE.ascontiguousarray(
@@ -388,19 +293,19 @@ def _random_density_matrix_hs_ginibre(dims: int, rank: int, mean: float, stddev:
     return state / ENGINE.trace(state)
 
 
-@njit("c16[:,:](i8)", parallel=True, cache=True)
+@njit(cache=True)
 def _random_hermitian(dims: int):
     matrix = _random_gaussian_matrix(dims, dims, 0.0, 1.0)
     return (matrix + ENGINE.conj(matrix).T) / 2
 
 
-@njit("c16[:,:](i8)", parallel=True, cache=True)
+@njit(cache=True)
 def _random_hermitian_semidefinite(dims: int):
     matrix = _random_gaussian_matrix(dims, dims, 0.0, 1.0)
     return ENGINE.conj(matrix).T @ matrix
 
 
-@njit("c16[:,:](i8)", parallel=True, cache=True)
+@njit(cache=True)
 def _random_unitary_haar(dims: int):
     matrix = _random_gaussian_matrix(dims, dims, 0.0, 1.0)
     Q, R = ENGINE.linalg.qr(matrix)
@@ -410,7 +315,7 @@ def _random_unitary_haar(dims: int):
     return ENGINE.ascontiguousarray(Q) @ R
 
 
-@njit(["c16[:,:](c16[:,:])", "f8[:,:](f8[:,:])"], parallel=False, cache=True)
+@njit(cache=True)
 def expm_qinfo(A):
     """
     Matrix exponential using scaling & squaring
@@ -551,13 +456,13 @@ def expm_qinfo(A):
     return X
 
 
-@njit("c16[:,:](i8)", parallel=True, cache=True)
+@njit(cache=True)
 def _random_unitary(dims: int):
     H = _random_hermitian(dims)
     return expm_qinfo(-1.0j * H / 2)
 
 
-@njit("c16[:,:](c16[:,:], i8, i8, f8, f8)", parallel=True, cache=True)
+@njit(cache=True)
 def _random_density_matrix_bures_inner(
     unitary, dims: int, rank: int, mean: float, stddev: float
 ):
@@ -570,13 +475,13 @@ def _random_density_matrix_bures_inner(
     return state / ENGINE.trace(state)
 
 
-@njit("c16[:,:](i8, i8, f8, f8)", parallel=False, cache=True)
+@njit(cache=True)
 def _random_density_matrix_bures(dims: int, rank: int, mean: float, stddev: float):
     unitary = _random_unitary(dims)
     return _random_density_matrix_bures_inner(unitary, dims, rank, mean, stddev)
 
 
-@njit(nbt.Tuple((nbt.int64[:], nbt.int64[:]))(nbt.int64), parallel=False, cache=True)
+@njit(cache=True)
 def _sample_from_quantum_mallows_distribution(nqubits: int):
     exponents = ENGINE.arange(nqubits, 0, -1, dtype=ENGINE.int64)
     powers = 4**exponents
@@ -596,31 +501,13 @@ def _sample_from_quantum_mallows_distribution(nqubits: int):
     return hadamards, permutations
 
 
-@njit(
-    [
-        void(
-            nbt.complex128[:, :],
-            nbt.Tuple((nbt.int64[:], nbt.int64[:])),
-            nbt.complex128[:],
-        ),
-        void(
-            nbt.float64[:, :], nbt.Tuple((nbt.int64[:], nbt.int64[:])), nbt.float64[:]
-        ),
-        void(nbt.int64[:, :], nbt.Tuple((nbt.int64[:], nbt.int64[:])), nbt.int64[:]),
-    ],
-    parallel=True,
-    cache=True,
-)
+@njit(parallel=True, cache=True)
 def _set_array_at_2d_indices(array, indices, values):
     for i in prange(len(indices[0])):
         array[indices[0][i], indices[1][i]] = values[i]
 
 
-@njit(
-    nbt.Tuple((nbt.complex128[:, ::1], nbt.complex128[:, ::1]))(nbt.int64, nbt.int64),
-    parallel=True,
-    cache=True,
-)
+@njit(parallel=True, cache=True)
 def _super_op_from_bcsz_measure_preamble(dims: int, rank: int):
     super_op = _random_gaussian_matrix(
         dims**2,
@@ -647,49 +534,49 @@ def _super_op_from_bcsz_measure_preamble(dims: int, rank: int):
     return operator, super_op
 
 
-@njit("c16[:,:](i8, i8)", parallel=False, cache=True)
+@njit(cache=True)
 def _super_op_from_bcsz_measure_row(dims: int, rank: int):
     operator, super_op = _super_op_from_bcsz_measure_preamble(dims, rank)
     operator = ENGINE.kron(ENGINE.eye(dims, dtype=operator.dtype), operator)
     return operator @ super_op @ operator
 
 
-@njit("c16[:,:](i8, i8)", parallel=False, cache=True)
+@njit(cache=True)
 def _super_op_from_bcsz_measure_column(dims: int, rank: int):
     operator, super_op = _super_op_from_bcsz_measure_preamble(dims, rank)
     operator = ENGINE.kron(operator, ENGINE.eye(dims, dtype=operator.dtype))
     return operator @ super_op @ operator
 
 
-@njit("c16[:,:](i8)", parallel=True, cache=True)
+@njit(cache=True)
 def _super_op_from_haar_measure_row(dims: int):
     super_op = _random_unitary_haar(dims)
     super_op = _vectorization_row(super_op, dims)
     return ENGINE.outer(super_op, ENGINE.conj(super_op))
 
 
-@njit("c16[:,:](i8)", parallel=True, cache=True)
+@njit(cache=True)
 def _super_op_from_haar_measure_column(dims: int):
     super_op = _random_unitary_haar(dims)
     super_op = _vectorization_column(super_op, dims)
     return ENGINE.outer(super_op, ENGINE.conj(super_op))
 
 
-@njit("c16[:,:](i8)", parallel=True, cache=True)
+@njit(cache=True)
 def _super_op_from_hermitian_measure_row(dims: int):
     super_op = _random_unitary(dims)
     super_op = _vectorization_row(super_op, dims)
     return ENGINE.outer(super_op, ENGINE.conj(super_op))
 
 
-@njit("c16[:,:](i8)", parallel=True, cache=True)
+@njit(cache=True)
 def _super_op_from_hermitian_measure_column(dims: int):
     super_op = _random_unitary(dims)
     super_op = _vectorization_column(super_op, dims)
     return ENGINE.outer(super_op, ENGINE.conj(super_op))
 
 
-@njit("c16[:,:](c16[:,:,::1], c16[:], i8)", parallel=True, cache=True)
+@njit(parallel=True, cache=True)
 def _kraus_to_stinespring(kraus_ops, initial_state_env, dim_env: int):
     alphas = ENGINE.zeros((dim_env, dim_env, dim_env), dtype=initial_state_env.dtype)
     idx = ENGINE.arange(dim_env)
@@ -703,7 +590,7 @@ def _kraus_to_stinespring(kraus_ops, initial_state_env, dim_env: int):
     return prod
 
 
-@njit("c16[:,:,:](c16[:,::1], c16[::1], i8, i8)", parallel=True, cache=True)
+@njit(parallel=True, cache=True)
 def _stinespring_to_kraus(stinespring, initial_state_env, dim: int, dim_env: int):
     stinespring = stinespring.reshape(dim, dim_env, dim, dim_env)
     stinespring = ENGINE.ascontiguousarray(ENGINE.swapaxes(stinespring, 1, 2))
@@ -722,37 +609,31 @@ def _stinespring_to_kraus(stinespring, initial_state_env, dim: int, dim_env: int
     return kraus.reshape(dim, dim_env, dim_env)
 
 
-@njit("c16[:,:](c16[:,:])", parallel=True, cache=True)
+@njit(cache=True)
 def _to_choi_row(channel):
     channel = _vectorization_row(channel, channel.shape[-1])
     return ENGINE.outer(channel, ENGINE.conj(channel))
 
 
-@njit("c16[:,:](c16[:,:])", parallel=True, cache=True)
+@njit(cache=True)
 def _to_choi_column(channel):
     channel = _vectorization_column(channel, channel.shape[-1])
     return ENGINE.outer(channel, ENGINE.conj(channel))
 
 
-@njit("c16[:,:](c16[:,:])", parallel=False, cache=True)
+@njit(cache=True)
 def _to_liouville_row(channel):
     channel = _to_choi_row(channel)
     return _reshuffling(channel, 1, 2)
 
 
-@njit("c16[:,:](c16[:,:])", parallel=False, cache=True)
+@njit(cache=True)
 def _to_liouville_column(channel):
     channel = _to_choi_column(channel)
     return _reshuffling(channel, 0, 3)
 
 
-@njit(
-    nbt.Tuple((nbt.complex128[:, :, :], nbt.float64[:]))(
-        nbt.float64[:], nbt.complex128[:, :], nbt.float64
-    ),
-    parallel=True,
-    cache=True,
-)
+@njit(cache=True)
 def _choi_to_kraus_cp_row(eigenvalues, eigenvectors, precision: float):
     eigv_gt_tol = ENGINE.abs(eigenvalues) > precision
     coefficients = ENGINE.sqrt(eigenvalues[eigv_gt_tol])
@@ -762,13 +643,7 @@ def _choi_to_kraus_cp_row(eigenvalues, eigenvectors, precision: float):
     return kraus_ops, coefficients
 
 
-@njit(
-    nbt.Tuple((nbt.complex128[:, :, :], nbt.float64[:]))(
-        nbt.float64[:], nbt.complex128[:, :], nbt.float64
-    ),
-    parallel=True,
-    cache=True,
-)
+@njit(cache=True)
 def _choi_to_kraus_cp_column(eigenvalues, eigenvectors, precision: float):
     eigv_gt_tol = ENGINE.abs(eigenvalues) > precision
     coefficients = ENGINE.sqrt(eigenvalues[eigv_gt_tol])
@@ -780,13 +655,13 @@ def _choi_to_kraus_cp_column(eigenvalues, eigenvectors, precision: float):
     return kraus_ops, coefficients
 
 
-@njit("c16[:,:](c16[:,:,:])", parallel=True, cache=True)
+@njit(cache=True)
 def _kraus_to_choi_row(kraus_ops):
     kraus_ops = _vectorization_row(kraus_ops, kraus_ops.shape[-1])
     return kraus_ops.T @ ENGINE.conj(kraus_ops)
 
 
-@njit("c16[:,:](c16[:,:,:])", parallel=True, cache=True)
+@njit(cache=True)
 def _kraus_to_choi_column(kraus_ops):
     kraus_ops = _vectorization_column(kraus_ops, kraus_ops.shape[-1])
     return kraus_ops.T @ ENGINE.conj(kraus_ops)
