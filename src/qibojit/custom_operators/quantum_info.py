@@ -22,7 +22,7 @@ def _pauli_basis_inner(
     basis = ENGINE.empty((len(prod), dim, dim), dtype=ENGINE.complex128)
     for i in prange(len(prod)):
         elem = prod[i][0]
-        for j in prange(1, len(prod[i])):
+        for j in range(1, len(prod[i])):
             elem = ENGINE.kron(elem, prod[i][j])
         basis[i] = elem
     return basis
@@ -37,10 +37,9 @@ def _cartesian_product(arrays, n):
     )
 
     for i in prange(num_elements):  # pylint: disable=not-an-iterable
-        temp = i
         for j in range(n - 1, -1, -1):  # Iterate right-to-left for lexicographic order
-            result[i, j] = arrays[temp % num_arrays]
-            temp //= num_arrays
+            idx = (i // (num_arrays ** (n - 1 - j))) % num_arrays
+            result[i, j] = arrays[idx]
 
     return result
 
