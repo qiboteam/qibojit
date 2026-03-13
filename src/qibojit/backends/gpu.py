@@ -429,11 +429,13 @@ class CupyBackend(Backend):  # pragma: no cover
         nstates = 1 << (nqubits - ntargets)
         nblocks, block_size = self._calculate_blocks(nstates)
 
+        shot = int(shot[0]) if hasattr(shot, "__len__") else int(shot)
+
         state = self.cast(state, dtype=state.dtype)
         qubits = self.cast(
             [nqubits - q - 1 for q in reversed(qubits)], dtype=self.int32
         )
-        args = [state, nstates, qubits, int(shot), ntargets]
+        args = [state, nstates, qubits, shot, ntargets]
         kernel = self.gates.get(f"collapse_state_kernel_{self.dtype}")
         kernel((nblocks,), (block_size,), args)
         self.engine.cuda.stream.get_current_stream().synchronize()
@@ -1188,8 +1190,10 @@ class CuQuantumBackend(CupyBackend):  # pragma: no cover
         normalize: bool = True,
         density_matrix: bool = False,
     ) -> ArrayLike:
+        shot = int(shot[0]) if hasattr(shot, "__len__") else int(shot)
+
         state = self.cast(state, dtype=self.dtype)
-        results = bin(int(shot)).replace("0b", "")
+        results = bin(shot).replace("0b", "")
         results = list(map(int, "0" * (len(qubits) - len(results)) + results))[::-1]
         ntarget = 1
         qubits = np.asarray([nqubits - q - 1 for q in reversed(qubits)], dtype="int32")

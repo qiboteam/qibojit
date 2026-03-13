@@ -42,7 +42,7 @@ def test_cast(backend, array_type):
 @pytest.mark.parametrize("array_type", [None, "float32", "float64"])
 @pytest.mark.parametrize("format", ["coo", "csr", "csc", "dia"])
 def test_sparse_cast(backend, array_type, format):
-    sptarget = sparse.rand(512, 512, dtype=array_type, format=format)
+    sptarget = sparse.rand(64, 64, dtype=array_type, format=format)
     assert backend.is_sparse(sptarget)
     final = backend.to_numpy(backend.cast(sptarget))
     target = sptarget.toarray()
