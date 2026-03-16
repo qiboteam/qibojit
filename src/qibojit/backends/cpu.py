@@ -158,8 +158,10 @@ class NumbaBackend(Backend):
         return eigsh(array, **kwargs)
 
     def expm(self, array: ArrayLike) -> ArrayLike:
-        func = expm_sparse if self.is_sparse(array) else expm
-        return func(array)
+        if self.is_sparse(array):
+            return expm_sparse(array.tocsc())
+
+        return expm(array)
 
     def logm(self, array: ArrayLike, **kwargs) -> ArrayLike:  # pragma: no cover
         return logm(array, **kwargs)
@@ -427,10 +429,12 @@ class NumbaBackend(Backend):
             [nqubits - q - 1 for q in reversed(qubits)], dtype=self.int32
         )
 
-        if normalize:
-            return self.ops.collapse_state_normalized(state, qubits, int(shot), nqubits)
+        shot = int(shot[0]) if hasattr(shot, "__len__") else int(shot)
 
-        return self.ops.collapse_state(state, qubits, int(shot), nqubits)
+        if normalize:
+            return self.ops.collapse_state_normalized(state, qubits, shot, nqubits)
+
+        return self.ops.collapse_state(state, qubits, shot, nqubits)
 
     def _create_qubits_tensor(self, gate: Gate, nqubits: int) -> ArrayLike:
         # TODO: Treat density matrices
