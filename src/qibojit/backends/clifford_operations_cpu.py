@@ -253,7 +253,6 @@ def CY(symplectic_matrix, control_q, target_q, nqubits):
     return symplectic_matrix
 
 
-# this cannot be cached anymore with numba unfortunately
 @njit(cache=True)
 def _packed_size(n):
     """Returns the size of an array of `n` booleans after packing."""
