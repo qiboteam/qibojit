@@ -429,7 +429,11 @@ class NumbaBackend(Backend):
             [nqubits - q - 1 for q in reversed(qubits)], dtype=self.int32
         )
 
-        shot = int(shot[0]) if hasattr(shot, "__len__") else int(shot)
+        shot = (
+            int(shot.flat[0])
+            if hasattr(shot, "shape")
+            else int(shot[0]) if hasattr(shot, "__len__") else int(shot)
+        )
 
         if normalize:
             return self.ops.collapse_state_normalized(state, qubits, shot, nqubits)
