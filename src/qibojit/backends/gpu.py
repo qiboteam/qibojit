@@ -207,6 +207,24 @@ class CupyBackend(Backend):  # pragma: no cover
     ######## Methods related to array manipulation                                  ########
     ########################################################################################
 
+    def _add_at(
+        self, array_1: ArrayLike, indices: ArrayLike, array_2: ArrayLike
+    ) -> None:
+        a1_complex = self.engine.iscomplexobj(array_1)
+        a2_complex = self.engine.iscomplexobj(array_2)
+
+        if a1_complex or a2_complex:
+            a1_real = array_1.real
+            a1_imag = array_1.imag if a1_complex else self.zeros_like(array_1)
+            a2_real = array_2.real
+            a2_imag = array_2.imag if a2_complex else self.zeros_like(array_2)
+            self.engine.add.at(a1_real, indices, a2_real)
+            self.engine.add.at(a1_imag, indices, a2_imag)
+        else:
+            self.engine.add.at(array_1, indices, array_2.imag)
+
+        return None
+
     def block_diag(self, *arrays: ArrayLike) -> ArrayLike:
         from cupyx.scipy.linalg import (  # pylint: disable=C0415,E0401
             block_diag,
