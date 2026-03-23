@@ -221,7 +221,7 @@ class CupyBackend(Backend):  # pragma: no cover
             self.engine.add.at(a1_real, indices, a2_real)
             self.engine.add.at(a1_imag, indices, a2_imag)
         else:
-            self.engine.add.at(array_1, indices, array_2.imag)
+            self.engine.add.at(array_1, indices, array_2)
 
         return None
 
