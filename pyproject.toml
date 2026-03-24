@@ -53,3 +53,7 @@ omit = ["src/qibojit/backends/clifford_operations*", "src/qibojit/custom_operato
 testpaths = ['tests/']
 addopts = ['--cov=qibojit', '--cov-report=xml', '--cov-report=html']
 env = ["D:NUMBA_DISABLE_JIT=1"]
+filterwarnings = [
+    "ignore::scipy.sparse.SparseEfficiencyWarning",
+
+]
