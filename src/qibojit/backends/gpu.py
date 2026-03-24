@@ -232,8 +232,6 @@ class CupyBackend(Backend):  # pragma: no cover
         else:
             self.engine.add.at(array_1, indices, array_2)
 
-        return None
-
     def block_diag(self, *arrays: ArrayLike) -> ArrayLike:
         from cupyx.scipy.linalg import (  # pylint: disable=C0415,E0401
             block_diag,
