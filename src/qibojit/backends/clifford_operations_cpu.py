@@ -6,7 +6,7 @@ from numba import njit, prange
 PARALLEL = True
 
 
-@njit("Tuple((u1[:], u1[:,:], u1[:,:]))(u1[:,:], u8)", parallel=PARALLEL, cache=True)
+@njit(cache=True)
 def _get_rxz(symplectic_matrix, nqubits):
     return (
         symplectic_matrix[:, -1],
@@ -15,7 +15,7 @@ def _get_rxz(symplectic_matrix, nqubits):
     )
 
 
-@njit("u1[:,:](u1[:,:], u8, u8)", parallel=PARALLEL, cache=True)
+@njit(parallel=PARALLEL, cache=True)
 def H(symplectic_matrix, q, nqubits):
     r, x, z = _get_rxz(symplectic_matrix, nqubits)
 
@@ -27,7 +27,7 @@ def H(symplectic_matrix, q, nqubits):
     return symplectic_matrix
 
 
-@njit("u1[:,:](u1[:,:], u8, u8, u8)", parallel=PARALLEL, cache=True)
+@njit(parallel=PARALLEL, cache=True)
 def CNOT(symplectic_matrix, control_q, target_q, nqubits):
     r, x, z = _get_rxz(symplectic_matrix, nqubits)
 
@@ -40,7 +40,7 @@ def CNOT(symplectic_matrix, control_q, target_q, nqubits):
     return symplectic_matrix
 
 
-@njit("u1[:,:](u1[:,:], u8, u8, u8)", parallel=PARALLEL, cache=True)
+@njit(parallel=PARALLEL, cache=True)
 def CZ(symplectic_matrix, control_q, target_q, nqubits):
     """Decomposition --> H-CNOT-H"""
     r, x, z = _get_rxz(symplectic_matrix, nqubits)
@@ -59,7 +59,7 @@ def CZ(symplectic_matrix, control_q, target_q, nqubits):
     return symplectic_matrix
 
 
-@njit("u1[:,:](u1[:,:], u8, u8)", parallel=PARALLEL, cache=True)
+@njit(parallel=PARALLEL, cache=True)
 def S(symplectic_matrix, q, nqubits):
     r, x, z = _get_rxz(symplectic_matrix, nqubits)
 
@@ -69,7 +69,7 @@ def S(symplectic_matrix, q, nqubits):
     return symplectic_matrix
 
 
-@njit("u1[:,:](u1[:,:], u8, u8)", parallel=PARALLEL, cache=True)
+@njit(parallel=PARALLEL, cache=True)
 def Z(symplectic_matrix, q, nqubits):
     """Decomposition --> S-S"""
     r, x, z = _get_rxz(symplectic_matrix, nqubits)
@@ -81,7 +81,7 @@ def Z(symplectic_matrix, q, nqubits):
     return symplectic_matrix
 
 
-@njit("u1[:,:](u1[:,:], u8, u8)", parallel=PARALLEL, cache=True)
+@njit(parallel=PARALLEL, cache=True)
 def X(symplectic_matrix, q, nqubits):
     """Decomposition --> H-S-S-H"""
     r, x, z = _get_rxz(symplectic_matrix, nqubits)
@@ -93,7 +93,7 @@ def X(symplectic_matrix, q, nqubits):
     return symplectic_matrix
 
 
-@njit("u1[:,:](u1[:,:], u8, u8)", parallel=PARALLEL, cache=True)
+@njit(parallel=PARALLEL, cache=True)
 def Y(symplectic_matrix, q, nqubits):
     """Decomposition --> S-S-H-S-S-H"""
     r, x, z = _get_rxz(symplectic_matrix, nqubits)
@@ -105,7 +105,7 @@ def Y(symplectic_matrix, q, nqubits):
     return symplectic_matrix
 
 
-@njit("u1[:,:](u1[:,:], u8, u8)", parallel=PARALLEL, cache=True)
+@njit(parallel=PARALLEL, cache=True)
 def SX(symplectic_matrix, q, nqubits):
     """Decomposition --> H-S-H"""
     r, x, z = _get_rxz(symplectic_matrix, nqubits)
@@ -116,7 +116,7 @@ def SX(symplectic_matrix, q, nqubits):
     return symplectic_matrix
 
 
-@njit("u1[:,:](u1[:,:], u8, u8)", parallel=PARALLEL, cache=True)
+@njit(parallel=PARALLEL, cache=True)
 def SDG(symplectic_matrix, q, nqubits):
     """Decomposition --> S-S-S"""
     r, x, z = _get_rxz(symplectic_matrix, nqubits)
@@ -127,7 +127,7 @@ def SDG(symplectic_matrix, q, nqubits):
     return symplectic_matrix
 
 
-@njit("u1[:,:](u1[:,:], u8, u8)", parallel=PARALLEL, cache=True)
+@njit(parallel=PARALLEL, cache=True)
 def SXDG(symplectic_matrix, q, nqubits):
     """Decomposition --> H-S-S-S-H"""
     r, x, z = _get_rxz(symplectic_matrix, nqubits)
@@ -138,7 +138,7 @@ def SXDG(symplectic_matrix, q, nqubits):
     return symplectic_matrix
 
 
-@njit("u1[:,:](u1[:,:], u8, u8)", parallel=PARALLEL, cache=True)
+@njit(parallel=PARALLEL, cache=True)
 def RY_pi(symplectic_matrix, q, nqubits):
     """Decomposition --> H-S-S"""
     r, x, z = _get_rxz(symplectic_matrix, nqubits)
@@ -151,7 +151,7 @@ def RY_pi(symplectic_matrix, q, nqubits):
     return symplectic_matrix
 
 
-@njit("u1[:,:](u1[:,:], u8, u8)", parallel=PARALLEL, cache=True)
+@njit(parallel=PARALLEL, cache=True)
 def RY_3pi_2(symplectic_matrix, q, nqubits):
     """Decomposition --> H-S-S"""
     r, x, z = _get_rxz(symplectic_matrix, nqubits)
@@ -164,7 +164,7 @@ def RY_3pi_2(symplectic_matrix, q, nqubits):
     return symplectic_matrix
 
 
-@njit("u1[:,:](u1[:,:], u8, u8, u8)", parallel=PARALLEL, cache=True)
+@njit(parallel=PARALLEL, cache=True)
 def SWAP(symplectic_matrix, control_q, target_q, nqubits):
     """Decomposition --> CNOT-CNOT-CNOT"""
     r, x, z = _get_rxz(symplectic_matrix, nqubits)
@@ -195,7 +195,7 @@ def SWAP(symplectic_matrix, control_q, target_q, nqubits):
     return symplectic_matrix
 
 
-@njit("u1[:,:](u1[:,:], u8, u8, u8)", parallel=PARALLEL, cache=True)
+@njit(parallel=PARALLEL, cache=True)
 def iSWAP(symplectic_matrix, control_q, target_q, nqubits):
     """Decomposition --> H-CNOT-CNOT-H-S-S"""
     r, x, z = _get_rxz(symplectic_matrix, nqubits)
@@ -228,7 +228,7 @@ def iSWAP(symplectic_matrix, control_q, target_q, nqubits):
     return symplectic_matrix
 
 
-@njit("u1[:,:](u1[:,:], u8, u8, u8)", parallel=PARALLEL, cache=True)
+@njit(parallel=PARALLEL, cache=True)
 def CY(symplectic_matrix, control_q, target_q, nqubits):
     """Decomposition --> S-CNOT-SDG"""
     r, x, z = _get_rxz(symplectic_matrix, nqubits)
@@ -253,14 +253,13 @@ def CY(symplectic_matrix, control_q, target_q, nqubits):
     return symplectic_matrix
 
 
-# this cannot be cached anymore with numba unfortunately
-@njit("i8(i8)", parallel=False, cache=True)
+@njit(cache=True)
 def _packed_size(n):
     """Returns the size of an array of `n` booleans after packing."""
     return int(np.ceil(n / 8))
 
 
-@njit(["u1[:,:](u1[:,:], i8)", "u1[:,:](b1[:,:], i8)"], parallel=PARALLEL, cache=True)
+@njit(parallel=PARALLEL, cache=True)
 def _packbits(array, axis):
     array = array.astype(np.uint8)
     array = np.ascontiguousarray(np.swapaxes(array, axis, -1))
@@ -281,7 +280,7 @@ def _packbits(array, axis):
     return np.swapaxes(out, axis, -1)
 
 
-@njit("u1[:,:](u1[:,:], i8)", parallel=PARALLEL, cache=True)
+@njit(cache=True)
 def _pack_for_measurements(state, nqubits):
     """Prepares the state for measurements by packing the rows of the X and Z sections of the symplectic matrix."""
     r, x, z = _get_rxz(state, nqubits)
@@ -290,7 +289,7 @@ def _pack_for_measurements(state, nqubits):
     return np.hstack((x, z, r[:, None]))
 
 
-@njit("u1[:](u1)", parallel=PARALLEL, cache=True)
+@njit(cache=True)
 def _unpack_byte(byte):
     bits = np.empty(8, dtype=np.uint8)
     for i in range(8):
@@ -298,7 +297,7 @@ def _unpack_byte(byte):
     return bits
 
 
-@njit("u1[:,:](u1[:,:], i8, i8)", parallel=PARALLEL, cache=True)
+@njit(parallel=PARALLEL, cache=True)
 def _unpackbits(array, axis, count):
     # this is gonnna be used on 2d arrays only
     # i.e. portions of the symplectic matrix
@@ -312,7 +311,7 @@ def _unpackbits(array, axis, count):
     out_shape = (in_shape[0], count)
     out = np.zeros(out_shape, dtype=np.uint8)
 
-    for idx in range(in_shape[0]):
+    for idx in prange(in_shape[0]):  # pylint: disable=not-an-iterable
         for i in range(byte_len):
             byte = array[idx, i]
             byte_bits = _unpack_byte(byte)
@@ -327,7 +326,7 @@ def _unpackbits(array, axis, count):
     return out
 
 
-@njit("u1[:,:](u1[:,:], i8)", parallel=PARALLEL, cache=True)
+@njit(cache=True)
 def _unpack_for_measurements(state, nqubits):
     """Unpacks the symplectc matrix that was packed for measurements."""
     x = _unpackbits(state[:, : _packed_size(nqubits)], axis=1, count=nqubits)
@@ -336,10 +335,6 @@ def _unpack_for_measurements(state, nqubits):
 
 
 @njit(
-    [
-        "u1[:,:](u1[:,:], u8[:], u8[:], u8, b1)",
-        "u1[:,:](u1[:,:], u4[:], u4[:], u4, b1)",
-    ],
     parallel=PARALLEL,
     cache=True,
     fastmath=True,
