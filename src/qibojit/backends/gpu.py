@@ -209,7 +209,15 @@ class CupyBackend(Backend):  # pragma: no cover
 
     def _add_at(
         self, array_1: ArrayLike, indices: ArrayLike, array_2: ArrayLike
-    ) -> None:
+    """Add ``array_2`` to ``array_1`` at specified ``indices`` in-place.
+        
+    Handles separate handling of real and imaginary components for complex arrays.
+        
+    Args:
+        array_1 (ArrayLilke): Input array to modify in-place
+        indices (ArrayLilke): Indices where elements will be added
+        array_2 (ArrayLilke): Array containing values to add
+    """
         a1_complex = self.engine.iscomplexobj(array_1)
         a2_complex = self.engine.iscomplexobj(array_2)
 
