@@ -209,6 +209,7 @@ class CupyBackend(Backend):  # pragma: no cover
 
     def _add_at(
         self, array_1: ArrayLike, indices: ArrayLike, array_2: ArrayLike
+    ) -> ArrayLike:
     """Add ``array_2`` to ``array_1`` at specified ``indices`` in-place.
 
     Handles separate handling of real and imaginary components for complex arrays.
