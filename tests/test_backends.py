@@ -133,3 +133,50 @@ def test_metabackend_list_available():
         backend: backend in AVAILABLE_BACKENDS for backend in BACKENDS
     }
     assert MetaBackend().list_available() == available_backends
+
+
+@pytest.mark.parametrize(
+    "a1_dtype, a2, indices",
+    [
+        ("float64", np.array([1.0, 2.0, 3.0]), np.array([0, 1, 2])),
+        ("float64", np.array([1 + 1j, 2 + 2j, 3 + 3j]), np.array([0, 1, 2])),
+        ("complex128", np.array([1.0, 2.0, 3.0]), np.array([0, 1, 2])),
+        ("complex128", np.array([1 + 1j, 2 + 2j, 3 + 3j]), np.array([0, 1, 2])),
+    ],
+)
+def test_add_at_functionality(backend, a1_dtype, a2, indices):
+    if a1_dtype == "float64":
+        dtype = backend.engine.float64
+    elif a1_dtype == "complex128":
+        dtype = backend.engine.complex128
+
+    a1 = np.ones(5, dtype=dtype)
+
+    a1_bkd = backend.ones(5, dtype=dtype)
+    a2_bkd = backend.cast(a2, dtype=a2.dtype)
+    indices_bkd = backend.cast(indices, dtype=indices.dtype)
+
+    expected = a1.copy()
+    np.add.at(expected, indices, a2)
+
+    actual = a1_bkd.copy()
+    backend._add_at(actual, indices_bkd, a2_bkd)
+
+    backend.assert_allclose(actual, backend.cast(expected, dtype=expected.dtype))
+
+
+@pytest.mark.parametrize(
+    "indices, a2, error",
+    [
+        (np.array([10]), np.array([1.0]), IndexError),
+        (np.array([-11]), np.array([1.0]), IndexError),
+        (np.array([0.1, 1.2]), np.array([1.0, 2.0]), IndexError),
+        (np.array([0, 1, 2]), np.array([1.0, 2.0]), ValueError),
+    ],
+)
+def test_add_at_errors(backend, indices, a2, error):
+    a1 = backend.zeros(5)
+    a2 = backend.cast(a2, dtype=a2.dtype)
+    indices = backend.cast(indices, dtype=indices.dtype)
+    with pytest.raises(error):
+        backend._add_at(a1, indices, a2)
