@@ -160,7 +160,7 @@ def test_add_at_functionality(backend, a1_dtype, a2, indices):
     np.add.at(expected, indices, a2)
 
     actual = a1_bkd.copy()
-    backend._add_at(actual, indices_bkd, a2_bkd)
+    backend.add_at(actual, indices_bkd, a2_bkd)
 
     backend.assert_allclose(actual, backend.cast(expected, dtype=expected.dtype))
 
@@ -179,4 +179,4 @@ def test_add_at_errors(backend, indices, a2, error):
     a2 = backend.cast(a2, dtype=a2.dtype)
     indices = backend.cast(indices, dtype=indices.dtype)
     with pytest.raises(error):
-        backend._add_at(a1, indices, a2)
+        backend.add_at(a1, indices, a2)
