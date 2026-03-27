@@ -147,12 +147,14 @@ def test_metabackend_list_available():
 def test_add_at_functionality(backend, a1_dtype, a2, indices):
     if a1_dtype == "float64":
         dtype = backend.engine.float64
+        dtype_np = np.float64
     elif a1_dtype == "complex128":
         dtype = backend.engine.complex128
+        dtype_np = np.complex128
 
-    a1 = np.ones(5, dtype=dtype)
+    a1 = np.ones(5, dtype=dtype_np)
 
-    a1_bkd = backend.ones(5, dtype=dtype)
+    a1_bkd = backend.cast(a1, dtype=dtype)
     a2_bkd = backend.cast(a2, dtype=a2.dtype)
     indices_bkd = backend.cast(indices, dtype=indices.dtype)
 
