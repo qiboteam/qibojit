@@ -45,6 +45,10 @@ class CustomMatrices(NumpyMatrices):
         return self.Y
 
     @cached_property
+    def CH(self):
+        return self.H
+
+    @cached_property
     def CSX(self):
         return self.SX
 
