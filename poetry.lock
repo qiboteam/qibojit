@@ -1048,8 +1048,8 @@ qulacs = ["qulacs (>=0.6.4,<0.7.0) ; python_version < \"3.13\""]
 [package.source]
 type = "git"
 url = "https://github.com/qiboteam/qibo.git"
-reference = "ch"
-resolved_reference = "474e88119e062706ffe9eda745197fabdebbbfaa"
+reference = "HEAD"
+resolved_reference = "a8c977facde09de529de375ec1d708fc57c00bd7"
 
 [[package]]
 name = "scipy"
@@ -1398,14 +1398,14 @@ files = [
 
 [[package]]
 name = "tqdm"
-version = "4.68.0"
+version = "4.68.2"
 description = "Fast, Extensible Progress Meter"
 optional = false
 python-versions = ">=3.7"
 groups = ["main"]
 files = [
-    {file = "tqdm-4.68.0-py3-none-any.whl", hash = "sha256:b79a3ae57db4c870a55352e43abb33b329557cd75b1483028909286ff22a2c03"},
-    {file = "tqdm-4.68.0.tar.gz", hash = "sha256:c627124266fe7904cabb70e88a940d75a06b889a0b11680307a67c18ce094f19"},
+    {file = "tqdm-4.68.2-py3-none-any.whl", hash = "sha256:d4240441fb5353290b87d6a85968c9decc131a99b8c7faa28269d829de669ede"},
+    {file = "tqdm-4.68.2.tar.gz", hash = "sha256:89c230e8dbc67c7615c142487111222f878c77427ea09549960f62389e258add"},
 ]
 
 [package.dependencies]
@@ -1434,4 +1434,4 @@ markers = {test = "python_version == \"3.10\""}
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.10,<3.14"
-content-hash = "7c59618aaa1af90dfa88fe441011aff402fac21e523ccee44f59c5814c6c4396"
+content-hash = "52828a1b943a7244126eb7b7e06f82903c87f12d6ac1268ba33ce571413f2502"
