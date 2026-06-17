@@ -173,34 +173,11 @@ def test_apply_two_qubit_base(backend, nqubits, targets, use_qubits, dtype):
         (6, [1, 4]),
     ],
 )
-def test_apply_cy(backend, nqubits, targets, dtype):
+@pytest.mark.parametrize("gatename", ["CY", "CH", "CSX", "CSXDG"])
+def test_apply_control_single_qubit_gate(backend, gatename, nqubits, targets, dtype):
     tbackend = NumpyBackend()
     state = random_statevector(2**nqubits, backend=tbackend).astype(dtype)
-    gate = gates.CY(*targets)
-
-    set_dtype(dtype, backend, tbackend)
-    target_state = tbackend.apply_gate(gate, np.copy(state), nqubits)
-    state = backend.apply_gate(gate, np.copy(state), nqubits)
-    backend.assert_allclose(state, target_state, atol=ATOL.get(dtype))
-
-
-@pytest.mark.parametrize(
-    ("nqubits", "targets"),
-    [
-        (2, [0, 1]),
-        (3, [0, 2]),
-        (4, [1, 3]),
-        (3, [1, 2]),
-        (4, [0, 2]),
-        (4, [2, 3]),
-        (5, [3, 4]),
-        (6, [1, 4]),
-    ],
-)
-def test_apply_csx(backend, nqubits, targets, dtype):
-    tbackend = NumpyBackend()
-    state = random_statevector(2**nqubits, backend=tbackend).astype(dtype)
-    gate = gates.CSX(*targets)
+    gate = getattr(gates, gatename)(*targets)
 
     set_dtype(dtype, backend, tbackend)
     target_state = tbackend.apply_gate(gate, np.copy(state), nqubits)
@@ -219,30 +196,6 @@ def test_apply_ccz(backend, nqubits, target, controls, dtype):
     tbackend = NumpyBackend()
     state = random_statevector(2**nqubits, backend=tbackend).astype(dtype)
     gate = gates.CCZ(*controls, target)
-
-    set_dtype(dtype, backend, tbackend)
-    target_state = tbackend.apply_gate(gate, np.copy(state), nqubits)
-    state = backend.apply_gate(gate, np.copy(state), nqubits)
-    backend.assert_allclose(state, target_state, atol=ATOL.get(dtype))
-
-
-@pytest.mark.parametrize(
-    ("nqubits", "targets"),
-    [
-        (2, [0, 1]),
-        (3, [0, 2]),
-        (4, [1, 3]),
-        (3, [1, 2]),
-        (4, [0, 2]),
-        (4, [2, 3]),
-        (5, [3, 4]),
-        (6, [1, 4]),
-    ],
-)
-def test_apply_csxdg(backend, nqubits, targets, dtype):
-    tbackend = NumpyBackend()
-    state = random_statevector(2**nqubits, backend=tbackend).astype(dtype)
-    gate = gates.CSXDG(*targets)
 
     set_dtype(dtype, backend, tbackend)
     target_state = tbackend.apply_gate(gate, np.copy(state), nqubits)
