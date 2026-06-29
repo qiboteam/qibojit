@@ -145,6 +145,20 @@ class CupyBackend(Backend):  # pragma: no cover
     def cast(
         self, array: ArrayLike, dtype: Optional[DTypeLike] = None, copy: bool = False
     ) -> ArrayLike:
+        """Cast an object as the array type of the current backend.
+
+        Args:
+            array (ArrayLike): Object to cast to array.
+            dtype (str or type, optional): data type of ``array`` after casting.
+                Options are ``"complex128"``, ``"complex64"``, ``"float64"``,
+                or ``"float32"``. If ``None``, defaults to ``Backend.dtype``.
+                Defaults to ``None``.
+            copy (bool, optional): If ``True`` a copy of the object is created in memory.
+                Defaults to ``False``.
+
+        Returns:
+            ArrayLike: ``array`` casted to ``dtype``, possibly copied in memory.
+        """
         if dtype is None:
             dtype = self.dtype
 
@@ -165,9 +179,23 @@ class CupyBackend(Backend):  # pragma: no cover
         return self.engine.asarray(array, dtype=dtype)
 
     def is_sparse(self, array: ArrayLike) -> bool:
+        """Determine if a given array is a sparse tensor.
+
+        Args:
+            array (ArrayLike): array to determine the sparsity of.
+
+        Returns:
+            bool: ``True`` if ``array`` is sparse, ``False`` otherwise.
+        """
         return self.cp_sparse.issparse(array) or self.np_sparse.issparse(array)
 
     def set_device(self, device: str) -> None:
+        """Set simulation device. Works in-place.
+
+        Args:
+            device (str): Device index, *e.g.* ``/CPU:0`` for CPU, or ``/GPU:1`` for
+                the second GPU in a multi-GPU environment.
+        """
         if "GPU" not in device:
             raise_error(
                 ValueError, f"Device {device} is not available for {self} backend."
@@ -175,16 +203,34 @@ class CupyBackend(Backend):  # pragma: no cover
         self.device = device
 
     def set_seed(self, seed: int) -> None:
+        """Set the seed of the random number generator. Works in-place.
+
+        Args:
+            seed (int or None): seed to be set. If ``None``, seed is random.
+        """
         np.random.seed(seed)
         self.engine.random.seed(seed)
 
     def set_threads(self, nthreads: int) -> None:
+        """Set number of threads for CPU backend simulations that accept it. Works in-place.
+
+        Args:
+            nthreads (int): Number of threads.
+        """
         import numba  # pylint: disable=import-outside-toplevel
 
         numba.set_num_threads(nthreads)
         self.nthreads = nthreads
 
     def to_numpy(self, array: ArrayLike) -> ArrayLike:
+        """Convert ``array`` to a ``numpy.ndarray``.
+
+        Args:
+            array (ArrayLike): array to be converted to ``numpy.ndarray``.
+
+        Returns:
+            ArrayLike: Original array converted to ``numpy.ndarray``.
+        """
         if isinstance(array, self.engine.ndarray):
             return array.get()
 
@@ -210,14 +256,14 @@ class CupyBackend(Backend):  # pragma: no cover
     def add_at(
         self, array_1: ArrayLike, indices: ArrayLike, array_2: ArrayLike
     ) -> ArrayLike:
-        """Add ``array_2`` to ``array_1`` at specified ``indices`` in-place.
+        """Add ``array_2`` to ``array_1`` at specified ``indices``. Works in-place.
 
         Handles separate handling of real and imaginary components for complex arrays.
 
         Args:
-            array_1 (ArrayLilke): Input array to modify in-place
-            indices (ArrayLilke): Indices where elements will be added
-            array_2 (ArrayLilke): Array containing values to add
+            array_1 (ArrayLike): Output array to be modified.
+            indices (ArrayLike): Indices at which to add elements.
+            array_2 (ArrayLike): Input array with elements to add.
         """
         size = array_1.shape[0]
         if indices.size > 0:
@@ -238,6 +284,14 @@ class CupyBackend(Backend):  # pragma: no cover
             self.engine.add.at(array_1, indices, array_2)
 
     def block_diag(self, *arrays: ArrayLike) -> ArrayLike:
+        """Create a block diagonal array from provided ``arrays``.
+
+        Args:
+            arrays (ArrayLike): input arrays.
+
+        Returns:
+            ArrayLike: Array with ``arrays`` on the diagonal of the last two dimensions.
+        """
         from cupyx.scipy.linalg import (  # pylint: disable=C0415,E0401
             block_diag,
         )
@@ -245,12 +299,45 @@ class CupyBackend(Backend):  # pragma: no cover
         return block_diag(*arrays)
 
     def coo_matrix(self, array: ArrayLike, **kwargs) -> ArrayLike:  # pragma: no cover
+        """Return the sparse version of ``array`` in coordinate format.
+
+        Also known as the ``ijv`` or ``triplet`` format.
+
+        Args:
+            array (ArrayLike): input array.
+            kwargs (optional): additional options for this function.
+                For more details, see the corresponding engine's documentation.
+
+        Returns:
+            ArrayLike: The coordinate-format version of ``array``.
+        """
         return self.cp_sparse.coo_matrix(array, **kwargs)
 
     def csr_matrix(self, array: ArrayLike, **kwargs) -> ArrayLike:  # pragma: no cover
+        """Return the sparse version of ``array`` in compressed sparse row format.
+
+        Args:
+            array (ArrayLike): input array.
+            kwargs (optional): additional options for this function.
+                For more details, see the corresponding engine's documentation.
+
+        Returns:
+            ArrayLike: The compressed-sparse-row version of ``array``.
+        """
         return self.cp_sparse.csr_matrix(array, **kwargs)
 
     def eig(self, array: ArrayLike, **kwargs) -> ArrayLike:
+        """Compute the eigenvalues and right eigenvectors of a two-dimensional ``array``.
+
+        Args:
+            array (ArrayLike): input array.
+            kwargs (optional): additional options for this function.
+                For more details, see the corresponding engine's documentation.
+
+        Returns:
+            Tuple[ArrayLike, ArrayLike]: Tuple with, respectively, array of eigenvalues and
+            array of column-stacked eigenvectors.
+        """
         cp_version = self.versions["cupy"]
         cp_version = int(cp_version.split(".")[0])
 
@@ -270,11 +357,33 @@ class CupyBackend(Backend):  # pragma: no cover
         return super().eig(array, **kwargs)
 
     def eigsh(self, array: ArrayLike, **kwargs) -> ArrayLike:
+        """Compute the eigenvalues and right eigenvectors of a two-dimensional sparse ``array``
+        that is assumed to be Hermitian.
+
+        Args:
+            array (ArrayLike): input sparse array.
+            kwargs (optional): additional options for this function.
+                For more details, see the corresponding engine's documentation.
+
+        Returns:
+            Tuple[ArrayLike, ArrayLike]: Tuple with, respectively, array of eigenvalues and
+            array of column-stacked eigenvectors.
+        """
         from cupyx.scipy.sparse.linalg import eigsh  # pylint: disable=C0415,E0401
 
         return eigsh(array, **kwargs)
 
     def eigvals(self, array: ArrayLike, **kwargs) -> ArrayLike:
+        """Compute the eigenvalues of a two-dimensional ``array``.
+
+        Args:
+            array (ArrayLike): input sparse array.
+            kwargs (optional): additional options for this function.
+                For more details, see the corresponding engine's documentation.
+
+        Returns:
+            ArrayLike: Array of eigenvalues.
+        """
         cp_version = self.versions["cupy"]
         cp_version = int(cp_version.split(".")[0])
 
@@ -292,6 +401,14 @@ class CupyBackend(Backend):  # pragma: no cover
         return super().eig(array, **kwargs)
 
     def expm(self, array: ArrayLike) -> ArrayLike:
+        """Compute the matrix exponential of an ``array``.
+
+        Args:
+            array (ArrayLike): input array.
+
+        Returns:
+            ArrayLike: The resulting matrix exponential.
+        """
         if self.is_sparse(array):
             from scipy.linalg import (  # pylint: disable=import-outside-toplevel
                 expm,
@@ -313,6 +430,16 @@ class CupyBackend(Backend):  # pragma: no cover
         return self.cast(exp_matrix, dtype=exp_matrix.dtype)
 
     def logm(self, array: ArrayLike, **kwargs) -> ArrayLike:
+        """Compute the matrix logarithm of an ``array``.
+
+        Args:
+            array (ArrayLike): input array.
+            kwargs (optional): additional options for this function.
+                For more details, see the corresponding engine's documentation.
+
+        Returns:
+            ArrayLike: The resulting matrix logarithm.
+        """
         log.warning(
             "Falling back to CPU due to lack of native ``linalg.logm``"
             + "implementation in ``cupy``."
@@ -323,8 +450,36 @@ class CupyBackend(Backend):  # pragma: no cover
         return self.cast(logm(_array, **kwargs), dtype=array.dtype)
 
     def random_choice(
-        self, array, size=None, replace=True, p=None, seed=None, **kwargs
-    ):
+        self,
+        array: ArrayLike,
+        size: Optional[Union[int, Tuple[int, ...]]] = None,
+        replace: bool = True,
+        p: Optional[ArrayLike] = None,
+        seed: Optional[int] = None,
+        **kwargs,
+    ) -> ArrayLike:
+        """Generate random sample(s) from a given one-dimensional ``array``
+        over the probability distribution ``p``.
+
+        Args:
+            array (ArrayLike): If a tensor, a random sample is generated from its elements.
+                If an ``int``, the random sample is generated as if it were
+                ``Backend.arange(array)``.
+            size (int or Tuple[int, ...], optional): output shape. If ``None``,
+                a single sample is returned. Defaults to ``None``.
+            replace (bool, optional): If ``True``, the values in ``array`` can be
+                sampled multiple times. If ``False``, values are only sampled once.
+                Defaults to ``True``.
+            p (ArrayLike, optional): probabilities associated with each entry in ``array``.
+                If ``None``, defaults to the uniform distribution. Defaults to ``None``.
+            seed (int, optional): a seed to initialize the random number generator. If ``None``,
+                a random integer is chosen. Defaults to ``None``.
+            kwargs (optional): additional options for this function.
+                For more details, see the corresponding engine's documentation.
+
+        Returns:
+            ArrayLike: The generated random sample(s).
+        """
         dtype = kwargs.get("dtype", self.float64)
 
         if size is None:
@@ -347,6 +502,18 @@ class CupyBackend(Backend):  # pragma: no cover
         repeats: Union[int, List[int], Tuple[int, ...]],
         axis: Optional[int] = None,
     ) -> ArrayLike:
+        """Return an array with the elements of ``array`` repeated ``repeats`` times.
+
+        Args:
+            array (ArrayLike): input array.
+            repeats (Union[int, List[int], Tuple[int, ...]]): the number of repetitions for each
+                element. ``repeats`` is broadcasted to fit the shape of the given axis.
+            axis (int, optional): axis along which to repeat values. If ``None``, use the flattened
+                input ``array``, and return a flat output array. Defaults to ``None``.
+
+        Returns:
+            ArrayLike: Array with repeated elements of ``array``.
+        """
         if isinstance(array, (int, float, complex)):
             array = self.engine.array(array)
 

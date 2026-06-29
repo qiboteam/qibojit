@@ -108,16 +108,60 @@ class NumbaBackend(Backend):
         return self.engine.asarray(array, dtype=dtype, copy=copy if copy else None)
 
     def is_sparse(self, array: ArrayLike) -> bool:
-        """Determine if a given array is a sparse tensor."""
+        """Determine if a given array is a sparse tensor.
+
+        Args:
+            array (ArrayLike): array to determine the sparsity of.
+
+        Returns:
+            bool: ``True`` if ``array`` is sparse, ``False`` otherwise.
+        """
         return issparse(array)
 
     def set_device(self, device: str) -> None:
+        """Set simulation device. Works in-place.
+
+        Args:
+            device (str): Device index, *e.g.* ``/CPU:0`` for CPU, or ``/GPU:1`` for
+                the second GPU in a multi-GPU environment.
+        """
         if device != "/CPU:0":
             raise_error(
                 ValueError, f"Device {device} is not available for {self} backend."
             )
 
     def set_dtype(self, dtype: DTypeLike) -> None:
+        """Set data type of arrays created using the backend. Works in-place.
+
+        .. note::
+            The data types ``float32`` and ``float64`` are intended to be used when the circuits
+            to be simulated only contain gates with real-valued matrix representations.
+            Using one of the aforementioned data types with circuits that contain complex-valued
+            matrices will raise a casting error.
+
+        .. note::
+            List of gates that always admit a real-valued matrix representation:
+            :class:`qibo.gates.I`, :class:`qibo.gates.X`, :class:`qibo.gates.Z`,
+            :class:`qibo.gates.H`, :class:`qibo.gates.Align`, :class:`qibo.gates.RY`,
+            :class:`qibo.gates.CNOT`, :class:`qibo.gates.CZ`, :class:`qibo.gates.CH`,
+            :class:`qibo.gates.CRY`, :class:`qibo.gates.SWAP`, :class:`qibo.gates.FSWAP`,
+            :class:`qibo.gates.GIVENS`, :class:`qibo.gates.RBS`, :class:`qibo.gates.TOFFOLI`,
+            :class:`qibo.gates.CCZ`, and :class:`qibo.gates.FanOut`.
+
+        .. note::
+            The following parametrized gates can have real-valued matrix representations
+            depending on the values of their parameters:
+            :class:`qibo.gates.RX`, :class:`qibo.gates.RZ`, :class:`qibo.gates.U1`,
+            :class:`qibo.gates.U2`, :class:`qibo.gates.U3`, :class:`qibo.gates.CRX`,
+            :class:`qibo.gates.CRZ`, :class:`qibo.gates.CU1`, :class:`qibo.gates.CU2`,
+            :class:`qibo.gates.CU3`, :class:`qibo.gates.fSim`, :class:`qibo.gates.GeneralizedfSim`,
+            :class:`qibo.gates.RXX`, :class:`qibo.gates.RYY`, :class:`qibo.gates.RZZ`,
+            :class:`qibo.gates.RZX`, and :class:`qibo.gates.GeneralizedRBS`.
+
+        Args:
+            dtype (str): the options are the following: ``complex128``, ``complex64``,
+                ``float64``, and ``float32``.
+        """
         if dtype != self.dtype:
             super().set_dtype(dtype)
             self.matrices = NumpyMatrices(self.dtype)
@@ -125,18 +169,36 @@ class NumbaBackend(Backend):
                 self.custom_matrices = CustomMatrices(self.dtype)
 
     def set_seed(self, seed: Union[int, None]) -> None:
+        """Set the seed of the random number generator. Works in-place.
+
+        Args:
+            seed (int or None): seed to be set. If ``None``, seed is random.
+        """
         super().set_seed(seed)
         if seed is not None:
             self.ops.set_seed(seed)
             self.qinfo.set_seed(seed)
 
     def set_threads(self, nthreads: int) -> None:
+        """Set number of threads for CPU backend simulations that accept it. Works in-place.
+
+        Args:
+            nthreads (int): Number of threads.
+        """
         import numba  # pylint: disable=import-outside-toplevel
 
         numba.set_num_threads(nthreads)
         self.nthreads = nthreads
 
     def to_numpy(self, array: ArrayLike) -> ArrayLike:
+        """Convert ``array`` to a ``numpy.ndarray``.
+
+        Args:
+            array (ArrayLike): array to be converted to ``numpy.ndarray``.
+
+        Returns:
+            ArrayLike: Original array converted to ``numpy.ndarray``.
+        """
         if self.is_sparse(array):
             return array.toarray()
         return array
@@ -146,24 +208,84 @@ class NumbaBackend(Backend):
     ########################################################################################
 
     def block_diag(self, *arrays: ArrayLike) -> ArrayLike:  # pragma: no cover
+        """Create a block diagonal array from provided ``arrays``.
+
+        Args:
+            arrays (ArrayLike): input arrays.
+
+        Returns:
+            ArrayLike: Array with ``arrays`` on the diagonal of the last two dimensions.
+        """
         return block_diag(*arrays)
 
     def coo_matrix(self, array: ArrayLike, **kwargs) -> ArrayLike:  # pragma: no cover
+        """Return the sparse version of ``array`` in coordinate format.
+
+        Also known as the ``ijv`` or ``triplet`` format.
+
+        Args:
+            array (ArrayLike): input array.
+            kwargs (optional): additional options for this function.
+                For more details, see the corresponding engine's documentation.
+
+        Returns:
+            ArrayLike: The coordinate-format version of ``array``.
+        """
         return coo_matrix(array, **kwargs)
 
     def csr_matrix(self, array: ArrayLike, **kwargs) -> ArrayLike:  # pragma: no cover
+        """Return the sparse version of ``array`` in compressed sparse row format.
+
+        Args:
+            array (ArrayLike): input array.
+            kwargs (optional): additional options for this function.
+                For more details, see the corresponding engine's documentation.
+
+        Returns:
+            ArrayLike: The compressed-sparse-row version of ``array``.
+        """
         return csr_matrix(array, **kwargs)
 
     def eigsh(self, array: ArrayLike, **kwargs) -> Tuple[ArrayLike, ArrayLike]:
+        """Compute the eigenvalues and right eigenvectors of a two-dimensional sparse ``array``
+        that is assumed to be Hermitian.
+
+        Args:
+            array (ArrayLike): input sparse array.
+            kwargs (optional): additional options for this function.
+                For more details, see the corresponding engine's documentation.
+
+        Returns:
+            Tuple[ArrayLike, ArrayLike]: Tuple with, respectively, array of eigenvalues and
+            array of column-stacked eigenvectors.
+        """
         return eigsh(array, **kwargs)
 
     def expm(self, array: ArrayLike) -> ArrayLike:
+        """Compute the matrix exponential of an ``array``.
+
+        Args:
+            array (ArrayLike): input array.
+
+        Returns:
+            ArrayLike: The resulting matrix exponential.
+        """
         if self.is_sparse(array):
             return expm_sparse(array.tocsc())
 
         return expm(array)
 
     def logm(self, array: ArrayLike, **kwargs) -> ArrayLike:  # pragma: no cover
+        """Compute the matrix logarithm of an ``array``.
+
+        Args:
+            array (ArrayLike): input array.
+            kwargs (optional): additional options for this function.
+                For more details, see the corresponding engine's documentation.
+
+        Returns:
+            ArrayLike: The resulting matrix logarithm.
+        """
         return logm(array, **kwargs)
 
     ########################################################################################
