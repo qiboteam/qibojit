@@ -30,7 +30,9 @@ class MetaBackend:
         else:  # pragma: no cover
             try:
                 return CupyBackend()
-            except (ModuleNotFoundError, ImportError):
+            except (ModuleNotFoundError, ImportError, RuntimeError):
+                # RuntimeError covers, e.g., cupy's CUDARuntimeError raised
+                # when cupy is installed but no GPU/driver is available.
                 return NumbaBackend()
 
     def list_available(self) -> dict:
