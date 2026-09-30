@@ -489,7 +489,7 @@ class CupyBackend(Backend):  # pragma: no cover
             size = 1
 
         _array = self.to_numpy(array)
-        _prob = self.to_numpy(p)
+        _prob = None if p is None else self.to_numpy(p)
         if _prob is not None:
             # renormalize: cupy->numpy float32/64 roundtrip can leave the
             # probabilities summing to slightly more/less than 1, which
@@ -583,6 +583,7 @@ class CupyBackend(Backend):  # pragma: no cover
         if dtype is None:
             dtype = self.dtype
 
+        self._validate_nqubits(nqubits, density_matrix=True)
         n = 1 << nqubits
         state = self.identity(n, dtype=self.dtype)
         self.engine.cuda.stream.get_current_stream().synchronize()
