@@ -721,7 +721,13 @@ class CupyBackend(Backend):  # pragma: no cover
             for gate in special_gates:  # pragma: no cover
                 pieces = ops.apply_special_gate(pieces, gate)
 
-            state = ops.to_tensor(pieces)
+            # MultiGpuOps assembles pieces (kept as plain numpy arrays for
+            # CPU-side joblib orchestration) into the final state using
+            # plain numpy calls, so it comes back as a numpy array; cast it
+            # to the backend's own tensor type before wrapping it in a
+            # QuantumState/CircuitResult, whose generic methods assume a
+            # backend-native tensor.
+            state = self.cast(ops.to_tensor(pieces), dtype=self.dtype)
 
             if circuit.has_unitary_channel:
                 # here we necessarily have `density_matrix=True`, otherwise
