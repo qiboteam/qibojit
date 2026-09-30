@@ -630,6 +630,15 @@ class CupyBackend(Backend):  # pragma: no cover
         normalize: bool = True,
         density_matrix: bool = False,
     ) -> ArrayLike:
+        if density_matrix:
+            # the CUDA kernel below assumes a flat state vector of size
+            # 2**nqubits and normalizes by the L2 norm; neither is correct
+            # for a (2**nqubits, 2**nqubits) density matrix, which needs the
+            # generic reshape/transpose-based collapse, normalized by trace.
+            return self._collapse_density_matrix(
+                state, qubits, shot, nqubits, normalize
+            )
+
         ntargets = len(qubits)
         nstates = 1 << (nqubits - ntargets)
         nblocks, block_size = self._calculate_blocks(nstates)
