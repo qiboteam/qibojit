@@ -646,8 +646,13 @@ def _pack_for_measurements(state, nqubits):
 
 
 def _unpack_for_measurements(state, nqubits):
-    xz = _unpackbits(state[:, :-1], axis=1, count=_dim_xz(nqubits))
-    x, z = xz[:, :nqubits], xz[:, nqubits:]
+    # unpack the X and Z blocks separately (not as one combined chunk):
+    # each was padded independently by _packbits when nqubits isn't a
+    # multiple of 8, so unpacking them together misaligns Z by the size of
+    # X's padding. Matches _clifford_operations._unpack_for_measurements.
+    packed_n = _packed_size(nqubits)
+    x = _unpackbits(state[:, :packed_n], axis=1, count=nqubits)
+    z = _unpackbits(state[:, packed_n:-1], axis=1, count=nqubits)
     return np.hstack((x, z, state[:, -1][:, None]))
 
 
