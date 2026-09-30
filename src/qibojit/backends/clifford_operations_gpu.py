@@ -1,15 +1,22 @@
 """Set of custom CuPy operations for the Clifford backend."""
 
+from functools import reduce
+
 import cupy as cp  # pylint: disable=E0401
 import cupyx.scipy.sparse as cp_sparse  # pylint: disable=import-error
 import numpy
-from qibo.backends._clifford_operations import _dim, _dim_xz, _get_rxz, _packed_size
+from qibo.backends._clifford_operations import (
+    _dim,
+    _dim_xz,
+    _exponent,
+    _get_rxz,
+    _packed_size,
+)
 from scipy import sparse
 
 np = cp
 
 GRIDDIM, BLOCKDIM = 1024, 128
-GRIDDIM_2D = (1024, 1024)
 
 
 apply_one_qubit_kernel = """
@@ -541,80 +548,46 @@ def CY(symplectic_matrix, control_q, target_q, nqubits):
     return symplectic_matrix
 
 
-# this is not perfoming the packing unpacking of the bits
-# as numba and numpy do, in order to do that one would need to
-# write custom cuda kernels for un/packbits and _un/pack_for_measurements
-_apply_rowsum = """
-__device__ void _apply_rowsum(unsigned char* symplectic_matrix, const long* h, const long* i, const int& nqubits, const bool& determined, const int& nrows, long* g_exp, const int& dim) {
-    unsigned int tid_x = blockIdx.x * blockDim.x + threadIdx.x;
-    unsigned int bid_y = blockIdx.y;
-    unsigned int ntid_x = gridDim.x * blockDim.x;
-    unsigned int nbid_y = gridDim.y;
-    const int last = dim - 1;
-    __shared__ int exp;
-    for(int j = bid_y; j < nrows; j += nbid_y) {
-        unsigned int row_i = i[j] * dim;
-        unsigned int row_h = h[j] * dim;
-        for(int k = tid_x; k < nqubits; k += ntid_x) {
-            unsigned int kz = nqubits + k;
-            exp = (
-                2 * (symplectic_matrix[row_i + k] * symplectic_matrix[row_h + k] * (symplectic_matrix[row_h + kz] - symplectic_matrix[row_i + kz]) +
-                symplectic_matrix[row_i + kz] * symplectic_matrix[row_h + kz] * (symplectic_matrix[row_i + k] - symplectic_matrix[row_h + k]))
-                - symplectic_matrix[row_i + k] * symplectic_matrix[row_h + kz]
-                + symplectic_matrix[row_h + k] * symplectic_matrix[row_i + kz]
-            );
-        }
-        if (threadIdx.x == 0 && tid_x < nqubits) {
-            g_exp[j] += exp;
-        }
-        __syncthreads();
-        if (threadIdx.x == 0 && blockIdx.x == 0) {
-            symplectic_matrix[row_h + last] = (
-                2 * symplectic_matrix[row_h + last] + 2 * symplectic_matrix[row_i + last] + g_exp[j]
-            ) % 4 != 0;
-        }
-        for(int k = tid_x; k < nqubits; k += ntid_x) {
-            unsigned int kz = nqubits + k;
-            unsigned char xi_xh = (
-                symplectic_matrix[row_i + k] ^ symplectic_matrix[row_h + k]
-            );
-            unsigned char zi_zh = (
-                symplectic_matrix[row_i + kz] ^ symplectic_matrix[row_h + kz]
-            );
-            if (determined) {
-                symplectic_matrix[row_h + k] ^= xi_xh;
-                symplectic_matrix[row_h + kz] ^= zi_zh;
-            } else {
-                symplectic_matrix[row_h + k] = xi_xh;
-                symplectic_matrix[row_h + kz] = zi_zh;
-            }
-        }
-    }
-}
-"""
-
-apply_rowsum = f"""
-{_apply_rowsum}
-extern "C"
-__global__ void apply_rowsum(unsigned char* symplectic_matrix, const long* h, const long* i, const int nqubits, const bool determined, const int nrows, long* g_exp, const int dim) {{
-    _apply_rowsum(symplectic_matrix, h, i, nqubits, determined, nrows, g_exp, dim);
-}}
-"""
-
-apply_rowsum = cp.RawKernel(apply_rowsum, "apply_rowsum", options=("--std=c++17",))
-
-
 def _rowsum(symplectic_matrix, h, i, nqubits, determined=False):
-    nrows = len(h)
-    exp = cp.zeros(len(h), dtype=int)
-    packed_nqubits = _packed_size(nqubits)
-    row_dim = _dim(packed_nqubits)
-    apply_rowsum(
-        GRIDDIM_2D,
-        (BLOCKDIM,),
-        (symplectic_matrix, h, i, packed_nqubits, determined, nrows, exp, row_dim),
-    )
-    return symplectic_matrix
+    """Updates the symplectic matrix by setting the h-th generator(s) equal to
+    the product of the h-th and i-th ones, tracking the resulting phase.
+
+    Ported from the numpy/numba reference (``_clifford_operations._rowsum``):
+    the phase-tracking exponent requires genuine (non-bitwise) arithmetic
+    difference and sum over the unpacked qubit bits, which cannot be done
+    directly on a bit-packed representation, so that part runs unpacked; the
+    X/Z updates are then computed with the bit-packed helpers already defined
+    in this module, exactly as done there.
+    """
+    xi, zi = symplectic_matrix[i, :nqubits], symplectic_matrix[i, nqubits:-1]
+    xh, zh = symplectic_matrix[h, :nqubits], symplectic_matrix[h, nqubits:-1]
+    exponents = _exponent(xi, zi, xh, zh)
+    ind = (
+        2 * symplectic_matrix[h, -1]
+        + 2 * symplectic_matrix[i, -1]
+        + cp.sum(exponents, axis=-1)
+    ) % 4 == 0
+    r = cp.ones(h.shape[0], dtype=cp.uint8)
+    r[ind] = 0
+
+    symplectic_matrix = _pack_for_measurements(symplectic_matrix, nqubits)
+    packed_n = _packed_size(nqubits)
+    xi, zi = symplectic_matrix[i, :packed_n], symplectic_matrix[i, packed_n:-1]
+    xh, zh = symplectic_matrix[h, :packed_n], symplectic_matrix[h, packed_n:-1]
+    xi_xh = xi ^ xh
+    zi_zh = zi ^ zh
+    if determined:
+        r = reduce(cp.logical_xor, r)
+        xi_xh = reduce(cp.logical_xor, xi_xh)
+        zi_zh = reduce(cp.logical_xor, zi_zh)
+        symplectic_matrix[h[0], -1] = r
+        symplectic_matrix[h[0], :packed_n] = xi_xh
+        symplectic_matrix[h[0], packed_n:-1] = zi_zh
+    else:
+        symplectic_matrix[h, -1] = r
+        symplectic_matrix[h, :packed_n] = xi_xh
+        symplectic_matrix[h, packed_n:-1] = zi_zh
+    return _unpack_for_measurements(symplectic_matrix, nqubits)
 
 
 def _random_outcome(state, p, q, nqubits):
@@ -624,15 +597,13 @@ def _random_outcome(state, p, q, nqubits):
     h = state[:-1, q].nonzero()[0]
     state[p, q] = tmp
     if h.shape[0] > 0:
-        dim = state.shape[1]
         state = _rowsum(
-            state.ravel(),
-            h,
+            state,
+            h.astype(cp.uint),
             p.astype(cp.uint) * cp.ones(h.shape[0], dtype=np.uint),
             nqubits,
             False,
         )
-        state = state.reshape(-1, dim)
     state[p - nqubits, :] = state[p, :]
     outcome = cp.random.randint(2, size=None, dtype=cp.uint)
     state[p, :] = 0
@@ -646,15 +617,13 @@ def _determined_outcome(state, q, nqubits):
     idx = (state[:nqubits, q].nonzero()[0] + nqubits).astype(np.uint)
     if len(idx) == 0:
         return state, state[-1, -1]
-    dim = state.shape[1]
     state = _rowsum(
-        state.ravel(),
-        (2 * nqubits * cp.ones(idx.shape, dtype=np.uint)).astype(np.uint),
+        state,
+        (_dim_xz(nqubits) * cp.ones(idx.shape, dtype=np.uint)).astype(np.uint),
         idx.astype(np.uint),
         nqubits,
         True,
     )
-    state = state.reshape(-1, dim)
     return state, state[-1, -1]
 
 
