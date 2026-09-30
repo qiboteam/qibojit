@@ -410,7 +410,7 @@ class CupyBackend(Backend):  # pragma: no cover
             ArrayLike: The resulting matrix exponential.
         """
         if self.is_sparse(array):
-            from scipy.linalg import (  # pylint: disable=import-outside-toplevel
+            from scipy.sparse.linalg import (  # pylint: disable=import-outside-toplevel
                 expm,
             )
 
@@ -419,7 +419,10 @@ class CupyBackend(Backend):  # pragma: no cover
                 + "implementation in ``cupy==%s``.",
                 self.versions["cupy"],
             )
-            array = self.to_numpy(array)
+            if self.cp_sparse.issparse(array):
+                # ``.get()`` returns the equivalent ``scipy.sparse`` matrix,
+                # unlike ``self.to_numpy``, which densifies sparse arrays.
+                array = array.get()
         else:
             from cupyx.scipy.linalg import (  # pylint: disable=C0415,E0401
                 expm,
@@ -487,6 +490,11 @@ class CupyBackend(Backend):  # pragma: no cover
 
         _array = self.to_numpy(array)
         _prob = self.to_numpy(p)
+        if _prob is not None:
+            # renormalize: cupy->numpy float32/64 roundtrip can leave the
+            # probabilities summing to slightly more/less than 1, which
+            # numpy's ``choice`` rejects outright
+            _prob = _prob / _prob.sum()
 
         if seed is not None:
             local_state = np.random.default_rng(seed) if isinstance(seed, int) else seed
