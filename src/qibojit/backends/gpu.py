@@ -398,7 +398,7 @@ class CupyBackend(Backend):  # pragma: no cover
 
             return self.cast(eigvals, dtype=eigvals.dtype)
 
-        return super().eig(array, **kwargs)
+        return super().eigvals(array, **kwargs)
 
     def expm(self, array: ArrayLike) -> ArrayLike:
         """Compute the matrix exponential of an ``array``.
@@ -448,6 +448,25 @@ class CupyBackend(Backend):  # pragma: no cover
         _array = self.to_numpy(array)
 
         return self.cast(logm(_array, **kwargs), dtype=array.dtype)
+
+    def poly(self, array: ArrayLike, **kwargs) -> ArrayLike:
+        """Return the coefficients of the polynomial with the given roots.
+
+        Args:
+            array (ArrayLike): roots of the polynomial, or a square matrix
+                whose eigenvalues are the roots.
+            kwargs (optional): additional options for this function.
+                For more details, see the corresponding engine's documentation.
+
+        Returns:
+            ArrayLike: Polynomial coefficients, from the highest to the lowest degree.
+        """
+        array = self.engine.asarray(array)
+
+        if array.ndim == 2:
+            array = self.eigvals(array)
+
+        return self.engine.poly(array, **kwargs)
 
     def random_choice(
         self,
@@ -518,6 +537,34 @@ class CupyBackend(Backend):  # pragma: no cover
             array = self.engine.array(array)
 
         return super().repeat(array, repeats, axis)
+
+    def roots(self, array: ArrayLike, **kwargs) -> ArrayLike:
+        """Return the roots of a polynomial given its coefficients.
+
+        Args:
+            array (ArrayLike): polynomial coefficients, from the highest to the
+                lowest degree.
+            kwargs (optional): additional options for this function.
+                For more details, see the corresponding engine's documentation.
+
+        Returns:
+            ArrayLike: Roots of the polynomial.
+        """
+        # coefficients from the lowest to the highest degree, without the trailing
+        # zeros, since ``cupy.roots`` only supports symmetric companion matrices
+        [coefficients] = self.engine.polynomial.polyutils.as_series(
+            [self.engine.asarray(array)[::-1]]
+        )
+
+        if coefficients.size < 2:
+            return self.engine.array([])
+
+        if coefficients.size == 2:
+            return (-coefficients[0] / coefficients[1])[None]
+
+        companion = self.engine.polynomial.polynomial.polycompanion(coefficients)
+
+        return self.eigvals(companion, **kwargs)
 
     ########################################################################################
     ######## Methods related to linear algebra operations                           ########
