@@ -128,6 +128,56 @@ def test_backend_eigh_sparse(backend, sparse_type, k):
     backend.assert_allclose(sorted(eigvals1), sorted(eigvals2))
 
 
+@pytest.mark.parametrize("size", [2, 3])
+def test_backend_poly_matrix(backend, size):
+    backend.set_seed(10)
+    matrix = _random_complex((size, size), backend)
+
+    target = np.poly(backend.to_numpy(matrix))
+    result = backend.poly(matrix)
+
+    backend.assert_allclose(
+        result, backend.cast(target, dtype=result.dtype), atol=1e-10
+    )
+
+
+@pytest.mark.parametrize("degree", [1, 2, 5])
+def test_backend_poly_roots(backend, degree):
+    backend.set_seed(10)
+    roots = _random_complex(degree, backend)
+
+    target = np.poly(backend.to_numpy(roots))
+    coefficients = backend.poly(roots)
+    backend.assert_allclose(
+        coefficients, backend.cast(target, dtype=coefficients.dtype), atol=1e-10
+    )
+
+    # the roots of the (monic) polynomial give back its coefficients, whatever their order
+    backend.assert_allclose(
+        backend.poly(backend.roots(coefficients)), coefficients, atol=1e-10
+    )
+
+
+def test_backend_roots_edge_cases(backend):
+    # 2 * x^2 - 3 * x + 1, with two zeros in the highest degrees
+    leading = backend.cast([0.0, 0.0, 2.0, -3.0, 1.0], dtype="float64")
+    coefficients = backend.poly(backend.roots(leading))
+    backend.assert_allclose(
+        coefficients,
+        backend.cast([1.0, -1.5, 0.5], dtype=coefficients.dtype),
+        atol=1e-10,
+    )
+
+    # degree one
+    linear = backend.cast([2.0, -6.0], dtype="float64")
+    result = backend.roots(linear)
+    backend.assert_allclose(result, backend.cast([3.0], dtype=result.dtype))
+
+    # no roots
+    constant = backend.cast([5.0], dtype="float64")
+    assert len(backend.roots(constant)) == 0
+
+
 def test_metabackend_list_available():
     available_backends = {
         backend: backend in AVAILABLE_BACKENDS for backend in BACKENDS
@@ -182,3 +232,13 @@ def test_add_at_errors(backend, indices, a2, error):
     indices = backend.cast(indices, dtype=indices.dtype)
     with pytest.raises(error):
         backend.add_at(a1, indices, a2)
+
+
+def _random_complex(size, backend):
+    """Complex array of normally distributed numbers with the given shape."""
+    real = backend.random_normal(0.0, 1.0, size=size, dtype="float64")
+    imag = backend.random_normal(0.0, 1.0, size=size, dtype="float64")
+
+    return backend.cast(real, dtype="complex128") + 1j * backend.cast(
+        imag, dtype="complex128"
+    )
