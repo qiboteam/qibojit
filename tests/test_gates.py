@@ -41,7 +41,7 @@ def test_apply_gate(backend, nqubits, target, controls, dtype):
     gate = gates.Unitary(matrix, target).controlled_by(*controls)
 
     target_state = tbackend.apply_gate(
-        gate, backend.cast(state, copy=True, dtype=dtype), nqubits
+        gate, tbackend.cast(state, copy=True, dtype=dtype), nqubits
     )
     state = backend.apply_gate(
         gate, backend.cast(state, copy=True, dtype=dtype), nqubits
