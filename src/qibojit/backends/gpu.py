@@ -410,7 +410,7 @@ class CupyBackend(Backend):  # pragma: no cover
             ArrayLike: The resulting matrix exponential.
         """
         if self.is_sparse(array):
-            from scipy.linalg import (  # pylint: disable=import-outside-toplevel
+            from scipy.sparse.linalg import (  # pylint: disable=import-outside-toplevel
                 expm,
             )
 
@@ -419,7 +419,10 @@ class CupyBackend(Backend):  # pragma: no cover
                 + "implementation in ``cupy==%s``.",
                 self.versions["cupy"],
             )
-            array = self.to_numpy(array)
+            if self.cp_sparse.issparse(array):
+                # ``.get()`` returns the equivalent ``scipy.sparse`` matrix,
+                # unlike ``self.to_numpy``, which densifies sparse arrays.
+                array = array.get()
         else:
             from cupyx.scipy.linalg import (  # pylint: disable=C0415,E0401
                 expm,
@@ -505,7 +508,12 @@ class CupyBackend(Backend):  # pragma: no cover
             size = 1
 
         _array = self.to_numpy(array)
-        _prob = self.to_numpy(p)
+        _prob = None if p is None else self.to_numpy(p)
+        if _prob is not None:
+            # renormalize: cupy->numpy float32/64 roundtrip can leave the
+            # probabilities summing to slightly more/less than 1, which
+            # numpy's ``choice`` rejects outright
+            _prob = _prob / _prob.sum()
 
         if seed is not None:
             local_state = np.random.default_rng(seed) if isinstance(seed, int) else seed
@@ -622,6 +630,7 @@ class CupyBackend(Backend):  # pragma: no cover
         if dtype is None:
             dtype = self.dtype
 
+        self._validate_nqubits(nqubits, density_matrix=True)
         n = 1 << nqubits
         state = self.identity(n, dtype=self.dtype)
         self.engine.cuda.stream.get_current_stream().synchronize()
@@ -669,6 +678,15 @@ class CupyBackend(Backend):  # pragma: no cover
         normalize: bool = True,
         density_matrix: bool = False,
     ) -> ArrayLike:
+        if density_matrix:
+            # the CUDA kernel below assumes a flat state vector of size
+            # 2**nqubits and normalizes by the L2 norm; neither is correct
+            # for a (2**nqubits, 2**nqubits) density matrix, which needs the
+            # generic reshape/transpose-based collapse, normalized by trace.
+            return self._collapse_density_matrix(
+                state, qubits, shot, nqubits, normalize
+            )
+
         ntargets = len(qubits)
         nstates = 1 << (nqubits - ntargets)
         nblocks, block_size = self._calculate_blocks(nstates)
@@ -751,7 +769,13 @@ class CupyBackend(Backend):  # pragma: no cover
             for gate in special_gates:  # pragma: no cover
                 pieces = ops.apply_special_gate(pieces, gate)
 
-            state = ops.to_tensor(pieces)
+            # MultiGpuOps assembles pieces (kept as plain numpy arrays for
+            # CPU-side joblib orchestration) into the final state using
+            # plain numpy calls, so it comes back as a numpy array; cast it
+            # to the backend's own tensor type before wrapping it in a
+            # QuantumState/CircuitResult, whose generic methods assume a
+            # backend-native tensor.
+            state = self.cast(ops.to_tensor(pieces), dtype=self.dtype)
 
             if circuit.has_unitary_channel:
                 # here we necessarily have `density_matrix=True`, otherwise
