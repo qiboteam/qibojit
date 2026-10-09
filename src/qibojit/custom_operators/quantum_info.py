@@ -259,11 +259,15 @@ def _random_statevector(dims: int):
     return state / ENGINE.linalg.norm(state)
 
 
-@njit(parallel=True, cache=True)
+@njit(cache=True)
 def _random_gaussian_matrix(dims: int, rank: int, mean: float, stddev: float):
+    # This function must not be parallelized: ``numba`` keeps an independent random
+    # number generator state for each thread, while ``set_seed`` only seeds the
+    # state of the calling thread. Hence, drawing numbers inside a ``prange`` loop
+    # makes the output depend on the number of threads and not reproducible.
     matrix = ENGINE.empty((dims, rank), dtype=ENGINE.complex128)
-    for i in prange(dims):
-        for j in prange(rank):
+    for i in range(dims):
+        for j in range(rank):
             matrix[i, j] = ENGINE.random.normal(
                 loc=mean, scale=stddev
             ) + 1.0j * ENGINE.random.normal(loc=mean, scale=stddev)
@@ -469,7 +473,7 @@ def _random_density_matrix_bures_inner(
 
 @njit(cache=True)
 def _random_density_matrix_bures(dims: int, rank: int, mean: float, stddev: float):
-    unitary = _random_unitary(dims)
+    unitary = _random_unitary_haar(dims)
     return _random_density_matrix_bures_inner(unitary, dims, rank, mean, stddev)
 
 
