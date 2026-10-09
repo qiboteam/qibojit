@@ -178,6 +178,28 @@ def test_backend_roots_edge_cases(backend):
     assert len(backend.roots(constant)) == 0
 
 
+def test_create_dtype(backend):
+    assert backend.create_dtype("uint8") == np.dtype("uint8")
+    assert backend.create_dtype("V3").itemsize == 3
+
+
+def test_frombuffer(backend):
+    array = backend.frombuffer(bytes([1, 2, 3]), dtype=backend.create_dtype("uint8"))
+
+    np.testing.assert_array_equal(backend.to_numpy(array), np.array([1, 2, 3]))
+
+
+@pytest.mark.parametrize("axis", [None, 0, 1])
+def test_packbits(backend, axis):
+    array = np.random.default_rng(42).integers(0, 2, size=(11, 13))
+    target = np.packbits(array, axis=axis)
+
+    array = backend.cast(array, dtype=array.dtype)
+    result = backend.packbits(array, axis=axis)
+
+    np.testing.assert_array_equal(backend.to_numpy(result), target)
+
+
 def test_metabackend_list_available():
     available_backends = {
         backend: backend in AVAILABLE_BACKENDS for backend in BACKENDS
