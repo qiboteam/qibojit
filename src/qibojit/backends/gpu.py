@@ -452,6 +452,36 @@ class CupyBackend(Backend):  # pragma: no cover
 
         return self.cast(logm(_array, **kwargs), dtype=array.dtype)
 
+    def packbits(
+        self, array: ArrayLike, axis: int | None = None, **kwargs
+    ) -> ArrayLike:
+        """Pack the elements of a binary-valued ``array`` into bits of an unsigned integer array.
+
+        Args:
+            array (ArrayLike): array of integers or booleans, whose elements are interpreted
+                as bits according to their truth value.
+            axis (int, optional): axis along which the bits are packed. If ``None``,
+                ``array`` is flattened before packing. Defaults to ``None``.
+            kwargs (optional): additional options for this function.
+                For more details, see the corresponding engine's documentation.
+
+        Returns:
+            ArrayLike: Array of :math:`8`-bit unsigned integers, in which every :math:`8`
+            consecutive elements of ``array`` along ``axis`` are packed into a single element,
+            with zero padding if the size of ``axis`` is not a multiple of :math:`8`.
+        """
+        if axis is None:
+            return self.engine.packbits(array, **kwargs)
+
+        log.warning(
+            "Falling back to CPU due to lack of native ``axis`` support in "
+            + "``cupy.packbits``."
+        )
+
+        return self.engine.asarray(
+            np.packbits(self.to_numpy(array), axis=axis, **kwargs)
+        )
+
     def poly(self, array: ArrayLike, **kwargs) -> ArrayLike:
         """Return the coefficients of the polynomial with the given roots.
 
