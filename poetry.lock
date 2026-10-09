@@ -1167,15 +1167,9 @@ qulacs = ["qulacs (>=0.6.4,<0.7.0) ; python_version < \"3.13\""]
 
 [package.source]
 type = "git"
-<<<<<<< HEAD
-url = "https://github.com/qiboteam/qibo"
-reference = "quantum_info_fix"
-resolved_reference = "6c61e1a63a09a5cafdfd8212c49e36f415f2ec7d"
-=======
 url = "https://github.com/qiboteam/qibo.git"
-reference = "HEAD"
-resolved_reference = "5d2925690681f001aff871f7f84a2e6e1a153d11"
->>>>>>> main
+reference = "quantum_info_fix"
+resolved_reference = "4e1b7c6061b9ec8224e98538d2fdb4d8d79d4a2d"
 
 [[package]]
 name = "scipy"
@@ -1772,8 +1766,4 @@ markers = {test = "python_version == \"3.10\""}
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.10,<3.14"
-<<<<<<< HEAD
-content-hash = "623072cc64906e424d05e8348bd1aff99c910bd68213582530d573d39f0a27c5"
-=======
-content-hash = "52828a1b943a7244126eb7b7e06f82903c87f12d6ac1268ba33ce571413f2502"
->>>>>>> main
+content-hash = "97a105bd925abb2a68d8393f86007216f1d6d35fb100d744524402922d38e9fb"
