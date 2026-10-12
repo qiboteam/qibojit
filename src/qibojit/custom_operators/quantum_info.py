@@ -504,7 +504,7 @@ def _set_array_at_2d_indices(array, indices, values):
 
 
 @njit(parallel=True, cache=True)
-def _super_op_from_bcsz_measure_preamble(dims: int, rank: int):
+def _super_op_from_bcsz_measure_preamble(dims: int, rank: int, row: bool):
     super_op = _random_gaussian_matrix(
         dims**2,
         rank=rank,
@@ -512,12 +512,17 @@ def _super_op_from_bcsz_measure_preamble(dims: int, rank: int):
         stddev=1,
     )
     super_op = super_op @ ENGINE.conj(super_op).T
-    # partial trace
+    # partial trace over the output subsystem, which is the first one for
+    # row-vectorization and the second one for column-vectorization
     super_op_reshaped = ENGINE.reshape(super_op, (dims, dims, dims, dims))
-    super_op_reduced = ENGINE.empty((dims, dims), dtype=super_op.dtype)
+    super_op_reduced = ENGINE.zeros((dims, dims), dtype=super_op.dtype)
     for j in prange(dims):
         for k in prange(dims):
-            super_op_reduced[j, k] = ENGINE.sum(super_op_reshaped[:, j, :, k])
+            for i in range(dims):
+                if row:
+                    super_op_reduced[j, k] += super_op_reshaped[i, j, i, k]
+                else:
+                    super_op_reduced[j, k] += super_op_reshaped[j, i, k, i]
     eigenvalues, eigenvectors = ENGINE.linalg.eigh(super_op_reduced)
     eigenvalues = ENGINE.sqrt(1.0 / eigenvalues)
     eigenvectors = eigenvectors.T
@@ -532,14 +537,14 @@ def _super_op_from_bcsz_measure_preamble(dims: int, rank: int):
 
 @njit(cache=True)
 def _super_op_from_bcsz_measure_row(dims: int, rank: int):
-    operator, super_op = _super_op_from_bcsz_measure_preamble(dims, rank)
+    operator, super_op = _super_op_from_bcsz_measure_preamble(dims, rank, True)
     operator = ENGINE.kron(ENGINE.eye(dims, dtype=operator.dtype), operator)
     return operator @ super_op @ operator
 
 
 @njit(cache=True)
 def _super_op_from_bcsz_measure_column(dims: int, rank: int):
-    operator, super_op = _super_op_from_bcsz_measure_preamble(dims, rank)
+    operator, super_op = _super_op_from_bcsz_measure_preamble(dims, rank, False)
     operator = ENGINE.kron(operator, ENGINE.eye(dims, dtype=operator.dtype))
     return operator @ super_op @ operator
 

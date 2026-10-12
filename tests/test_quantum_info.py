@@ -8,7 +8,11 @@ from qibo.quantum_info import random_gaussian_matrix, random_quantum_channel
 
 @pytest.fixture
 def nthreads(backend):
-    """Run the test with all the threads available to ``numba``."""
+    """Run the test with all the threads available to ``numba``.
+
+    Thread-dependent behavior is only exercised when the JIT is enabled, e.g. by running
+    ``NUMBA_DISABLE_JIT=0 pytest``, since the test configuration disables it by default.
+    """
     if backend.platform != "numba":
         pytest.skip("Number of threads only matters for the ``numba`` backend.")
 
@@ -52,10 +56,23 @@ def test_random_gaussian_matrix_seed(backend, nthreads):
 def test_random_quantum_channel_bcsz_seed(backend, nthreads):
     channels = [
         backend.to_numpy(
-            random_quantum_channel(4, measure="bcsz", rank=2, seed=7, backend=backend)
+            random_quantum_channel(
+                4,
+                measure="bcsz",
+                rank=2,
+                representation="choi",
+                seed=7,
+                backend=backend,
+            )
         )
         for _ in range(3)
     ]
 
     for channel in channels[1:]:
         np.testing.assert_allclose(channel, channels[0])
+
+    # ``assert_allclose`` treats NaNs as equal, hence the channel is also checked to be
+    # valid: finite and trace-preserving (partial trace over the output is the identity)
+    assert np.all(np.isfinite(channels[0]))
+    traced = np.einsum("ijik->jk", channels[0].reshape(4, 4, 4, 4))
+    np.testing.assert_allclose(traced, np.eye(4), atol=1e-8)
