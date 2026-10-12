@@ -37,42 +37,36 @@ def test_random_density_matrix_bures_purity(backend):
     for seed in range(nsamples):
         backend.set_seed(seed)
         state = backend.qinfo._random_density_matrix_bures(2, 2, 0.0, 1.0)
-        state = backend.to_numpy(state)
-        purities.append(np.real(np.trace(state @ state)))
+        purities.append(backend.real(backend.trace(state @ state)))
 
-    np.testing.assert_allclose(np.mean(purities), 7 / 8, atol=2e-2)
+    backend.assert_allclose(backend.mean(purities), 7 / 8, atol=2e-2)
 
 
 def test_random_gaussian_matrix_seed(backend, nthreads):
-    matrices = [
-        backend.to_numpy(random_gaussian_matrix(8, 3, seed=7, backend=backend))
-        for _ in range(3)
-    ]
+    matrices = [random_gaussian_matrix(8, 3, seed=7, backend=backend) for _ in range(3)]
 
     for matrix in matrices[1:]:
-        np.testing.assert_allclose(matrix, matrices[0])
+        backend.assert_allclose(matrix, matrices[0])
 
 
 def test_random_quantum_channel_bcsz_seed(backend, nthreads):
     channels = [
-        backend.to_numpy(
-            random_quantum_channel(
-                4,
-                measure="bcsz",
-                rank=2,
-                representation="choi",
-                seed=7,
-                backend=backend,
-            )
+        random_quantum_channel(
+            4,
+            measure="bcsz",
+            rank=2,
+            representation="choi",
+            seed=7,
+            backend=backend,
         )
         for _ in range(3)
     ]
 
     for channel in channels[1:]:
-        np.testing.assert_allclose(channel, channels[0])
+        backend.assert_allclose(channel, channels[0])
 
     # ``assert_allclose`` treats NaNs as equal, hence the channel is also checked to be
     # valid: finite and trace-preserving (partial trace over the output is the identity)
     assert np.all(np.isfinite(channels[0]))
-    traced = np.einsum("ijik->jk", channels[0].reshape(4, 4, 4, 4))
-    np.testing.assert_allclose(traced, np.eye(4), atol=1e-8)
+    traced = backend.einsum("ijik->jk", backend.reshape(channels[0], (4, 4, 4, 4)))
+    backend.assert_allclose(traced, backend.identity(4), atol=1e-8)
