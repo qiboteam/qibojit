@@ -11,7 +11,14 @@ from qibo.backends import Backend, NumpyMatrices
 from qibo.config import SHOT_METROPOLIS_THRESHOLD, raise_error
 from qibo.gates.abstract import Gate, ParametrizedGate
 from qibo.gates.special import FusedGate
-from scipy.linalg import block_diag, expm, fractional_matrix_power, logm
+from scipy.linalg import (
+    block_diag,
+    cossin,
+    expm,
+    fractional_matrix_power,
+    logm,
+    schur,
+)
 from scipy.sparse import coo_matrix, csr_matrix
 from scipy.sparse import eye as eye_sparse
 from scipy.sparse import issparse
@@ -234,6 +241,22 @@ class NumbaBackend(Backend):
         """
         return coo_matrix(array, **kwargs)
 
+    def cosine_sin_decomposition(
+        self, array: ArrayLike, block_nrows: int, block_ncols: int
+    ) -> Tuple[ArrayLike, ArrayLike, ArrayLike]:
+        """Calculate the Cosine-Sine Decomposition of a unitary ``array``.
+
+        Args:
+            array (ArrayLike): unitary matrix to be decomposed.
+            block_nrows (int): number of rows of the upper left block of ``array``.
+            block_ncols (int): number of columns of the upper left block of ``array``.
+
+        Returns:
+            Tuple[ArrayLike, ArrayLike, ArrayLike]: Block-diagonal left unitary,
+            cosine-sine matrix, and block-diagonal right unitary, in that order.
+        """
+        return cossin(array, p=block_nrows, q=block_ncols)
+
     def csr_matrix(self, array: ArrayLike, **kwargs) -> ArrayLike:  # pragma: no cover
         """Return the sparse version of ``array`` in compressed sparse row format.
 
@@ -319,6 +342,26 @@ class NumbaBackend(Backend):
             ArrayLike: Roots of the polynomial.
         """
         return polyroots(self.engine.flip(array), **kwargs)
+
+    def schur(self, array: ArrayLike, **kwargs) -> Tuple[ArrayLike, ArrayLike]:
+        """Compute the Schur decomposition of a square ``array``.
+
+        The Schur decomposition of a matrix :math:`A` is :math:`A = Z \\, T \\, Z^{\\dagger}`,
+        where :math:`Z` is unitary and :math:`T` is upper triangular, if the complex form
+        is requested. If :math:`A` is normal, which is the case of unitary matrices,
+        :math:`T` is diagonal.
+
+        Args:
+            array (ArrayLike): square input array.
+            kwargs (optional): additional options for this function, such as
+                ``output="complex"`` to obtain the complex Schur form for real ``array``.
+                For more details, see the corresponding engine's documentation.
+
+        Returns:
+            Tuple[ArrayLike, ArrayLike]: Schur form :math:`T` and unitary matrix
+            :math:`Z`, in that order.
+        """
+        return schur(array, **kwargs)
 
     ########################################################################################
     ######## Methods related to linear algebra operations                           ########
