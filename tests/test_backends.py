@@ -141,6 +141,55 @@ def test_backend_poly_matrix(backend, size):
     )
 
 
+@pytest.mark.parametrize("sizes", [(4, 2, 2), (8, 4, 4), (8, 3, 5)])
+def test_backend_cosine_sin_decomposition(backend, sizes):
+    size, nrows, ncols = sizes
+    backend.set_seed(10)
+    matrix = _random_complex((size, size), backend)
+    unitary, _ = np.linalg.qr(backend.to_numpy(matrix))
+    unitary = backend.cast(unitary, dtype=unitary.dtype)
+
+    left, cosine_sine, right = backend.cosine_sin_decomposition(unitary, nrows, ncols)
+
+    backend.assert_allclose(left @ cosine_sine @ right, unitary, atol=1e-8)
+    backend.assert_allclose(
+        left @ backend.conj(left).T, backend.identity(size), atol=1e-8
+    )
+    backend.assert_allclose(
+        right @ backend.conj(right).T, backend.identity(size), atol=1e-8
+    )
+
+
+@pytest.mark.parametrize("output", ["real", "complex"])
+@pytest.mark.parametrize("size", [2, 4, 8])
+def test_backend_schur(backend, size, output):
+    backend.set_seed(10)
+    matrix = _random_complex((size, size), backend)
+    if output == "real":
+        matrix = backend.real(matrix)
+
+    triangular, unitary = backend.schur(matrix, output=output)
+
+    backend.assert_allclose(
+        unitary @ triangular @ backend.conj(unitary).T, matrix, atol=1e-8
+    )
+    lower = np.tril(backend.to_numpy(triangular), k=-1)
+    if output == "complex":
+        backend.assert_allclose(lower, np.zeros_like(lower), atol=1e-8)
+
+
+def test_backend_schur_normal(backend):
+    backend.set_seed(10)
+    matrix = _random_complex((4, 4), backend)
+    unitary, _ = np.linalg.qr(backend.to_numpy(matrix))
+    unitary = backend.cast(unitary, dtype=unitary.dtype)
+
+    triangular, _ = backend.schur(unitary, output="complex")
+
+    triangular = backend.to_numpy(triangular)
+    backend.assert_allclose(triangular, np.diag(np.diag(triangular)), atol=1e-8)
+
+
 @pytest.mark.parametrize("degree", [1, 2, 5])
 def test_backend_poly_roots(backend, degree):
     backend.set_seed(10)
