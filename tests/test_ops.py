@@ -214,8 +214,8 @@ def test_swap_pieces(backend, nqubits, qlocal, qglobal, dtype):
 
     transpose_order = [
         qglobal,
-        *list(range(qglobal)),
-        *list(range(qglobal + 1, nqubits)),
+        *range(qglobal),
+        *range(qglobal + 1, nqubits),
     ]
 
     gate = gates.SWAP(qglobal, qlocal)

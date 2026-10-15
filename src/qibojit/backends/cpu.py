@@ -437,7 +437,7 @@ class NumbaBackend(Backend):
         self,
         channel: "Channel",
         state: ArrayLike,
-        nqubits: int,  # type: ignore
+        nqubits: int,
     ) -> ArrayLike:
         density_matrix = bool(len(state.shape) == 2)
 
@@ -481,7 +481,7 @@ class NumbaBackend(Backend):
         self,
         channel: "Channel",
         state: ArrayLike,
-        nqubits: int,  # type: ignore
+        nqubits: int,
     ) -> ArrayLike:
         state = self.cast(state, dtype=state.dtype)
         if not channel._all_unitary_operators:
