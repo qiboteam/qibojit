@@ -30,9 +30,9 @@ def main(
         if os.path.isfile(filename):
             with open(filename) as file:
                 logs = json.load(file)
-            print("Extending existing logs from {}.".format(filename))
+            print(f"Extending existing logs from {filename}.")
         else:
-            print("Creating new logs in {}.".format(filename))
+            print(f"Creating new logs in {filename}.")
             logs = []
     else:
         logs = []
@@ -66,7 +66,7 @@ def main(
 
     controls = [int(q) for q in controls.split(",") if q]
     start_time = time.time()
-    args = getattr(backend, "{}_args".format(method))(state, nqubits, controls)
+    args = getattr(backend, f"{method}_args")(state, nqubits, controls)
     logs[-1]["prepare_time"] = time.time() - start_time
     if method == "measure_frequencies":
         args.append(nshots)
@@ -101,7 +101,7 @@ def main(
     print()
 
     for k, v in logs[-1].items():
-        print("{}: {}".format(k, v))
+        print(f"{k}: {v}")
     print()
 
     if filename is not None:
