@@ -273,7 +273,7 @@ def SX(symplectic_matrix, q, nqubits):
     return symplectic_matrix
 
 
-apply_SDG = """  # noqa: N816
+apply_SDG = """
 __device__ void _apply_SDG(unsigned char* symplectic_matrix, const int& q, const int& qz, const int& nrows, const int& ncolumns) {
     const int tid = blockIdx.x * blockDim.x + threadIdx.x;
     const int ntid = gridDim.x * blockDim.x;
@@ -297,7 +297,7 @@ def SDG(symplectic_matrix, q, nqubits):
     return symplectic_matrix
 
 
-apply_SXDG = """  # noqa: N816
+apply_SXDG = """
 __device__ void _apply_SXDG(unsigned char* symplectic_matrix, const int& q, const int& qz, const int& nrows, const int& ncolumns) {
     const int tid = blockIdx.x * blockDim.x + threadIdx.x;
     const int ntid = gridDim.x * blockDim.x;
@@ -320,7 +320,7 @@ def SXDG(symplectic_matrix, q, nqubits):
     return symplectic_matrix
 
 
-apply_RY_pi = """  # noqa: N816
+apply_RY_pi = """
 __device__ void _apply_RY_pi(unsigned char* symplectic_matrix, const int& q, const int& qz, const int& nrows, const int& ncolumns) {
     const int tid = blockIdx.x * blockDim.x + threadIdx.x;
     const int ntid = gridDim.x * blockDim.x;
@@ -346,7 +346,7 @@ def RY_pi(symplectic_matrix, q, nqubits):
     return symplectic_matrix
 
 
-apply_RY_3pi_2 = """  # noqa: N816
+apply_RY_3pi_2 = """
 __device__ void _apply_RY_3pi_2(unsigned char* symplectic_matrix, const int& q, const int& qz, const int& nrows, const int& ncolumns) {
     const int tid = blockIdx.x * blockDim.x + threadIdx.x;
     const int ntid = gridDim.x * blockDim.x;
@@ -374,7 +374,7 @@ def RY_3pi_2(symplectic_matrix, q, nqubits):
     return symplectic_matrix
 
 
-apply_SWAP = """  # noqa: N816
+apply_SWAP = """
 __device__ void _apply_SWAP(unsigned char* symplectic_matrix, const int& control_q, const int& target_q, const int& cqz, const int& tqz, const int& nrows, const int& ncolumns) {
     const int tid = blockIdx.x * blockDim.x + threadIdx.x;
     const int ntid = gridDim.x * blockDim.x;
@@ -426,7 +426,7 @@ def SWAP(symplectic_matrix, control_q, target_q, nqubits):
     return symplectic_matrix
 
 
-apply_iSWAP = """  # noqa: N816
+apply_iSWAP = """
 __device__ void _apply_iSWAP(unsigned char* symplectic_matrix, const int& control_q, const int& target_q, const int& cqz, const int& tqz, const int& nrows, const int& ncolumns) {
     const int tid = blockIdx.x * blockDim.x + threadIdx.x;
     const int ntid = gridDim.x * blockDim.x;
@@ -502,7 +502,7 @@ def iSWAP(symplectic_matrix, control_q, target_q, nqubits):
     return symplectic_matrix
 
 
-apply_CY = """  # noqa: N816
+apply_CY = """
 __device__ void _apply_CY(unsigned char* symplectic_matrix, const int& control_q, const int& target_q, const int& cqz, const int& tqz, const int& nrows, const int& ncolumns) {
     const int tid = blockIdx.x * blockDim.x + threadIdx.x;
     const int ntid = gridDim.x * blockDim.x;
