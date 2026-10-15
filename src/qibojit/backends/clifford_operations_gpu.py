@@ -1,4 +1,3 @@
-# ruff: noqa: N802, N816
 """Set of custom CuPy operations for the Clifford backend."""
 
 from functools import reduce

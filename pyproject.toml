@@ -64,9 +64,9 @@ line-length = 88
 select = ["E", "W", "F", "I", "N", "UP", "RUF"]
 ignore = ["E501"]
 
-# Gate names (e.g. `CRX`, `CNOT`) must match qibo's public API, and the
-# quantum_info helpers use conventional math names (e.g. `U`, `V`, `A`).
 [tool.ruff.lint.per-file-ignores]
+"src/qibojit/backends/clifford_operations_cpu.py" = ["N802"]
+"src/qibojit/backends/clifford_operations_gpu.py" = ["N802", "N816"]
 "src/qibojit/backends/matrices.py" = ["N802", "E743"]
 "src/qibojit/custom_operators/quantum_info.py" = ["N803", "N806", "E741"]
 
