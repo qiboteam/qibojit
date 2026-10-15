@@ -3,8 +3,8 @@
 
 from functools import reduce
 
-import cupy as cp  # pylint: disable=E0401
-import cupyx.scipy.sparse as cp_sparse  # pylint: disable=import-error
+import cupy as cp
+import cupyx.scipy.sparse as cp_sparse
 import numpy
 from qibo.backends._clifford_operations import (
     _dim,

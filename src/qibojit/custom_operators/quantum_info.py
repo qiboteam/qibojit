@@ -1,5 +1,3 @@
-# pylint: disable-all
-
 import qibo.quantum_info._quantum_info as qinfo
 from numba import njit, prange
 from numba.np.unsafe.ndarray import to_fixed_tuple
@@ -35,7 +33,7 @@ def _cartesian_product(arrays, n):
         (num_elements, n, arrays[0].shape[0], arrays[0].shape[1]), dtype=arrays[0].dtype
     )
 
-    for i in prange(num_elements):  # pylint: disable=not-an-iterable
+    for i in prange(num_elements):
         for j in range(n - 1, -1, -1):  # Iterate right-to-left for lexicographic order
             idx = (i // (num_arrays ** (n - 1 - j))) % num_arrays
             result[i, j] = arrays[idx]

@@ -46,12 +46,12 @@ class NumbaBackend(Backend):
     def __init__(self):
         super().__init__()
 
-        import numba  # pylint: disable=import-outside-toplevel
-        import psutil  # pylint: disable=import-outside-toplevel
+        import numba
+        import psutil
 
         # avoiding circular imports
-        from qibojit import __version__ as qibojit_version  # pylint: disable=C0415
-        from qibojit.custom_operators import (  # pylint: disable=import-outside-toplevel
+        from qibojit import __version__ as qibojit_version
+        from qibojit.custom_operators import (
             gates,
             ops,
         )
@@ -191,7 +191,7 @@ class NumbaBackend(Backend):
         Args:
             nthreads (int): Number of threads.
         """
-        import numba  # pylint: disable=import-outside-toplevel
+        import numba
 
         numba.set_num_threads(nthreads)
         self.nthreads = nthreads
@@ -480,14 +480,14 @@ class NumbaBackend(Backend):
         nqubits: int,  # type: ignore
     ) -> ArrayLike:
         state = self.cast(state, dtype=state.dtype)
-        if not channel._all_unitary_operators:  # pylint: disable=protected-access
+        if not channel._all_unitary_operators:
             state_copy = self.cast(state, copy=True)
         new_state = (1 - channel.coefficient_sum) * state
         for coeff, gate in zip(channel.coefficients, channel.gates):
             state = self.apply_gate(gate, state, nqubits)
             new_state += coeff * state
             # reset the state
-            if not channel._all_unitary_operators:  # pylint: disable=protected-access
+            if not channel._all_unitary_operators:
                 state = self.cast(state_copy, copy=True)
             else:
                 state = self.apply_gate(gate, state, nqubits, inverse=True)
@@ -496,7 +496,7 @@ class NumbaBackend(Backend):
     def _apply_fanout_gate(
         self, gate: Gate, state: ArrayLike, nqubits: int
     ) -> ArrayLike:
-        from qibo import gates  # pylint: disable=import-outside-toplevel
+        from qibo import gates
 
         control, targets = gate.control_qubits[0], gate.target_qubits
 

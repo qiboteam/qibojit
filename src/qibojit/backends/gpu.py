@@ -49,9 +49,9 @@ class CupyBackend(Backend):  # pragma: no cover
     def __init__(self):
         super().__init__()
 
-        import cupy as cp  # pylint: disable=import-error,import-outside-toplevel
-        import cupy_backends  # pylint: disable=import-error,import-outside-toplevel
-        import cupyx.scipy.sparse as cp_sparse  # pylint: disable=import-error,import-outside-toplevel
+        import cupy as cp
+        import cupy_backends
+        import cupyx.scipy.sparse as cp_sparse
 
         self.engine = cp
         self.np_sparse = sparse
@@ -216,7 +216,7 @@ class CupyBackend(Backend):  # pragma: no cover
         Args:
             nthreads (int): Number of threads.
         """
-        import numba  # pylint: disable=import-outside-toplevel
+        import numba
 
         numba.set_num_threads(nthreads)
         self.nthreads = nthreads
@@ -291,7 +291,7 @@ class CupyBackend(Backend):  # pragma: no cover
         Returns:
             ArrayLike: Array with ``arrays`` on the diagonal of the last two dimensions.
         """
-        from cupyx.scipy.linalg import (  # pylint: disable=C0415,E0401
+        from cupyx.scipy.linalg import (
             block_diag,
         )
 
@@ -397,7 +397,7 @@ class CupyBackend(Backend):  # pragma: no cover
             Tuple[ArrayLike, ArrayLike]: Tuple with, respectively, array of eigenvalues and
             array of column-stacked eigenvectors.
         """
-        from cupyx.scipy.sparse.linalg import eigsh  # pylint: disable=C0415,E0401
+        from cupyx.scipy.sparse.linalg import eigsh
 
         return eigsh(array, **kwargs)
 
@@ -438,7 +438,7 @@ class CupyBackend(Backend):  # pragma: no cover
             ArrayLike: The resulting matrix exponential.
         """
         if self.is_sparse(array):
-            from scipy.sparse.linalg import (  # pylint: disable=import-outside-toplevel
+            from scipy.sparse.linalg import (
                 expm,
             )
 
@@ -452,7 +452,7 @@ class CupyBackend(Backend):  # pragma: no cover
                 # unlike ``self.to_numpy``, which densifies sparse arrays.
                 array = array.get()
         else:
-            from cupyx.scipy.linalg import (  # pylint: disable=C0415,E0401
+            from cupyx.scipy.linalg import (
                 expm,
             )
 
@@ -695,7 +695,7 @@ class CupyBackend(Backend):  # pragma: no cover
                     precision_singularity,
                 )
 
-        from scipy.linalg import fractional_matrix_power  # pylint: disable=C0415
+        from scipy.linalg import fractional_matrix_power
 
         log.warning(
             "Falling back to CPU due to lack of native ``linalg.fractional_matrix_power``"
@@ -802,7 +802,7 @@ class CupyBackend(Backend):  # pragma: no cover
         initial_state: ArrayLike | None = None,
         nshots: int = 1000,
     ) -> CircuitResult | MeasurementOutcomes | QuantumState:
-        import joblib  # pylint: disable=import-outside-toplevel
+        import joblib
 
         if not circuit.queues.queues:
             circuit.queues.set(circuit.queue)
@@ -869,25 +869,23 @@ class CupyBackend(Backend):  # pragma: no cover
                 # here we necessarily have `density_matrix=True`, otherwise
                 # execute_circuit_repeated would have been called
                 if circuit.measurements:
-                    circuit._final_state = CircuitResult(  # pylint: disable=W0212
+                    circuit._final_state = CircuitResult(
                         state, circuit.measurements, self, nshots=nshots
                     )
-                    return circuit._final_state  # pylint: disable=W0212
+                    return circuit._final_state
 
-                circuit._final_state = QuantumState(  # pylint: disable=W0212
-                    state, self
-                )
-                return circuit._final_state  # pylint: disable=W0212
+                circuit._final_state = QuantumState(state, self)
+                return circuit._final_state
 
             if circuit.measurements:
-                circuit._final_state = CircuitResult(  # pylint: disable=W0212
+                circuit._final_state = CircuitResult(
                     state, circuit.measurements, self, nshots=nshots
                 )
-                return circuit._final_state  # pylint: disable=W0212
+                return circuit._final_state
 
-            circuit._final_state = QuantumState(state, self)  # pylint: disable=W0212
+            circuit._final_state = QuantumState(state, self)
 
-            return circuit._final_state  # pylint: disable=W0212
+            return circuit._final_state
 
         except self.oom_error:
             raise_error(
@@ -954,14 +952,14 @@ class CupyBackend(Backend):  # pragma: no cover
         nqubits: int,  # type: ignore
     ) -> ArrayLike:
         state = self.cast(state, dtype=state.dtype)
-        if not channel._all_unitary_operators:  # pylint: disable=protected-access
+        if not channel._all_unitary_operators:
             state_copy = self.cast(state, copy=True, dtype=state.dtype)
         new_state = (1 - channel.coefficient_sum) * state
         for coeff, gate in zip(channel.coefficients, channel.gates):
             state = self.apply_gate(gate, state, nqubits)
             new_state += coeff * state
             # reset the state
-            if not channel._all_unitary_operators:  # pylint: disable=protected-access
+            if not channel._all_unitary_operators:
                 state = self.cast(state_copy, copy=True, dtype=state_copy.dtype)
             else:
                 state = self.apply_gate(gate, state, nqubits, inverse=True)
@@ -970,7 +968,7 @@ class CupyBackend(Backend):  # pragma: no cover
     def _apply_fanout_gate(
         self, gate: Gate, state: ArrayLike, nqubits: int
     ) -> ArrayLike:
-        from qibo import gates  # pylint: disable=import-outside-toplevel
+        from qibo import gates
 
         control, targets = gate.control_qubits[0], gate.target_qubits
 
@@ -1243,13 +1241,13 @@ class CuQuantumBackend(CupyBackend):  # pragma: no cover
 
     def __init__(self):
         super().__init__()
-        import cuquantum  # pylint: disable=import-error,import-outside-toplevel
+        import cuquantum
 
         cuquantum_version = cuquantum.__version__.split(".")[0]
         if int(cuquantum_version) >= 25:
-            from cuquantum.bindings import custatevec  # pylint: disable=E0401,C0415
+            from cuquantum.bindings import custatevec
         else:
-            from cuquantum import custatevec  # pylint: disable=E0611,E0401,C0415
+            from cuquantum import custatevec
 
         self.cuquantum = cuquantum
         self.cusv = custatevec
