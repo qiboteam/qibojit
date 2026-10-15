@@ -2,7 +2,6 @@
 
 import sys
 from collections import Counter
-from typing import List, Optional, Tuple, Union
 
 import numpy as np
 from numpy.polynomial.polynomial import polyfromroots, polyroots
@@ -19,9 +18,8 @@ from scipy.linalg import (
     logm,
     schur,
 )
-from scipy.sparse import coo_matrix, csr_matrix
+from scipy.sparse import coo_matrix, csr_matrix, issparse
 from scipy.sparse import eye as eye_sparse
-from scipy.sparse import issparse
 from scipy.sparse.linalg import eigsh
 from scipy.sparse.linalg import expm as expm_sparse
 
@@ -102,7 +100,7 @@ class NumbaBackend(Backend):
                 setattr(self.qinfo, method, getattr(QINFO, method))
 
     def cast(
-        self, array: ArrayLike, dtype: Optional[DTypeLike] = None, copy: bool = False
+        self, array: ArrayLike, dtype: DTypeLike | None = None, copy: bool = False
     ) -> ArrayLike:
         if dtype is None:
             dtype = self.dtype
@@ -176,7 +174,7 @@ class NumbaBackend(Backend):
             if self.custom_matrices:
                 self.custom_matrices = CustomMatrices(self.dtype)
 
-    def set_seed(self, seed: Union[int, None]) -> None:
+    def set_seed(self, seed: int | None) -> None:
         """Set the seed of the random number generator. Works in-place.
 
         Args:
@@ -243,7 +241,7 @@ class NumbaBackend(Backend):
 
     def cosine_sin_decomposition(
         self, array: ArrayLike, block_nrows: int, block_ncols: int
-    ) -> Tuple[ArrayLike, ArrayLike, ArrayLike]:
+    ) -> tuple[ArrayLike, ArrayLike, ArrayLike]:
         """Calculate the Cosine-Sine Decomposition of a unitary ``array``.
 
         Args:
@@ -270,7 +268,7 @@ class NumbaBackend(Backend):
         """
         return csr_matrix(array, **kwargs)
 
-    def eigsh(self, array: ArrayLike, **kwargs) -> Tuple[ArrayLike, ArrayLike]:
+    def eigsh(self, array: ArrayLike, **kwargs) -> tuple[ArrayLike, ArrayLike]:
         """Compute the eigenvalues and right eigenvectors of a two-dimensional sparse ``array``
         that is assumed to be Hermitian.
 
@@ -343,7 +341,7 @@ class NumbaBackend(Backend):
         """
         return polyroots(self.engine.flip(array), **kwargs)
 
-    def schur(self, array: ArrayLike, **kwargs) -> Tuple[ArrayLike, ArrayLike]:
+    def schur(self, array: ArrayLike, **kwargs) -> tuple[ArrayLike, ArrayLike]:
         """Compute the Schur decomposition of a square ``array``.
 
         The Schur decomposition of a matrix :math:`A` is :math:`A = Z \\, T \\, Z^{\\dagger}`,
@@ -370,9 +368,9 @@ class NumbaBackend(Backend):
     def matrix_power(
         self,
         matrix: ArrayLike,
-        power: Union[float, int],
+        power: float | int,
         precision_singularity: float = 1e-14,
-        dtype: Optional[DTypeLike] = None,
+        dtype: DTypeLike | None = None,
     ) -> ArrayLike:  # pragma: no cover
         """Calculate the (fractional) ``power`` :math:`\\alpha` of ``matrix`` :math:`A`,
         i.e. :math:`A^{\\alpha}`.
@@ -410,7 +408,7 @@ class NumbaBackend(Backend):
         self,
         nqubits: int,
         density_matrix: bool = False,
-        dtype: Optional[DTypeLike] = None,
+        dtype: DTypeLike | None = None,
     ) -> ArrayLike:
         if dtype is None:
             dtype = self.dtype
@@ -432,7 +430,10 @@ class NumbaBackend(Backend):
     ########################################################################################
 
     def apply_channel(
-        self, channel: "Channel", state: ArrayLike, nqubits: int  # type: ignore
+        self,
+        channel: "Channel",  # noqa: F821
+        state: ArrayLike,
+        nqubits: int,  # type: ignore
     ) -> ArrayLike:
         density_matrix = bool(len(state.shape) == 2)
 
@@ -460,7 +461,7 @@ class NumbaBackend(Backend):
             return super().sample_frequencies(probabilities, nshots)
 
         seed = self.random_integers(0, int(1e8), dtype=self.int64)[0]
-        nqubits = int(self.log2(tuple(probabilities.shape)[0]))
+        nqubits = int(self.log2(next(iter(probabilities.shape))))
         frequencies = self.zeros(2**nqubits, dtype=self.int64)
         # always fall back to numba CPU backend because for ops not implemented on GPU
         frequencies = self.measure_frequencies_op(
@@ -473,7 +474,10 @@ class NumbaBackend(Backend):
     ########################################################################################
 
     def _apply_channel_density_matrix(
-        self, channel: "Channel", state: ArrayLike, nqubits: int  # type: ignore
+        self,
+        channel: "Channel",  # noqa: F821
+        state: ArrayLike,
+        nqubits: int,  # type: ignore
     ) -> ArrayLike:
         state = self.cast(state, dtype=state.dtype)
         if not channel._all_unitary_operators:  # pylint: disable=protected-access
@@ -616,7 +620,7 @@ class NumbaBackend(Backend):
     def _collapse_statevector(
         self,
         state: ArrayLike,
-        qubits: Union[Tuple[int, ...], List[int]],
+        qubits: tuple[int, ...] | list[int],
         shot: int,
         nqubits: int,
         normalize: bool = True,
@@ -629,7 +633,9 @@ class NumbaBackend(Backend):
         shot = (
             int(shot.flat[0])
             if hasattr(shot, "shape")
-            else int(shot[0]) if hasattr(shot, "__len__") else int(shot)
+            else int(shot[0])
+            if hasattr(shot, "__len__")
+            else int(shot)
         )
 
         if normalize:
@@ -644,7 +650,7 @@ class NumbaBackend(Backend):
         return self.cast(sorted(qubits), dtype=self.int32)
 
     def _identity_sparse(
-        self, dims: int, dtype: Optional[DTypeLike] = None, **kwargs
+        self, dims: int, dtype: DTypeLike | None = None, **kwargs
     ) -> ArrayLike:  # pragma: no cover
         if dtype is None:
             dtype = self.dtype
@@ -657,9 +663,9 @@ class NumbaBackend(Backend):
         self,
         state: ArrayLike,
         nqubits: int,
-        targets: Union[List[int], Tuple[int, ...]],
+        targets: list[int] | tuple[int, ...],
         gate: Gate,
-        qubits: Union[List[int], Tuple[int, ...]],
+        qubits: list[int] | tuple[int, ...],
     ) -> ArrayLike:
         if qubits is None:
             qubits = self.cast(

@@ -212,9 +212,11 @@ def test_swap_pieces(backend, nqubits, qlocal, qglobal, dtype):
     while qlocal == qglobal:
         qlocal = np.random.randint(0, nqubits)
 
-    transpose_order = (
-        [qglobal] + list(range(qglobal)) + list(range(qglobal + 1, nqubits))
-    )
+    transpose_order = [
+        qglobal,
+        *list(range(qglobal)),
+        *list(range(qglobal + 1, nqubits)),
+    ]
 
     gate = gates.SWAP(qglobal, qlocal)
     target_state = backend.apply_gate(gate, target_state, nqubits)

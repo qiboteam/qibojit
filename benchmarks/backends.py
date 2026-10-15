@@ -103,7 +103,7 @@ class TensorflowBackend(AbstractBackend):
 
 
 class Backends(dict):
-    _implemented = {
+    _implemented = {  # noqa: RUF012
         "numba": NumbaBackend,
         "cupy": CupyBackend,
         "tensorflow": TensorflowBackend,
@@ -112,7 +112,7 @@ class Backends(dict):
     def get(self, name):
         if name not in self:
             if name not in self._implemented:
-                raise KeyError("Unknown backend {}.".format(name))
+                raise KeyError(f"Unknown backend {name}.")
             self[name] = self._implemented.get(name)()
         return super().get(name)
 

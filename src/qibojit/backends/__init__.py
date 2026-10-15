@@ -1,9 +1,7 @@
-from typing import Union
-
 from qibojit.backends.cpu import NumbaBackend
 from qibojit.backends.gpu import CupyBackend, CuQuantumBackend
 
-QibojitBackend = Union[NumbaBackend, CupyBackend, CuQuantumBackend]
+QibojitBackend = NumbaBackend | CupyBackend | CuQuantumBackend
 
 PLATFORMS = ("numba", "cupy", "cuquantum")
 
@@ -12,7 +10,7 @@ class MetaBackend:
     """Meta-backend class which takes care of loading the qibojit backends."""
 
     @staticmethod
-    def load(platform: str = None) -> QibojitBackend:
+    def load(platform: str | None = None) -> QibojitBackend:
         """Loads the backend.
 
         Args:
@@ -42,7 +40,7 @@ class MetaBackend:
             try:
                 MetaBackend.load(platform=platform)
                 available = True
-            except:
+            except Exception:
                 available = False
             available_backends[platform] = available
         return available_backends

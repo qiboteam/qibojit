@@ -1,3 +1,4 @@
+# ruff: noqa: N802
 """Set of custom Numba operations for the Clifford backend."""
 
 import numpy as np
@@ -276,7 +277,7 @@ def _packbits(array, axis):
             byte_idx = i // 8
             bit_idx = 7 - (i % 8)
             out[j, byte_idx] |= array[j, i] << bit_idx
-    out = np.reshape(out, shape[:-1] + (packed_len,))
+    out = np.reshape(out, (*shape[:-1], packed_len))
     return np.swapaxes(out, axis, -1)
 
 

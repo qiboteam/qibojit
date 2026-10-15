@@ -89,7 +89,6 @@ def apply_z_kernel(state, gate, nstates, m):
 
 @njit(parallel=True, cache=True)
 def multicontrol_apply_z_kernel(state, gate, qubits, nstates, m):
-    tk = 1 << m
     for g in prange(nstates):  # pylint: disable=not-an-iterable
         i = multicontrol_index(g, qubits)
         state[i] *= -1
@@ -107,7 +106,6 @@ def apply_z_pow_kernel(state, gate, nstates, m):
 
 @njit(parallel=True, cache=True)
 def multicontrol_apply_z_pow_kernel(state, gate, qubits, nstates, m):
-    tk = 1 << m
     for g in prange(nstates):  # pylint: disable=not-an-iterable
         i = multicontrol_index(g, qubits)
         state[i] = gate * state[i]

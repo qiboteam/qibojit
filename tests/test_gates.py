@@ -445,7 +445,7 @@ def test_readout_error_channel(backend):
     d = 2**nqubits
 
     rho = random_density_matrix(d, seed=1, backend=backend)
-    P = random_stochastic_matrix(d, seed=1, backend=backend)
+    P = random_stochastic_matrix(d, seed=1, backend=backend)  # noqa: N806
 
     probability_sum = gates.ReadoutErrorChannel(0, P).apply(backend, rho, 1)
     probability_sum = np.diag(probability_sum).sum().real

@@ -1,8 +1,7 @@
 # pylint: disable-all
 
-import numba.types as nbt
 import qibo.quantum_info._quantum_info as qinfo
-from numba import njit, prange, void
+from numba import njit, prange
 from numba.np.unsafe.ndarray import to_fixed_tuple
 
 ENGINE = qinfo.ENGINE  # this should be numpy
@@ -210,17 +209,17 @@ def _pauli_to_comp_basis_sparse_column(
 
 @njit(cache=True)
 def _choi_to_kraus_preamble(choi_super_op):
-    U, coefficients, V = ENGINE.linalg.svd(choi_super_op)
-    U = U.T
+    U, coefficients, V = ENGINE.linalg.svd(choi_super_op)  # noqa: N806
+    U = U.T  # noqa: N806
     coefficients = ENGINE.sqrt(coefficients)
-    V = ENGINE.conj(V)
+    V = ENGINE.conj(V)  # noqa: N806
     coefficients = coefficients.reshape(U.shape[0], 1, 1)
     return U, V, coefficients
 
 
 @njit(cache=True)
 def _kraus_operators(kraus_left, kraus_right):
-    kraus_ops = ENGINE.empty((2,) + kraus_left.shape, dtype=kraus_left.dtype)
+    kraus_ops = ENGINE.empty((2, *kraus_left.shape), dtype=kraus_left.dtype)
     kraus_ops[0] = kraus_left
     kraus_ops[1] = kraus_right
     return kraus_ops
@@ -228,7 +227,7 @@ def _kraus_operators(kraus_left, kraus_right):
 
 @njit(cache=True)
 def _choi_to_kraus_row(choi_super_op):
-    U, V, coefficients = _choi_to_kraus_preamble(choi_super_op)
+    U, V, coefficients = _choi_to_kraus_preamble(choi_super_op)  # noqa: N806
     dim = int(ENGINE.sqrt(U.shape[-1]))
     kraus_left = coefficients * _unvectorization_row(U, dim)
     kraus_right = coefficients * _unvectorization_row(V, dim)
@@ -238,7 +237,7 @@ def _choi_to_kraus_row(choi_super_op):
 
 @njit(cache=True)
 def _choi_to_kraus_column(choi_super_op):
-    U, V, coefficients = _choi_to_kraus_preamble(choi_super_op)
+    U, V, coefficients = _choi_to_kraus_preamble(choi_super_op)  # noqa: N806
     dim = int(ENGINE.sqrt(U.shape[-1]))
     kraus_left = coefficients * _unvectorization_column(U, dim)
     kraus_right = coefficients * _unvectorization_column(V, dim)
@@ -304,15 +303,15 @@ def _random_hermitian_semidefinite(dims: int):
 @njit(cache=True)
 def _random_unitary_haar(dims: int):
     matrix = _random_gaussian_matrix(dims, dims, 0.0, 1.0)
-    Q, R = ENGINE.linalg.qr(matrix)
-    D = ENGINE.diag(R)
-    D = D / ENGINE.abs(D)
-    R = ENGINE.diag(D)
+    Q, R = ENGINE.linalg.qr(matrix)  # noqa: N806
+    D = ENGINE.diag(R)  # noqa: N806
+    D = D / ENGINE.abs(D)  # noqa: N806
+    R = ENGINE.diag(D)  # noqa: N806
     return ENGINE.ascontiguousarray(Q) @ R
 
 
 @njit(cache=True)
-def expm_qinfo(A):
+def expm_qinfo(A):  # noqa: N803
     """
     Matrix exponential using scaling & squaring
     with adaptive Padé approximants.
@@ -326,8 +325,8 @@ def expm_qinfo(A):
     """
     n = A.shape[0]
     dtype = A.dtype
-    I = ENGINE.eye(n, dtype=dtype)
-    A_L1 = ENGINE.linalg.norm(A, 1)
+    I = ENGINE.eye(n, dtype=dtype)  # noqa: N806, E741
+    A_L1 = ENGINE.linalg.norm(A, 1)  # noqa: N806
 
     # θ_m values from Higham (2005)
     theta = ENGINE.array(
@@ -398,31 +397,31 @@ def expm_qinfo(A):
     s = 0
     if A_L1 > theta_order:
         s = int(ENGINE.ceil(ENGINE.log2(A_L1 / theta_order)))
-    A_scaled = A / (2.0**s)
+    A_scaled = A / (2.0**s)  # noqa: N806
 
     # Matrix powers
-    A2 = A_scaled @ A_scaled
-    A4 = A2 @ A2
-    A6 = A4 @ A2
+    A2 = A_scaled @ A_scaled  # noqa: N806
+    A4 = A2 @ A2  # noqa: N806
+    A6 = A4 @ A2  # noqa: N806
 
     if order == 3:
-        U = A_scaled @ (b[3] * A2 + b[1] * I)
-        V = b[2] * A2 + b[0] * I
+        U = A_scaled @ (b[3] * A2 + b[1] * I)  # noqa: N806
+        V = b[2] * A2 + b[0] * I  # noqa: N806
     elif order == 5:
-        U = A_scaled @ (A2 @ (b[5] * A2 + b[3] * I) + b[1] * I)
-        V = A2 @ (b[4] * A2 + b[2] * I) + b[0] * I
+        U = A_scaled @ (A2 @ (b[5] * A2 + b[3] * I) + b[1] * I)  # noqa: N806
+        V = A2 @ (b[4] * A2 + b[2] * I) + b[0] * I  # noqa: N806
     elif order == 7:
-        U = A_scaled @ (A6 * b[7] + A4 * b[5] + A2 * b[3] + I * b[1])
-        V = A6 * b[6] + A4 * b[4] + A2 * b[2] + I * b[0]
+        U = A_scaled @ (A6 * b[7] + A4 * b[5] + A2 * b[3] + I * b[1])  # noqa: N806
+        V = A6 * b[6] + A4 * b[4] + A2 * b[2] + I * b[0]  # noqa: N806
     elif order == 9:
-        A8 = A4 @ A4
-        U = A_scaled @ (A8 * b[9] + A6 * b[7] + A4 * b[5] + A2 * b[3] + I * b[1])
-        V = A8 * b[8] + A6 * b[6] + A4 * b[4] + A2 * b[2] + I * b[0]
+        A8 = A4 @ A4  # noqa: N806
+        U = A_scaled @ (A8 * b[9] + A6 * b[7] + A4 * b[5] + A2 * b[3] + I * b[1])  # noqa: N806
+        V = A8 * b[8] + A6 * b[6] + A4 * b[4] + A2 * b[2] + I * b[0]  # noqa: N806
     else:  # order == 13
-        A8 = A4 @ A4
-        A10 = A8 @ A2
-        A12 = A6 @ A6
-        U = A_scaled @ (
+        A8 = A4 @ A4  # noqa: N806
+        A10 = A8 @ A2  # noqa: N806
+        A12 = A6 @ A6  # noqa: N806
+        U = A_scaled @ (  # noqa: N806
             A12 * b[13]
             + A10 * b[11]
             + A8 * b[9]
@@ -431,7 +430,7 @@ def expm_qinfo(A):
             + A2 * b[3]
             + I * b[1]
         )
-        V = (
+        V = (  # noqa: N806
             A12 * b[12]
             + A10 * b[10]
             + A8 * b[8]
@@ -442,19 +441,19 @@ def expm_qinfo(A):
         )
 
     # (V - U)^(-1) (V + U)
-    X = ENGINE.linalg.solve(V - U, V + U)
-    X = ENGINE.ascontiguousarray(X)
+    X = ENGINE.linalg.solve(V - U, V + U)  # noqa: N806
+    X = ENGINE.ascontiguousarray(X)  # noqa: N806
 
     # Undo scaling
     for _ in range(s):
-        X = X @ X
+        X = X @ X  # noqa: N806
 
     return X
 
 
 @njit(cache=True)
 def _random_unitary(dims: int):
-    H = _random_hermitian(dims)
+    H = _random_hermitian(dims)  # noqa: N806
     return expm_qinfo(-1.0j * H / 2)
 
 
@@ -490,7 +489,7 @@ def _sample_from_quantum_mallows_distribution(nqubits: int):
     indexes[idx_gt_exp] = 2 * exponents[idx_gt_exp] - indexes[idx_gt_exp] - 1
     permutations = ENGINE.empty(nqubits, dtype=ENGINE.int64)
     mask = ENGINE.ones(nqubits, dtype=ENGINE.bool)
-    for l, index in enumerate(indexes):
+    for l, index in enumerate(indexes):  # noqa: E741
         available = ENGINE.flatnonzero(mask)
         permutations[l] = available[index]
         mask[permutations[l]] = False
@@ -601,7 +600,7 @@ def _stinespring_to_kraus(stinespring, initial_state_env, dim: int, dim_env: int
         for j in prange(dim):
             tmp[i, j] = alphas @ stinespring[i, j]
     stinespring = tmp.reshape(dim, dim_env, dim + dim_env)
-    tmp = ENGINE.empty((2 * dim_env,) + stinespring.shape[:2], dtype=stinespring.dtype)
+    tmp = ENGINE.empty((2 * dim_env, *stinespring.shape[:2]), dtype=stinespring.dtype)
     tmp[:dim_env] = stinespring[:, :, :dim_env]
     tmp[dim_env:] = stinespring[:, :, dim_env:]
     kraus = ENGINE.empty((tmp.shape[0], initial_state_env.shape[0]), dtype=tmp.dtype)
