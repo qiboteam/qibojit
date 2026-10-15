@@ -11,9 +11,9 @@ jobs:
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
         python-version: ["3.11", "3.12", "3.13.5"]
-    uses: qiboteam/workflows/.github/workflows/rules-poetry.yml@v1
+    uses: qiboteam/workflows/.github/workflows/test.yml@uv
     with:
       os: ${{ matrix.os }}
       python-version: ${{ matrix.python-version }}
-      poetry-extras: --with test
+      uv-extras: "--no-dev --group test"
     secrets: inherit
