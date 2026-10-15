@@ -1,4 +1,3 @@
-# ruff: noqa: N802, E743
 from functools import cached_property
 
 import numpy as np

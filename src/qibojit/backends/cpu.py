@@ -2,6 +2,7 @@
 
 import sys
 from collections import Counter
+from typing import TYPE_CHECKING
 
 import numpy as np
 from numpy.polynomial.polynomial import polyfromroots, polyroots
@@ -25,6 +26,9 @@ from scipy.sparse.linalg import expm as expm_sparse
 
 from qibojit.backends.matrices import CustomMatrices
 from qibojit.custom_operators.quantum_info import QINFO
+
+if TYPE_CHECKING:
+    from qibo.gates import Channel
 
 GATE_OPS = {
     "X": "apply_x",
@@ -431,7 +435,7 @@ class NumbaBackend(Backend):
 
     def apply_channel(
         self,
-        channel: "Channel",  # noqa: F821
+        channel: "Channel",
         state: ArrayLike,
         nqubits: int,  # type: ignore
     ) -> ArrayLike:
@@ -475,7 +479,7 @@ class NumbaBackend(Backend):
 
     def _apply_channel_density_matrix(
         self,
-        channel: "Channel",  # noqa: F821
+        channel: "Channel",
         state: ArrayLike,
         nqubits: int,  # type: ignore
     ) -> ArrayLike:

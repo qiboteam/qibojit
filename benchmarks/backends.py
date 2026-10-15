@@ -1,3 +1,5 @@
+from typing import ClassVar
+
 from abstract import AbstractBackend
 
 
@@ -103,7 +105,7 @@ class TensorflowBackend(AbstractBackend):
 
 
 class Backends(dict):
-    _implemented = {  # noqa: RUF012
+    _implemented: ClassVar[dict] = {
         "numba": NumbaBackend,
         "cupy": CupyBackend,
         "tensorflow": TensorflowBackend,

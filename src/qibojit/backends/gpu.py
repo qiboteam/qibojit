@@ -1,6 +1,7 @@
 """Module defining the Cupy and CuQuantum backends."""
 
 from collections import Counter
+from typing import TYPE_CHECKING
 
 import numpy as np
 from numpy.typing import ArrayLike, DTypeLike
@@ -23,6 +24,9 @@ from qibojit.backends.matrices import (
 )
 from qibojit.custom_operators import raw_kernels
 from qibojit.custom_operators.ops import measure_frequencies
+
+if TYPE_CHECKING:
+    from qibo.gates import Channel
 
 GATE_OPS = {
     "X": "apply_x",
@@ -947,7 +951,7 @@ class CupyBackend(Backend):  # pragma: no cover
 
     def _apply_channel_density_matrix(
         self,
-        channel: "Channel",  # noqa: F821
+        channel: "Channel",
         state: ArrayLike,
         nqubits: int,  # type: ignore
     ) -> ArrayLike:

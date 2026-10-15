@@ -1,4 +1,3 @@
-# ruff: noqa: N803, N806, E741
 import qibo.quantum_info._quantum_info as qinfo
 from numba import njit, prange
 from numba.np.unsafe.ndarray import to_fixed_tuple
