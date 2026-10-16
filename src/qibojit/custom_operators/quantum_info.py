@@ -1,8 +1,5 @@
-# pylint: disable-all
-
-import numba.types as nbt
 import qibo.quantum_info._quantum_info as qinfo
-from numba import njit, prange, void
+from numba import njit, prange
 from numba.np.unsafe.ndarray import to_fixed_tuple
 
 ENGINE = qinfo.ENGINE  # this should be numpy
@@ -36,7 +33,7 @@ def _cartesian_product(arrays, n):
         (num_elements, n, arrays[0].shape[0], arrays[0].shape[1]), dtype=arrays[0].dtype
     )
 
-    for i in prange(num_elements):  # pylint: disable=not-an-iterable
+    for i in prange(num_elements):
         for j in range(n - 1, -1, -1):  # Iterate right-to-left for lexicographic order
             idx = (i // (num_arrays ** (n - 1 - j))) % num_arrays
             result[i, j] = arrays[idx]
@@ -220,7 +217,7 @@ def _choi_to_kraus_preamble(choi_super_op):
 
 @njit(cache=True)
 def _kraus_operators(kraus_left, kraus_right):
-    kraus_ops = ENGINE.empty((2,) + kraus_left.shape, dtype=kraus_left.dtype)
+    kraus_ops = ENGINE.empty((2, *kraus_left.shape), dtype=kraus_left.dtype)
     kraus_ops[0] = kraus_left
     kraus_ops[1] = kraus_right
     return kraus_ops
@@ -601,7 +598,7 @@ def _stinespring_to_kraus(stinespring, initial_state_env, dim: int, dim_env: int
         for j in prange(dim):
             tmp[i, j] = alphas @ stinespring[i, j]
     stinespring = tmp.reshape(dim, dim_env, dim + dim_env)
-    tmp = ENGINE.empty((2 * dim_env,) + stinespring.shape[:2], dtype=stinespring.dtype)
+    tmp = ENGINE.empty((2 * dim_env, *stinespring.shape[:2]), dtype=stinespring.dtype)
     tmp[:dim_env] = stinespring[:, :, :dim_env]
     tmp[dim_env:] = stinespring[:, :, dim_env:]
     kraus = ENGINE.empty((tmp.shape[0], initial_state_env.shape[0]), dtype=tmp.dtype)

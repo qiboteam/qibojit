@@ -13,7 +13,7 @@ def set_seed(seed):
 )
 def initial_state_vector(state):
     state[0] = 1
-    for i in prange(1, len(state)):  # pylint: disable=not-an-iterable
+    for i in prange(1, len(state)):
         state[i] = 0
     return state
 
@@ -23,8 +23,8 @@ def initial_state_vector(state):
     cache=True,
 )
 def initial_density_matrix(state):
-    for i in prange(len(state)):  # pylint: disable=not-an-iterable
-        for j in prange(len(state)):  # pylint: disable=not-an-iterable
+    for i in prange(len(state)):
+        for j in prange(len(state)):
             state[i, j] = 0
     state[0, 0] = 1
     return state
@@ -48,7 +48,7 @@ def collapse_state(state, qubits, result, nqubits):
     nstates = 1 << (nqubits - len(qubits))
     nsubstates = 1 << len(qubits)
 
-    for g in prange(nstates):  # pylint: disable=not-an-iterable
+    for g in prange(nstates):
         for h in range(result):
             state[collapse_index(g, h, qubits)] = 0
         for h in range(result + 1, nsubstates):
@@ -65,7 +65,7 @@ def collapse_state_normalized(state, qubits, result, nqubits):
     nsubstates = 1 << len(qubits)
 
     norms = 0
-    for g in prange(nstates):  # pylint: disable=not-an-iterable
+    for g in prange(nstates):
         for h in range(result):
             state[collapse_index(g, h, qubits)] = 0
         norms += np.abs(state[collapse_index(g, result, qubits)]) ** 2
@@ -73,7 +73,7 @@ def collapse_state_normalized(state, qubits, result, nqubits):
             state[collapse_index(g, h, qubits)] = 0
 
     norm = np.sqrt(norms)
-    for g in prange(nstates):  # pylint: disable=not-an-iterable
+    for g in prange(nstates):
         i = collapse_index(g, result, qubits)
         state[i] = state[i] / norm
     return state
@@ -93,7 +93,7 @@ def measure_frequencies(frequencies, probs, nshots, nqubits, seed, nthreads):
     thread_seed = [np.random.randint(0, int(1e8)) for _ in range(nthreads)]
 
     thread_frequencies = np.zeros(shape=(nthreads, nstates), dtype=frequencies.dtype)
-    for n in prange(nthreads):  # pylint: disable=not-an-iterable
+    for n in prange(nthreads):
         frequencies_private = thread_frequencies[n]
         np.random.seed(thread_seed[n])
         shot = probs.argmax()
@@ -115,7 +115,7 @@ def transpose_state(pieces, state, nqubits, order):
     npiece = nstates // ndevices
     qubit_exponents = [1 << (nqubits - x - 1) for x in order[::-1]]
 
-    for g in prange(nstates):  # pylint: disable=not-an-iterable
+    for g in prange(nstates):
         k = 0
         for q in range(nqubits):
             if (g >> q) % 2:
@@ -132,6 +132,6 @@ def swap_pieces(piece0, piece1, new_global, nlocal):
     m = nlocal - new_global - 1
     tk = 1 << m
     nstates = 1 << (nlocal - 1)
-    for g in prange(nstates):  # pylint: disable=not-an-iterable
+    for g in prange(nstates):
         i = ((g >> m) << (m + 1)) + (g & (tk - 1))
         piece0[i + tk], piece1[i] = piece1[i], piece0[i + tk]

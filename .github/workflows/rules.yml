@@ -15,5 +15,5 @@ jobs:
     with:
       os: ${{ matrix.os }}
       python-version: ${{ matrix.python-version }}
-      uv-extras: "--no-dev --group test"
+      uv-extras: "--no-dev --group test --group analysis"
     secrets: inherit
