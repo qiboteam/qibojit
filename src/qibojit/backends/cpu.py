@@ -613,6 +613,9 @@ class NumbaBackend(Backend):
                 phi = gate.init_kwargs["phi"]
                 return _matrix(gate.init_args[0], gate.init_args[1], theta, phi)
 
+            if name == "Multiplexor":
+                return _matrix(angles=gate.parameters[0], axis=gate.init_kwargs["axis"])
+
             return _matrix(*gate.parameters)
 
         if isinstance(gate, FusedGate):  # pragma: no cover
