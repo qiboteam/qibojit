@@ -674,7 +674,7 @@ test = [
 [package.metadata]
 requires-dist = [
     { name = "numba", specifier = ">=0.68.0,<0.69.0" },
-    { name = "numpy", specifier = ">=2.5.4,<3.0.0" },
+    { name = "numpy", specifier = ">=2.2.5,<3.0.0" },
     { name = "psutil", specifier = ">=5.9.5,<6.0.0" },
     { name = "qibo", git = "https://github.com/qiboteam/qibo.git?branch=uvupgrade" },
     { name = "scipy", specifier = ">=1.18.1,<2.0.0" },
