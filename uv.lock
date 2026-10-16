@@ -600,8 +600,8 @@ wheels = [
 
 [[package]]
 name = "qibo"
-version = "0.3.6"
-source = { registry = "https://pypi.org/simple" }
+version = "0.3.7"
+source = { git = "https://github.com/qiboteam/qibo.git?branch=uvupgrade#be4933c9c0f6207655e2930dddd500c4cd27596d" }
 dependencies = [
     { name = "cma" },
     { name = "joblib" },
@@ -612,10 +612,6 @@ dependencies = [
     { name = "scipy" },
     { name = "sympy" },
     { name = "tabulate" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/25/3c/02d7c039782f893c3725ab332ed5bb41fd1f724a930fc6f19ea02fc3a746/qibo-0.3.6.tar.gz", hash = "sha256:9ba22fb181fa8ba60b3c2a1ad10488beba2a74793b8816d9477b6700291baf28", size = 441189, upload-time = "2026-10-14T13:42:24.46Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/18/65/40d4507d03d4c10913da1c053d7b991da336cb4b03e228c16997f8abd6ef/qibo-0.3.6-py3-none-any.whl", hash = "sha256:fdcbafc2b821173d98f78f662dbcc861949bd398504ed5c9d20b787ccc8c36c8", size = 486958, upload-time = "2026-10-14T13:42:23.183Z" },
 ]
 
 [[package]]
@@ -643,7 +639,7 @@ test = [
 requires-dist = [
     { name = "numba", specifier = ">=0.68.0,<0.69.0" },
     { name = "psutil", specifier = ">=5.9.5,<6.0.0" },
-    { name = "qibo", specifier = ">=0.3.6,<0.4.0" },
+    { name = "qibo", git = "https://github.com/qiboteam/qibo.git?branch=uvupgrade" },
     { name = "scipy", specifier = ">=1.18.1,<2.0.0" },
 ]
 
