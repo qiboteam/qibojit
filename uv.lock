@@ -601,7 +601,7 @@ wheels = [
 [[package]]
 name = "qibo"
 version = "0.3.7"
-source = { git = "https://github.com/qiboteam/qibo.git?branch=uvupgrade#be4933c9c0f6207655e2930dddd500c4cd27596d" }
+source = { git = "https://github.com/qiboteam/qibo.git?branch=uvupgrade#e892345694659ebeae02d05c11fbb3ad7dd13937" }
 dependencies = [
     { name = "cma" },
     { name = "joblib" },
