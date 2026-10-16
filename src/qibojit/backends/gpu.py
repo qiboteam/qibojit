@@ -1088,6 +1088,10 @@ class CupyBackend(Backend):  # pragma: no cover
                 theta = gate.init_kwargs["theta"]
                 phi = gate.init_kwargs["phi"]
                 matrix = _matrix(gate.init_args[0], gate.init_args[1], theta, phi)
+            elif name == "Multiplexor":
+                matrix = _matrix(
+                    angles=gate.parameters[0], axis=gate.init_kwargs["axis"]
+                )
             else:
                 matrix = _matrix(*gate.parameters)
         elif isinstance(gate, FusedGate):  # pragma: no cover

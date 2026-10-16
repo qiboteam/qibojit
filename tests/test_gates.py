@@ -292,6 +292,25 @@ def test_apply_fanout(backend, nqubits):
     backend.assert_allclose(state, target_state, atol=PRECISION_TOL)
 
 
+@pytest.mark.parametrize("axis", ["y", "z"])
+@pytest.mark.parametrize("nqubits", [2, 3, 4])
+def test_apply_multiplexor(backend, nqubits, axis):
+    tbackend = NumpyBackend()
+
+    state = random_statevector(2**nqubits, backend=tbackend)
+
+    angles = backend.random_sample(2 ** (nqubits - 1))
+    gate = gates.Multiplexor(
+        controls=list(range(nqubits - 1)), target=nqubits - 1, angles=angles, axis=axis
+    )
+
+    backend.assert_allclose(gate.matrix(backend), gate.matrix(tbackend))
+
+    target_state = tbackend.apply_gate(gate, np.copy(state), nqubits)
+    state = backend.apply_gate(gate, backend.cast(state, copy=True), nqubits)
+    backend.assert_allclose(state, target_state, atol=PRECISION_TOL)
+
+
 @pytest.mark.parametrize(
     ("nqubits", "targets", "controls"),
     [
