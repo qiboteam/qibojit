@@ -1,2 +1,0 @@
-ignore:
-  - "src/qibojit/custom_operators/raw_kernels.py"

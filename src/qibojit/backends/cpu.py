@@ -1,10 +1,34 @@
+"""Module defining the Numba backend."""
+
+import sys
+from collections import Counter
+from typing import TYPE_CHECKING
+
 import numpy as np
-from qibo.backends.numpy import NumpyBackend
-from qibo.config import log
-from qibo.gates.abstract import ParametrizedGate
+from numpy.polynomial.polynomial import polyfromroots, polyroots
+from numpy.typing import ArrayLike, DTypeLike
+from qibo.backends import Backend, NumpyMatrices
+from qibo.config import SHOT_METROPOLIS_THRESHOLD, raise_error
+from qibo.gates.abstract import Gate, ParametrizedGate
 from qibo.gates.special import FusedGate
+from scipy.linalg import (
+    block_diag,
+    cossin,
+    expm,
+    fractional_matrix_power,
+    logm,
+    schur,
+)
+from scipy.sparse import coo_matrix, csr_matrix, issparse
+from scipy.sparse import eye as eye_sparse
+from scipy.sparse.linalg import eigsh
+from scipy.sparse.linalg import expm as expm_sparse
 
 from qibojit.backends.matrices import CustomMatrices
+from qibojit.custom_operators.quantum_info import QINFO
+
+if TYPE_CHECKING:
+    from qibo.gates import Channel
 
 GATE_OPS = {
     "X": "apply_x",
@@ -12,6 +36,7 @@ GATE_OPS = {
     "TOFFOLI": "apply_x",
     "Y": "apply_y",
     "Z": "apply_z",
+    "CY": "apply_y",
     "CZ": "apply_z",
     "U1": "apply_z_pow",
     "CU1": "apply_z_pow",
@@ -21,97 +46,666 @@ GATE_OPS = {
 }
 
 
-class NumbaBackend(NumpyBackend):
+class NumbaBackend(Backend):
     def __init__(self):
         super().__init__()
-        import sys
 
+        import numba
         import psutil
-        from numba import __version__ as numba_version
 
+        # avoiding circular imports
         from qibojit import __version__ as qibojit_version
-        from qibojit.custom_operators import gates, ops
+        from qibojit.custom_operators import (
+            gates,
+            ops,
+        )
 
-        self.name = "qibojit"
-        self.platform = "numba"
-        self.versions.update(
-            {
-                "qibojit": qibojit_version,
-                "numba": numba_version,
-            }
-        )
-        self.numeric_types = (
-            int,
-            float,
-            complex,
-            np.int32,
-            np.int64,
-            np.float32,
-            np.float64,
-            np.complex64,
-            np.complex128,
-        )
-        self.tensor_types = (np.ndarray,)
-        self.device = "/CPU:0"
-        self.custom_matrices = CustomMatrices(self.dtype)
-        self.gates = gates
+        self.engine = np
         self.ops = ops
-        self.measure_frequencies_op = ops.measure_frequencies
+
+        self.tensor_types = (self.engine.ndarray,)
+        self.numeric_types += (
+            self.int8,
+            self.int32,
+            self.int64,
+            self.float32,
+            self.float64,
+            self.complex64,
+            self.complex128,
+        )
+
+        self.matrices = NumpyMatrices(self.dtype)
+        self.custom_matrices = CustomMatrices(self.dtype)
+        self.device = "/CPU:0"
+        self.gates = gates
+        self.name = "qibojit"
+        self.measure_frequencies_op = self.ops.measure_frequencies
         self.multi_qubit_kernels = {
             3: self.gates.apply_three_qubit_gate_kernel,
             4: self.gates.apply_four_qubit_gate_kernel,
             5: self.gates.apply_five_qubit_gate_kernel,
         }
+        self.platform = "numba"
+        self.versions.update(
+            {
+                "qibojit": qibojit_version,
+                "numba": numba.__version__,
+            }
+        )
+
         if sys.platform == "darwin":  # pragma: no cover
             self.set_threads(psutil.cpu_count(logical=False))
         else:
             self.set_threads(len(psutil.Process().cpu_affinity()))
 
-    def set_precision(self, precision):
-        if precision != self.precision:
-            super().set_precision(precision)
+        # load the quantum info custom operators
+        for method in dir(QINFO):
+            if method[:2] != "__":
+                setattr(self.qinfo, method, getattr(QINFO, method))
+
+    def cast(
+        self, array: ArrayLike, dtype: DTypeLike | None = None, copy: bool = False
+    ) -> ArrayLike:
+        if dtype is None:
+            dtype = self.dtype
+
+        if isinstance(array, self.tensor_types):
+            return array.astype(dtype, copy=copy)
+
+        if self.is_sparse(array):
+            return array.astype(dtype, copy=copy)
+
+        return self.engine.asarray(array, dtype=dtype, copy=copy if copy else None)
+
+    def is_sparse(self, array: ArrayLike) -> bool:
+        """Determine if a given array is a sparse tensor.
+
+        Args:
+            array (ArrayLike): array to determine the sparsity of.
+
+        Returns:
+            bool: ``True`` if ``array`` is sparse, ``False`` otherwise.
+        """
+        return issparse(array)
+
+    def set_device(self, device: str) -> None:
+        """Set simulation device. Works in-place.
+
+        Args:
+            device (str): Device index, *e.g.* ``/CPU:0`` for CPU, or ``/GPU:1`` for
+                the second GPU in a multi-GPU environment.
+        """
+        if device != "/CPU:0":
+            raise_error(
+                ValueError, f"Device {device} is not available for {self} backend."
+            )
+
+    def set_dtype(self, dtype: DTypeLike) -> None:
+        """Set data type of arrays created using the backend. Works in-place.
+
+        .. note::
+            The data types ``float32`` and ``float64`` are intended to be used when the circuits
+            to be simulated only contain gates with real-valued matrix representations.
+            Using one of the aforementioned data types with circuits that contain complex-valued
+            matrices will raise a casting error.
+
+        .. note::
+            List of gates that always admit a real-valued matrix representation:
+            :class:`qibo.gates.I`, :class:`qibo.gates.X`, :class:`qibo.gates.Z`,
+            :class:`qibo.gates.H`, :class:`qibo.gates.Align`, :class:`qibo.gates.RY`,
+            :class:`qibo.gates.CNOT`, :class:`qibo.gates.CZ`, :class:`qibo.gates.CH`,
+            :class:`qibo.gates.CRY`, :class:`qibo.gates.SWAP`, :class:`qibo.gates.FSWAP`,
+            :class:`qibo.gates.GIVENS`, :class:`qibo.gates.RBS`, :class:`qibo.gates.TOFFOLI`,
+            :class:`qibo.gates.CCZ`, and :class:`qibo.gates.FanOut`.
+
+        .. note::
+            The following parametrized gates can have real-valued matrix representations
+            depending on the values of their parameters:
+            :class:`qibo.gates.RX`, :class:`qibo.gates.RZ`, :class:`qibo.gates.U1`,
+            :class:`qibo.gates.U2`, :class:`qibo.gates.U3`, :class:`qibo.gates.CRX`,
+            :class:`qibo.gates.CRZ`, :class:`qibo.gates.CU1`, :class:`qibo.gates.CU2`,
+            :class:`qibo.gates.CU3`, :class:`qibo.gates.fSim`, :class:`qibo.gates.GeneralizedfSim`,
+            :class:`qibo.gates.RXX`, :class:`qibo.gates.RYY`, :class:`qibo.gates.RZZ`,
+            :class:`qibo.gates.RZX`, and :class:`qibo.gates.GeneralizedRBS`.
+
+        Args:
+            dtype (str): the options are the following: ``complex128``, ``complex64``,
+                ``float64``, and ``float32``.
+        """
+        if dtype != self.dtype:
+            super().set_dtype(dtype)
+            self.matrices = NumpyMatrices(self.dtype)
             if self.custom_matrices:
                 self.custom_matrices = CustomMatrices(self.dtype)
 
-    def set_threads(self, nthreads):
+    def set_seed(self, seed: int | None) -> None:
+        """Set the seed of the random number generator. Works in-place.
+
+        Args:
+            seed (int or None): seed to be set. If ``None``, seed is random.
+        """
+        super().set_seed(seed)
+        if seed is not None:
+            self.ops.set_seed(seed)
+            self.qinfo.set_seed(seed)
+
+    def set_threads(self, nthreads: int) -> None:
+        """Set number of threads for CPU backend simulations that accept it. Works in-place.
+
+        Args:
+            nthreads (int): Number of threads.
+        """
         import numba
 
         numba.set_num_threads(nthreads)
         self.nthreads = nthreads
 
-    # def cast(self, x, dtype=None, copy=False): Inherited from ``NumpyBackend``
+    def to_numpy(self, array: ArrayLike) -> ArrayLike:
+        """Convert ``array`` to a ``numpy.ndarray``.
 
-    # def to_numpy(self, x): Inherited from ``NumpyBackend``
+        Args:
+            array (ArrayLike): array to be converted to ``numpy.ndarray``.
 
-    def zero_state(self, nqubits):
-        size = 2**nqubits
-        state = np.empty((size,), dtype=self.dtype)
-        return self.ops.initial_state_vector(state)
+        Returns:
+            ArrayLike: Original array converted to ``numpy.ndarray``.
+        """
+        if self.is_sparse(array):
+            return array.toarray()
+        return array
 
-    def zero_density_matrix(self, nqubits):
-        size = 2**nqubits
-        state = np.empty((size, size), dtype=self.dtype)
-        return self.ops.initial_density_matrix(state)
+    ########################################################################################
+    ######## Methods related to array manipulation                                  ########
+    ########################################################################################
 
-    # def plus_state(self, nqubits): Inherited from ``NumpyBackend``
+    def block_diag(self, *arrays: ArrayLike) -> ArrayLike:  # pragma: no cover
+        """Create a block diagonal array from provided ``arrays``.
 
-    # def plus_density_matrix(self, nqubits): Inherited from ``NumpyBackend``
+        Args:
+            arrays (ArrayLike): input arrays.
 
-    # def asmatrix_special(self, gate): Inherited from ``NumpyBackend``
+        Returns:
+            ArrayLike: Array with ``arrays`` on the diagonal of the last two dimensions.
+        """
+        return block_diag(*arrays)
 
-    # def control_matrix(self, gate): Inherited from ``NumpyBackend``
+    def coo_matrix(self, array: ArrayLike, **kwargs) -> ArrayLike:  # pragma: no cover
+        """Return the sparse version of ``array`` in coordinate format.
 
-    def one_qubit_base(self, state, nqubits, target, kernel, gate, qubits):
+        Also known as the ``ijv`` or ``triplet`` format.
+
+        Args:
+            array (ArrayLike): input array.
+            kwargs (optional): additional options for this function.
+                For more details, see the corresponding engine's documentation.
+
+        Returns:
+            ArrayLike: The coordinate-format version of ``array``.
+        """
+        return coo_matrix(array, **kwargs)
+
+    def cosine_sin_decomposition(
+        self, array: ArrayLike, block_nrows: int, block_ncols: int
+    ) -> tuple[ArrayLike, ArrayLike, ArrayLike]:
+        """Calculate the Cosine-Sine Decomposition of a unitary ``array``.
+
+        Args:
+            array (ArrayLike): unitary matrix to be decomposed.
+            block_nrows (int): number of rows of the upper left block of ``array``.
+            block_ncols (int): number of columns of the upper left block of ``array``.
+
+        Returns:
+            Tuple[ArrayLike, ArrayLike, ArrayLike]: Block-diagonal left unitary,
+            cosine-sine matrix, and block-diagonal right unitary, in that order.
+        """
+        return cossin(array, p=block_nrows, q=block_ncols)
+
+    def csr_matrix(self, array: ArrayLike, **kwargs) -> ArrayLike:  # pragma: no cover
+        """Return the sparse version of ``array`` in compressed sparse row format.
+
+        Args:
+            array (ArrayLike): input array.
+            kwargs (optional): additional options for this function.
+                For more details, see the corresponding engine's documentation.
+
+        Returns:
+            ArrayLike: The compressed-sparse-row version of ``array``.
+        """
+        return csr_matrix(array, **kwargs)
+
+    def eigsh(self, array: ArrayLike, **kwargs) -> tuple[ArrayLike, ArrayLike]:
+        """Compute the eigenvalues and right eigenvectors of a two-dimensional sparse ``array``
+        that is assumed to be Hermitian.
+
+        Args:
+            array (ArrayLike): input sparse array.
+            kwargs (optional): additional options for this function.
+                For more details, see the corresponding engine's documentation.
+
+        Returns:
+            Tuple[ArrayLike, ArrayLike]: Tuple with, respectively, array of eigenvalues and
+            array of column-stacked eigenvectors.
+        """
+        return eigsh(array, **kwargs)
+
+    def expm(self, array: ArrayLike) -> ArrayLike:
+        """Compute the matrix exponential of an ``array``.
+
+        Args:
+            array (ArrayLike): input array.
+
+        Returns:
+            ArrayLike: The resulting matrix exponential.
+        """
+        if self.is_sparse(array):
+            return expm_sparse(array.tocsc())
+
+        return expm(array)
+
+    def logm(self, array: ArrayLike, **kwargs) -> ArrayLike:  # pragma: no cover
+        """Compute the matrix logarithm of an ``array``.
+
+        Args:
+            array (ArrayLike): input array.
+            kwargs (optional): additional options for this function.
+                For more details, see the corresponding engine's documentation.
+
+        Returns:
+            ArrayLike: The resulting matrix logarithm.
+        """
+        return logm(array, **kwargs)
+
+    def poly(self, array: ArrayLike, **kwargs) -> ArrayLike:
+        """Return the coefficients of the polynomial with the given roots.
+
+        Args:
+            array (ArrayLike): roots of the polynomial, or a square matrix
+                whose eigenvalues are the roots.
+            kwargs (optional): additional options for this function.
+                For more details, see the corresponding engine's documentation.
+
+        Returns:
+            ArrayLike: Polynomial coefficients, from the highest to the lowest degree.
+        """
+        if self.engine.ndim(array) == 2:
+            array = self.engine.linalg.eigvals(array)
+
+        return self.engine.flip(polyfromroots(array, **kwargs))
+
+    def roots(self, array: ArrayLike, **kwargs) -> ArrayLike:
+        """Return the roots of a polynomial given its coefficients.
+
+        Args:
+            array (ArrayLike): polynomial coefficients, from the highest to the
+                lowest degree.
+            kwargs (optional): additional options for this function.
+                For more details, see the corresponding engine's documentation.
+
+        Returns:
+            ArrayLike: Roots of the polynomial.
+        """
+        return polyroots(self.engine.flip(array), **kwargs)
+
+    def schur(self, array: ArrayLike, **kwargs) -> tuple[ArrayLike, ArrayLike]:
+        """Compute the Schur decomposition of a square ``array``.
+
+        The Schur decomposition of a matrix :math:`A` is :math:`A = Z \\, T \\, Z^{\\dagger}`,
+        where :math:`Z` is unitary and :math:`T` is upper triangular, if the complex form
+        is requested. If :math:`A` is normal, which is the case of unitary matrices,
+        :math:`T` is diagonal.
+
+        Args:
+            array (ArrayLike): square input array.
+            kwargs (optional): additional options for this function, such as
+                ``output="complex"`` to obtain the complex Schur form for real ``array``.
+                For more details, see the corresponding engine's documentation.
+
+        Returns:
+            Tuple[ArrayLike, ArrayLike]: Schur form :math:`T` and unitary matrix
+            :math:`Z`, in that order.
+        """
+        return schur(array, **kwargs)
+
+    ########################################################################################
+    ######## Methods related to linear algebra operations                           ########
+    ########################################################################################
+
+    def matrix_power(
+        self,
+        matrix: ArrayLike,
+        power: float | int,
+        precision_singularity: float = 1e-14,
+        dtype: DTypeLike | None = None,
+    ) -> ArrayLike:  # pragma: no cover
+        """Calculate the (fractional) ``power`` :math:`\\alpha` of ``matrix`` :math:`A`,
+        i.e. :math:`A^{\\alpha}`.
+
+        .. note::
+            For the ``pytorch`` backend, this method relies on a copy of the original tensor.
+            This may break the gradient flow. For the GPU backends (i.e. ``cupy`` and
+            ``cuquantum``), this method falls back to CPU whenever ``power`` is not
+            an integer.
+        """
+        if not isinstance(power, (float, int)):
+            raise_error(
+                TypeError,
+                f"``power`` must be either float or int, but it is type {type(power)}.",
+            )
+
+        if dtype is None:
+            dtype = self.dtype
+
+        if power < 0.0:
+            # negative powers of singular matrices via SVD
+            determinant = self.det(matrix)
+            if abs(determinant) < precision_singularity:
+                return self._negative_power_singular_matrix(
+                    matrix, power, precision_singularity, dtype=dtype
+                )
+
+        return fractional_matrix_power(matrix, power)
+
+    ########################################################################################
+    ######## Methods related to the creation and manipulation of quantum objects    ########
+    ########################################################################################
+
+    def zero_state(
+        self,
+        nqubits: int,
+        density_matrix: bool = False,
+        dtype: DTypeLike | None = None,
+    ) -> ArrayLike:
+        if dtype is None:
+            dtype = self.dtype
+
+        dims = 2**nqubits
+        shape = 2 * (dims,) if density_matrix else dims
+        state = self.empty(shape, dtype=dtype)
+
+        func = (
+            self.ops.initial_density_matrix
+            if density_matrix
+            else self.ops.initial_state_vector
+        )
+
+        return func(state)
+
+    ########################################################################################
+    ######## Methods related to circuit execution                                   ########
+    ########################################################################################
+
+    def apply_channel(
+        self,
+        channel: "Channel",
+        state: ArrayLike,
+        nqubits: int,
+    ) -> ArrayLike:
+        density_matrix = bool(len(state.shape) == 2)
+
+        if density_matrix:
+            return self._apply_channel_density_matrix(channel, state, nqubits)
+
+        return super().apply_channel(channel, state, nqubits)  # pragma: no cover
+
+    def apply_gate(
+        self, gate: Gate, state: ArrayLike, nqubits: int, inverse: bool = False
+    ) -> ArrayLike:
+        density_matrix = bool(len(state.shape) == 2)
+
+        if density_matrix:
+            return self._apply_gate_density_matrix(gate, state, nqubits, inverse)
+
+        return self._apply_gate(gate, state, nqubits)
+
+    ########################################################################################
+    ######## Methods related to the execution and post-processing of measurements   ########
+    ########################################################################################
+
+    def sample_frequencies(self, probabilities: ArrayLike, nshots: int) -> Counter:
+        if nshots < SHOT_METROPOLIS_THRESHOLD:
+            return super().sample_frequencies(probabilities, nshots)
+
+        seed = self.random_integers(0, int(1e8), dtype=self.int64)[0]
+        nqubits = int(self.log2(probabilities.shape[0]))
+        frequencies = self.zeros(2**nqubits, dtype=self.int64)
+        # always fall back to numba CPU backend because for ops not implemented on GPU
+        frequencies = self.measure_frequencies_op(
+            frequencies, probabilities, nshots, nqubits, seed, self.nthreads
+        )
+        return Counter({i: f for i, f in enumerate(frequencies) if f > 0})
+
+    ########################################################################################
+    ######## Helper methods                                                         ########
+    ########################################################################################
+
+    def _apply_channel_density_matrix(
+        self,
+        channel: "Channel",
+        state: ArrayLike,
+        nqubits: int,
+    ) -> ArrayLike:
+        state = self.cast(state, dtype=state.dtype)
+        if not channel._all_unitary_operators:
+            state_copy = self.cast(state, copy=True)
+        new_state = (1 - channel.coefficient_sum) * state
+        for coeff, gate in zip(channel.coefficients, channel.gates):
+            state = self.apply_gate(gate, state, nqubits)
+            new_state += coeff * state
+            # reset the state
+            if not channel._all_unitary_operators:
+                state = self.cast(state_copy, copy=True)
+            else:
+                state = self.apply_gate(gate, state, nqubits, inverse=True)
+        return new_state
+
+    def _apply_fanout_gate(
+        self, gate: Gate, state: ArrayLike, nqubits: int
+    ) -> ArrayLike:
+        from qibo import gates
+
+        control, targets = gate.control_qubits[0], gate.target_qubits
+
+        for target in targets:
+            gate = gates.CNOT(control, target)
+            matrix = self._as_custom_matrix(gate)
+            qubits = self._create_qubits_tensor(gate, nqubits)
+            op = GATE_OPS.get("CNOT")
+            state = self._one_qubit_base(state, nqubits, target, op, matrix, qubits)
+
+        return state
+
+    def _apply_gate(self, gate: Gate, state: ArrayLike, nqubits: int) -> ArrayLike:
+        matrix = self._as_custom_matrix(gate)
+        qubits = self._create_qubits_tensor(gate, nqubits)
+        targets = gate.target_qubits
+        state = self.cast(state, dtype=state.dtype)
+
+        if gate.name == "fanout":
+            return self._apply_fanout_gate(gate, state, nqubits)
+
+        if len(targets) == 1:
+            op = GATE_OPS.get(gate.__class__.__name__, "apply_gate")
+            return self._one_qubit_base(state, nqubits, *targets, op, matrix, qubits)
+
+        if len(targets) == 2:
+            op = GATE_OPS.get(gate.__class__.__name__, "apply_two_qubit_gate")
+            return self._two_qubit_base(state, nqubits, *targets, op, matrix, qubits)
+
+        return self._multi_qubit_base(state, nqubits, targets, matrix, qubits)
+
+    def _apply_gate_density_matrix(
+        self, gate: Gate, state: ArrayLike, nqubits: int, inverse: bool = False
+    ) -> ArrayLike:
+        name = gate.__class__.__name__
+        if name in ["Y", "CY"]:
+            return self._apply_ygate_density_matrix(gate, state, nqubits)
+
+        if inverse:
+            # used to reset the state when applying channels
+            # see :meth:`qibojit.backend.NumpyBackend.apply_channel_density_matrix` below
+            matrix = self.inv(gate.matrix(self))
+            matrix = self.cast(matrix)
+        else:
+            matrix = self._as_custom_matrix(gate)
+
+        qubits = self._create_qubits_tensor(gate, nqubits)
+        qubits_dm = qubits + nqubits
+        targets = gate.target_qubits
+        targets_dm = tuple(q + nqubits for q in targets)
+
+        state = self.cast(state)
+        shape = state.shape
+        if len(targets) == 1:
+            op = GATE_OPS.get(name, "apply_gate")
+            state = self._one_qubit_base(
+                state.ravel(), 2 * nqubits, *targets, op, matrix, qubits_dm
+            )
+            state = self._one_qubit_base(
+                state, 2 * nqubits, *targets_dm, op, self.conj(matrix), qubits
+            )
+        elif len(targets) == 2:
+            op = GATE_OPS.get(name, "apply_two_qubit_gate")
+            state = self._two_qubit_base(
+                state.ravel(), 2 * nqubits, *targets, op, matrix, qubits_dm
+            )
+            state = self._two_qubit_base(
+                state, 2 * nqubits, *targets_dm, op, self.conj(matrix), qubits
+            )
+        else:
+            state = self._multi_qubit_base(
+                state.ravel(), 2 * nqubits, targets, matrix, qubits_dm
+            )
+            state = self._multi_qubit_base(
+                state, 2 * nqubits, targets_dm, self.conj(matrix), qubits
+            )
+
+        return self.reshape(state, shape)
+
+    def _apply_ygate_density_matrix(
+        self, gate: Gate, state: ArrayLike, nqubits: int
+    ) -> ArrayLike:
+        matrix = self._as_custom_matrix(gate)
+        qubits = self._create_qubits_tensor(gate, nqubits)
+        qubits_dm = qubits + nqubits
+        targets = gate.target_qubits
+        targets_dm = tuple(q + nqubits for q in targets)
+        state = self.cast(state)
+        shape = state.shape
+        state = self._one_qubit_base(
+            state.ravel(), 2 * nqubits, *targets, "apply_y", matrix, qubits_dm
+        )
+        # force using ``apply_gate`` kernel so that conjugate is properly applied
+        state = self._one_qubit_base(
+            state, 2 * nqubits, *targets_dm, "apply_gate", self.conj(matrix), qubits
+        )
+        return self.reshape(state, shape)
+
+    def _as_custom_matrix(self, gate: Gate) -> ArrayLike:
+        name = gate.__class__.__name__
+        _matrix = getattr(self.custom_matrices, name)
+
+        if name == "FanOut":
+            return _matrix(*gate.init_args)
+
+        if isinstance(gate, ParametrizedGate):
+            if name == "GeneralizedRBS":  # pragma: no cover
+                # this is tested in qibo tests
+                theta = gate.init_kwargs["theta"]
+                phi = gate.init_kwargs["phi"]
+                return _matrix(gate.init_args[0], gate.init_args[1], theta, phi)
+
+            if name == "Multiplexor":
+                return _matrix(angles=gate.parameters[0], axis=gate.init_kwargs["axis"])
+
+            return _matrix(*gate.parameters)
+
+        if isinstance(gate, FusedGate):  # pragma: no cover
+            # fusion is tested in qibo tests
+            return self.matrix_fused(gate)
+
+        return _matrix(2 ** len(gate.target_qubits)) if callable(_matrix) else _matrix
+
+    def _collapse_statevector(
+        self,
+        state: ArrayLike,
+        qubits: tuple[int, ...] | list[int],
+        shot: int,
+        nqubits: int,
+        normalize: bool = True,
+    ) -> ArrayLike:
+        state = self.cast(state, dtype=state.dtype)
+        qubits = self.cast(
+            [nqubits - q - 1 for q in reversed(qubits)], dtype=self.int32
+        )
+
+        shot = (
+            int(shot.flat[0])
+            if hasattr(shot, "shape")
+            else int(shot[0])
+            if hasattr(shot, "__len__")
+            else int(shot)
+        )
+
+        if normalize:
+            return self.ops.collapse_state_normalized(state, qubits, shot, nqubits)
+
+        return self.ops.collapse_state(state, qubits, shot, nqubits)
+
+    def _create_qubits_tensor(self, gate: Gate, nqubits: int) -> ArrayLike:
+        # TODO: Treat density matrices
+        qubits = [nqubits - q - 1 for q in gate.control_qubits]
+        qubits.extend(nqubits - q - 1 for q in gate.target_qubits)
+        return self.cast(sorted(qubits), dtype=self.int32)
+
+    def _identity_sparse(
+        self, dims: int, dtype: DTypeLike | None = None, **kwargs
+    ) -> ArrayLike:  # pragma: no cover
+        if dtype is None:
+            dtype = self.dtype
+
+        sparsity_format = kwargs.get("format", "csr")
+
+        return eye_sparse(dims, dtype=dtype, format=sparsity_format, **kwargs)
+
+    def _multi_qubit_base(
+        self,
+        state: ArrayLike,
+        nqubits: int,
+        targets: list[int] | tuple[int, ...],
+        gate: Gate,
+        qubits: list[int] | tuple[int, ...],
+    ) -> ArrayLike:
+        if qubits is None:
+            qubits = self.cast(
+                sorted(nqubits - q - 1 for q in targets), dtype=self.int32
+            )
+        nstates = 1 << (nqubits - len(qubits))
+        targets = self.cast(
+            [1 << (nqubits - t - 1) for t in targets[::-1]], dtype=self.int64
+        )
+
+        kernel = (
+            self.gates.apply_multi_qubit_gate_kernel
+            if len(targets) > 5
+            else self.multi_qubit_kernels.get(len(targets))
+        )
+
+        return kernel(state, gate, qubits, nstates, targets)
+
+    def _one_qubit_base(
+        self, state: ArrayLike, nqubits: int, target, kernel, gate, qubits
+    ):
         ncontrols = len(qubits) - 1 if qubits is not None else 0
         m = nqubits - target - 1
         nstates = 1 << (nqubits - ncontrols - 1)
         if ncontrols:
-            kernel = getattr(self.gates, "multicontrol_{}_kernel".format(kernel))
+            kernel = getattr(self.gates, f"multicontrol_{kernel}_kernel")
             return kernel(state, gate, qubits, nstates, m)
-        kernel = getattr(self.gates, "{}_kernel".format(kernel))
+        kernel = getattr(self.gates, f"{kernel}_kernel")
         return kernel(state, gate, nstates, m)
 
-    def two_qubit_base(self, state, nqubits, target1, target2, kernel, gate, qubits):
+    def _two_qubit_base(
+        self, state, nqubits: int, target1, target2, kernel, gate, qubits
+    ):
         ncontrols = len(qubits) - 2 if qubits is not None else 0
         if target1 > target2:
             swap_targets = True
@@ -123,173 +717,7 @@ class NumbaBackend(NumpyBackend):
             m2 = nqubits - target1 - 1
         nstates = 1 << (nqubits - 2 - ncontrols)
         if ncontrols:
-            kernel = getattr(self.gates, "multicontrol_{}_kernel".format(kernel))
+            kernel = getattr(self.gates, f"multicontrol_{kernel}_kernel")
             return kernel(state, gate, qubits, nstates, m1, m2, swap_targets)
-        kernel = getattr(self.gates, "{}_kernel".format(kernel))
+        kernel = getattr(self.gates, f"{kernel}_kernel")
         return kernel(state, gate, nstates, m1, m2, swap_targets)
-
-    def multi_qubit_base(self, state, nqubits, targets, gate, qubits):
-        if qubits is None:
-            qubits = np.array(sorted(nqubits - q - 1 for q in targets), dtype="int32")
-        nstates = 1 << (nqubits - len(qubits))
-        targets = np.array(
-            [1 << (nqubits - t - 1) for t in targets[::-1]], dtype="int64"
-        )
-        if len(targets) > 5:
-            kernel = self.gates.apply_multi_qubit_gate_kernel
-        else:
-            kernel = self.multi_qubit_kernels.get(len(targets))
-        return kernel(state, gate, qubits, nstates, targets)
-
-    @staticmethod
-    def _create_qubits_tensor(gate, nqubits):
-        # TODO: Treat density matrices
-        qubits = [nqubits - q - 1 for q in gate.control_qubits]
-        qubits.extend(nqubits - q - 1 for q in gate.target_qubits)
-        return np.array(sorted(qubits), dtype="int32")
-
-    def _as_custom_matrix(self, gate):
-        name = gate.__class__.__name__
-        if isinstance(gate, ParametrizedGate):
-            return getattr(self.custom_matrices, name)(*gate.parameters)
-        elif isinstance(gate, FusedGate):  # pragma: no cover
-            # fusion is tested in qibo tests
-            return self.asmatrix_fused(gate)
-        else:
-            return getattr(self.custom_matrices, name)
-
-    def apply_gate(self, gate, state, nqubits):
-        matrix = self._as_custom_matrix(gate)
-        qubits = self._create_qubits_tensor(gate, nqubits)
-        targets = gate.target_qubits
-        state = self.cast(state)
-        if len(targets) == 1:
-            op = GATE_OPS.get(gate.__class__.__name__, "apply_gate")
-            return self.one_qubit_base(state, nqubits, *targets, op, matrix, qubits)
-        elif len(targets) == 2:
-            op = GATE_OPS.get(gate.__class__.__name__, "apply_two_qubit_gate")
-            return self.two_qubit_base(state, nqubits, *targets, op, matrix, qubits)
-        else:
-            return self.multi_qubit_base(state, nqubits, targets, matrix, qubits)
-
-    def apply_gate_density_matrix(self, gate, state, nqubits, inverse=False):
-        name = gate.__class__.__name__
-        if name == "Y":
-            return self._apply_ygate_density_matrix(gate, state, nqubits)
-        if inverse:
-            # used to reset the state when applying channels
-            # see :meth:`qibojit.backend.NumpyBackend.apply_channel_density_matrix` below
-            matrix = np.linalg.inv(gate.asmatrix(self))
-            matrix = self.cast(matrix)
-        else:
-            matrix = self._as_custom_matrix(gate)
-        qubits = self._create_qubits_tensor(gate, nqubits)
-        qubits_dm = qubits + nqubits
-        targets = gate.target_qubits
-        targets_dm = tuple(q + nqubits for q in targets)
-
-        state = self.cast(state)
-        shape = state.shape
-        if len(targets) == 1:
-            op = GATE_OPS.get(name, "apply_gate")
-            state = self.one_qubit_base(
-                state.ravel(), 2 * nqubits, *targets, op, matrix, qubits_dm
-            )
-            state = self.one_qubit_base(
-                state, 2 * nqubits, *targets_dm, op, np.conj(matrix), qubits
-            )
-        elif len(targets) == 2:
-            op = GATE_OPS.get(name, "apply_two_qubit_gate")
-            state = self.two_qubit_base(
-                state.ravel(), 2 * nqubits, *targets, op, matrix, qubits_dm
-            )
-            state = self.two_qubit_base(
-                state, 2 * nqubits, *targets_dm, op, np.conj(matrix), qubits
-            )
-        else:
-            state = self.multi_qubit_base(
-                state.ravel(), 2 * nqubits, targets, matrix, qubits_dm
-            )
-            state = self.multi_qubit_base(
-                state, 2 * nqubits, targets_dm, np.conj(matrix), qubits
-            )
-        return np.reshape(state, shape)
-
-    def _apply_ygate_density_matrix(self, gate, state, nqubits):
-        matrix = self._as_custom_matrix(gate)
-        qubits = self._create_qubits_tensor(gate, nqubits)
-        qubits_dm = qubits + nqubits
-        targets = gate.target_qubits
-        targets_dm = tuple(q + nqubits for q in targets)
-        state = self.cast(state)
-        shape = state.shape
-        state = self.one_qubit_base(
-            state.ravel(), 2 * nqubits, *targets, "apply_y", matrix, qubits_dm
-        )
-        # force using ``apply_gate`` kernel so that conjugate is properly applied
-        state = self.one_qubit_base(
-            state, 2 * nqubits, *targets_dm, "apply_gate", np.conj(matrix), qubits
-        )
-        return np.reshape(state, shape)
-
-    # def apply_channel(self, gate): Inherited from ``NumpyBackend``
-
-    def apply_channel_density_matrix(self, channel, state, nqubits):
-        state = self.cast(state)
-        new_state = (1 - channel.coefficient_sum) * state
-        for coeff, gate in zip(channel.coefficients, channel.gates):
-            state = self.apply_gate_density_matrix(gate, state, nqubits)
-            new_state += coeff * state
-            # reset the state
-            state = self.apply_gate_density_matrix(gate, state, nqubits, inverse=True)
-        return new_state
-
-    def collapse_state(self, state, qubits, shot, nqubits, normalize=True):
-        state = self.cast(state)
-        qubits = self.cast([nqubits - q - 1 for q in reversed(qubits)], dtype="int32")
-        if normalize:
-            return self.ops.collapse_state_normalized(state, qubits, int(shot), nqubits)
-        else:
-            return self.ops.collapse_state(state, qubits, int(shot), nqubits)
-
-    def collapse_density_matrix(self, state, qubits, shot, nqubits, normalize=True):
-        state = self.cast(state)
-        shape = state.shape
-        dm_qubits = [q + nqubits for q in qubits]
-        state = self.collapse_state(state.ravel(), dm_qubits, shot, 2 * nqubits, False)
-        state = self.collapse_state(state, qubits, shot, 2 * nqubits, False)
-        state = self.np.reshape(state, shape)
-        if normalize:
-            state = state / self.np.trace(state)
-        return state
-
-    # def calculate_probabilities(self, state, qubits, nqubits): Inherited from ``NumpyBackend``
-
-    # def sample_shots(self, probabilities, nshots): Inherited from ``NumpyBackend``
-
-    # def aggregate_shots(self, shots): Inherited from ``NumpyBackend``
-
-    # def samples_to_binary(self, samples, nqubits): Inherited from ``NumpyBackend``
-
-    # def samples_to_decimal(self, samples, nqubits): Inherited from ``NumpyBackend``
-
-    def sample_frequencies(self, probabilities, nshots):
-        from qibo.config import SHOT_METROPOLIS_THRESHOLD
-
-        if nshots < SHOT_METROPOLIS_THRESHOLD:
-            return super().sample_frequencies(probabilities, nshots)
-
-        import collections
-
-        seed = np.random.randint(0, int(1e8), dtype="int64")
-        nqubits = int(np.log2(tuple(probabilities.shape)[0]))
-        frequencies = np.zeros(2**nqubits, dtype="int64")
-        # always fall back to numba CPU backend because for ops not implemented on GPU
-        frequencies = self.measure_frequencies_op(
-            frequencies, probabilities, nshots, nqubits, seed, self.nthreads
-        )
-        return collections.Counter({i: f for i, f in enumerate(frequencies) if f > 0})
-
-    # def calculate_frequencies(self, samples): Inherited from ``NumpyBackend``
-
-    # def assert_allclose(self, value, target, rtol=1e-7, atol=0.0): Inherited from ``NumpyBackend``

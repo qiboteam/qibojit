@@ -16,7 +16,7 @@ __device__ long multicontrol_index(const int* qubits, long g, int ncontrols) {
   }
   return i;
 }
-"""
+"""  # pragma: no cover
 
 
 _apply_gate = """
@@ -26,7 +26,7 @@ __device__ void _apply_gate(T& state1, T& state2, const T* gate) {
   state1 = gate[0] * state1 + gate[1] * state2;
   state2 = gate[2] * buffer + gate[3] * state2;
 }
-"""
+"""  # pragma: no cover
 
 
 _apply_x = """
@@ -36,7 +36,7 @@ __device__ void _apply_x(T& state1, T& state2) {
   state1 = state2;
   state2 = buffer;
 }
-"""
+"""  # pragma: no cover
 
 
 _apply_y = """
@@ -48,7 +48,7 @@ __device__ void _apply_y(T& state1, T& state2) {
   state1 = state2;
   state2 = buffer;
 }
-"""
+"""  # pragma: no cover
 
 
 _apply_z = """
@@ -56,7 +56,7 @@ _apply_z = """
 __device__ void _apply_z(T& state) {
   state = state * T(-1);
 }
-"""
+"""  # pragma: no cover
 
 
 _apply_z_pow = """
@@ -64,7 +64,7 @@ _apply_z_pow = """
 __device__ void _apply_z_pow(T& state, T gate) {
   state = state * gate;
 }
-"""
+"""  # pragma: no cover
 
 
 _apply_two_qubit_gate = """
@@ -83,7 +83,7 @@ __device__ void _apply_two_qubit_gate(T& state0, T& state1, T& state2, T& state3
   state3 = gate[12] * buffer0 + gate[13] * buffer1
          + gate[14] * buffer2 + gate[15] * state3;
 }
-"""
+"""  # pragma: no cover
 
 
 _apply_fsim = """
@@ -94,7 +94,7 @@ __device__ void _apply_fsim(T& state1, T& state2, T& state3, const T* gate) {
   state2 = gate[2] * buffer + gate[3] * state2;
   state3 = gate[4] * state3;
 }
-"""
+"""  # pragma: no cover
 
 
 multitarget_index = """
@@ -106,7 +106,7 @@ __device__ long multitarget_index(const long* targets, long i, int ntargets) {
   }
   return t;
 }
-"""
+"""  # pragma: no cover
 
 
 collapse_index = """
@@ -121,7 +121,7 @@ __device__ long collapse_index(const int* qubits, long g, long h, int ntargets) 
   }
   return i;
 }
-"""
+"""  # pragma: no cover
 
 # ---------- KERNELS ----------
 
@@ -132,13 +132,16 @@ apply_gate_kernel = (
     + """
 // C++ implementation of gates.py:apply_gate_kernel()
 extern "C"
-__global__ void apply_gate_kernel(T* state, long tk, int m, const T* gate) {
-  const long g = blockIdx.x * blockDim.x + threadIdx.x;
-  const long i = ((long)((long)g >> m) << (m + 1)) + (g & (tk - 1));
-  _apply_gate(state[i], state[i + tk], gate);
+__global__ void apply_gate_kernel(T* state, long tk, int m, long nstates, const T* gate) {
+  for (long g = (long) blockDim.x * blockIdx.x + threadIdx.x;
+       g < nstates;
+       g += (long) blockDim.x * gridDim.x) {
+    const long i = ((long)((long)g >> m) << (m + 1)) + (g & (tk - 1));
+    _apply_gate(state[i], state[i + tk], gate);
+  }
 }
 """
-)
+)  # pragma: no cover
 
 
 apply_x_kernel = (
@@ -148,13 +151,16 @@ apply_x_kernel = (
     + """
 // C++ implementation of gates.py:apply_x_kernel()
 extern "C"
-__global__ void apply_x_kernel(T* state, long tk, int m) {
-  const long g = blockIdx.x * blockDim.x + threadIdx.x;
-  const long i = ((long)((long)g >> m) << (m + 1)) + (g & (tk - 1));
-  _apply_x(state[i], state[i + tk]);
+__global__ void apply_x_kernel(T* state, long tk, int m, long nstates) {
+  for (long g = (long) blockDim.x * blockIdx.x + threadIdx.x;
+       g < nstates;
+       g += (long) blockDim.x * gridDim.x) {
+    const long i = ((long)((long)g >> m) << (m + 1)) + (g & (tk - 1));
+    _apply_x(state[i], state[i + tk]);
+  }
 }
 """
-)
+)  # pragma: no cover
 
 
 apply_y_kernel = (
@@ -164,13 +170,16 @@ apply_y_kernel = (
     + """
 // C++ implementation of gates.py:apply_y_kernel()
 extern "C"
-__global__ void apply_y_kernel(T* state, long tk, int m) {
-  const long g = blockIdx.x * blockDim.x + threadIdx.x;
-  const long i = ((long)((long)g >> m) << (m + 1)) + (g & (tk - 1));
-  _apply_y(state[i], state[i + tk]);
+__global__ void apply_y_kernel(T* state, long tk, int m, long nstates) {
+  for (long g = (long) blockDim.x * blockIdx.x + threadIdx.x;
+       g < nstates;
+       g += (long) blockDim.x * gridDim.x) {
+    const long i = ((long)((long)g >> m) << (m + 1)) + (g & (tk - 1));
+    _apply_y(state[i], state[i + tk]);
+  }
 }
 """
-)
+)  # pragma: no cover
 
 
 apply_z_kernel = (
@@ -180,13 +189,16 @@ apply_z_kernel = (
     + """
 // C++ implementation of gates.py:apply_z_kernel()
 extern "C"
-__global__ void apply_z_kernel(T* state, long tk, int m) {
-  const long g = blockIdx.x * blockDim.x + threadIdx.x;
-  const long i = ((long)((long)g >> m) << (m + 1)) + (g & (tk - 1));
-  _apply_z(state[i + tk]);
+__global__ void apply_z_kernel(T* state, long tk, int m, long nstates) {
+  for (long g = (long) blockDim.x * blockIdx.x + threadIdx.x;
+       g < nstates;
+       g += (long) blockDim.x * gridDim.x) {
+    const long i = ((long)((long)g >> m) << (m + 1)) + (g & (tk - 1));
+    _apply_z(state[i + tk]);
+  }
 }
 """
-)
+)  # pragma: no cover
 
 
 apply_z_pow_kernel = (
@@ -197,13 +209,16 @@ apply_z_pow_kernel = (
 // C++ implementation of gates.py:apply_z_pow_kernel()
 extern "C"
 __global__ void apply_z_pow_kernel(T* state, long tk, int m,
-                                   const T* gate) {
-  const long g = blockIdx.x * blockDim.x + threadIdx.x;
-  const long i = ((long)((long)g >> m) << (m + 1)) + (g & (tk - 1));
-  _apply_z_pow(state[i + tk], gate[0]);
+                                   long nstates, const T* gate) {
+  for (long g = (long) blockDim.x * blockIdx.x + threadIdx.x;
+       g < nstates;
+       g += (long) blockDim.x * gridDim.x) {
+    const long i = ((long)((long)g >> m) << (m + 1)) + (g & (tk - 1));
+    _apply_z_pow(state[i + tk], gate[0]);
+  }
 }
 """
-)
+)  # pragma: no cover
 
 
 apply_two_qubit_gate_kernel = (
@@ -217,14 +232,17 @@ apply_two_qubit_gate_kernel = (
 extern "C"
 __global__ void apply_two_qubit_gate_kernel(T* state, long tk1, long tk2,
                                             int m1, int m2, long uk1, long uk2,
-                                            const T* gate) {
-  const long g = blockIdx.x * blockDim.x + threadIdx.x;
-  long i = ((long)((long)g >> m1) << (m1 + 1)) + (g & (tk1 - 1));
-  i = ((long)((long)i >> m2) << (m2 + 1)) + (i & (tk2 - 1));
-  _apply_two_qubit_gate(state[i], state[i + uk1], state[i + uk2], state[i + uk1 + uk2], gate);
+                                            long nstates, const T* gate) {
+  for (long g = (long) blockDim.x * blockIdx.x + threadIdx.x;
+       g < nstates;
+       g += (long) blockDim.x * gridDim.x) {
+    long i = ((long)((long)g >> m1) << (m1 + 1)) + (g & (tk1 - 1));
+    i = ((long)((long)i >> m2) << (m2 + 1)) + (i & (tk2 - 1));
+    _apply_two_qubit_gate(state[i], state[i + uk1], state[i + uk2], state[i + uk1 + uk2], gate);
+  }
 }
 """
-)
+)  # pragma: no cover
 
 
 apply_fsim_kernel = (
@@ -238,14 +256,17 @@ apply_fsim_kernel = (
 extern "C"
 __global__ void apply_fsim_kernel(T* state, long tk1, long tk2,
                                   int m1, int m2, long uk1, long uk2,
-                                  const T* gate) {
-  const long g = blockIdx.x * blockDim.x + threadIdx.x;
-  long i = ((long)((long)g >> m1) << (m1 + 1)) + (g & (tk1 - 1));
-  i = ((long)((long)i >> m2) << (m2 + 1)) + (i & (tk2 - 1));
-  _apply_fsim(state[i + uk1], state[i + uk2], state[i + uk1 + uk2], gate);
+                                  long nstates, const T* gate) {
+  for (long g = (long) blockDim.x * blockIdx.x + threadIdx.x;
+       g < nstates;
+       g += (long) blockDim.x * gridDim.x) {
+    long i = ((long)((long)g >> m1) << (m1 + 1)) + (g & (tk1 - 1));
+    i = ((long)((long)i >> m2) << (m2 + 1)) + (i & (tk2 - 1));
+    _apply_fsim(state[i + uk1], state[i + uk2], state[i + uk1 + uk2], gate);
+  }
 }
 """
-)
+)  # pragma: no cover
 
 
 apply_swap_kernel = (
@@ -256,14 +277,17 @@ apply_swap_kernel = (
 // C++ implementation of gates.py:apply_swap_kernel()
 extern "C"
 __global__ void apply_swap_kernel(T* state, long tk1, long tk2,
-                                  int m1, int m2, long uk1, long uk2) {
-  const long g = blockIdx.x * blockDim.x + threadIdx.x;
-  long i = ((long)((long)g >> m1) << (m1 + 1)) + (g & (tk1 - 1));
-  i = ((long)((long)i >> m2) << (m2 + 1)) + (i & (tk2 - 1));
-  _apply_x(state[i + tk2], state[i + tk1]);
+                                  int m1, int m2, long uk1, long uk2, long nstates) {
+  for (long g = (long) blockDim.x * blockIdx.x + threadIdx.x;
+       g < nstates;
+       g += (long) blockDim.x * gridDim.x) {
+    long i = ((long)((long)g >> m1) << (m1 + 1)) + (g & (tk1 - 1));
+    i = ((long)((long)i >> m2) << (m2 + 1)) + (i & (tk2 - 1));
+    _apply_x(state[i + tk2], state[i + tk1]);
+  }
 }
 """
-)
+)  # pragma: no cover
 
 
 multicontrol_apply_gate_kernel = (
@@ -274,14 +298,17 @@ multicontrol_apply_gate_kernel = (
     + """
 // C++ implementation of gates.py:multicontrol_apply_gate_kernel()
 extern "C"
-__global__ void multicontrol_apply_gate_kernel(T* state, long tk, int m, const T* gate,
+__global__ void multicontrol_apply_gate_kernel(T* state, long tk, int m, long nstates, const T* gate,
                                                const int* qubits, int ncontrols) {
-  const long g = blockIdx.x * blockDim.x + threadIdx.x;
-  const long i = multicontrol_index(qubits, g, ncontrols);
-  _apply_gate(state[i - tk], state[i], gate);
+  for (long g = (long) blockDim.x * blockIdx.x + threadIdx.x;
+       g < nstates;
+       g += (long) blockDim.x * gridDim.x) {
+    const long i = multicontrol_index(qubits, g, ncontrols);
+    _apply_gate(state[i - tk], state[i], gate);
+  }
 }
 """
-)
+)  # pragma: no cover
 
 
 multicontrol_apply_x_kernel = (
@@ -292,14 +319,17 @@ multicontrol_apply_x_kernel = (
     + """
 // C++ implementation of gates.py:multicontrol_apply_x_kernel()
 extern "C"
-__global__ void multicontrol_apply_x_kernel(T* state, long tk, int m,
+__global__ void multicontrol_apply_x_kernel(T* state, long tk, int m, long nstates,
                                             const int* qubits, int ncontrols) {
-  const long g = blockIdx.x * blockDim.x + threadIdx.x;
-  const long i = multicontrol_index(qubits, g, ncontrols);
-  _apply_x(state[i - tk], state[i]);
+  for (long g = (long) blockDim.x * blockIdx.x + threadIdx.x;
+       g < nstates;
+       g += (long) blockDim.x * gridDim.x) {
+    const long i = multicontrol_index(qubits, g, ncontrols);
+    _apply_x(state[i - tk], state[i]);
+  }
 }
 """
-)
+)  # pragma: no cover
 
 
 multicontrol_apply_y_kernel = (
@@ -310,14 +340,17 @@ multicontrol_apply_y_kernel = (
     + """
 // C++ implementation of gates.py:multicontrol_apply_y_kernel()
 extern "C"
-__global__ void multicontrol_apply_y_kernel(T* state, long tk, int m,
+__global__ void multicontrol_apply_y_kernel(T* state, long tk, int m, long nstates,
                                             const int* qubits, int ncontrols) {
-  const long g = blockIdx.x * blockDim.x + threadIdx.x;
-  const long i = multicontrol_index(qubits, g, ncontrols);
-  _apply_y(state[i - tk], state[i]);
+  for (long g = (long) blockDim.x * blockIdx.x + threadIdx.x;
+       g < nstates;
+       g += (long) blockDim.x * gridDim.x) {
+    const long i = multicontrol_index(qubits, g, ncontrols);
+    _apply_y(state[i - tk], state[i]);
+  }
 }
 """
-)
+)  # pragma: no cover
 
 
 multicontrol_apply_z_kernel = (
@@ -328,14 +361,17 @@ multicontrol_apply_z_kernel = (
     + """
 // C++ implementation of gates.py:multicontrol_apply_z_kernel()
 extern "C"
-__global__ void multicontrol_apply_z_kernel(T* state, long tk, int m,
+__global__ void multicontrol_apply_z_kernel(T* state, long tk, int m, long nstates,
                                             const int* qubits, int ncontrols) {
-  const long g = blockIdx.x * blockDim.x + threadIdx.x;
-  const long i = multicontrol_index(qubits, g, ncontrols);
-  _apply_z(state[i]);
+  for (long g = (long) blockDim.x * blockIdx.x + threadIdx.x;
+       g < nstates;
+       g += (long) blockDim.x * gridDim.x) {
+    const long i = multicontrol_index(qubits, g, ncontrols);
+    _apply_z(state[i]);
+  }
 }
 """
-)
+)  # pragma: no cover
 
 
 multicontrol_apply_z_pow_kernel = (
@@ -346,15 +382,18 @@ multicontrol_apply_z_pow_kernel = (
     + """
 // C++ implementation of gates.py:multicontrol_apply_z_pow_kernel()
 extern "C"
-__global__ void multicontrol_apply_z_pow_kernel(T* state, long tk, int m,
+__global__ void multicontrol_apply_z_pow_kernel(T* state, long tk, int m, long nstates,
                                                 const T* gate,
                                                 const int* qubits, int ncontrols) {
-  const long g = blockIdx.x * blockDim.x + threadIdx.x;
-  const long i = multicontrol_index(qubits, g, ncontrols);
-  _apply_z_pow(state[i], gate[0]);
+  for (long g = (long) blockDim.x * blockIdx.x + threadIdx.x;
+       g < nstates;
+       g += (long) blockDim.x * gridDim.x) {
+    const long i = multicontrol_index(qubits, g, ncontrols);
+    _apply_z_pow(state[i], gate[0]);
+  }
 }
 """
-)
+)  # pragma: no cover
 
 
 multicontrol_apply_two_qubit_gate_kernel = (
@@ -370,16 +409,19 @@ extern "C"
 __global__ void multicontrol_apply_two_qubit_gate_kernel(T* state,
                                                          long tk1, long tk2,
                                                          int m1, int m2,
-                                                         long uk1, long uk2,
+                                                         long uk1, long uk2, long nstates,
                                                          const T* gate,
                                                          const int* qubits,
                                                          int ncontrols) {
-  const long g = blockIdx.x * blockDim.x + threadIdx.x;
-  const long i = multicontrol_index(qubits, g, ncontrols);
-  _apply_two_qubit_gate(state[i - uk1 - uk2], state[i - uk2], state[i - uk1], state[i], gate);
+  for (long g = (long) blockDim.x * blockIdx.x + threadIdx.x;
+       g < nstates;
+       g += (long) blockDim.x * gridDim.x) {
+    const long i = multicontrol_index(qubits, g, ncontrols);
+    _apply_two_qubit_gate(state[i - uk1 - uk2], state[i - uk2], state[i - uk1], state[i], gate);
+  }
 }
 """
-)
+)  # pragma: no cover
 
 
 multicontrol_apply_fsim_kernel = (
@@ -395,16 +437,19 @@ extern "C"
 __global__ void multicontrol_apply_fsim_kernel(T* state,
                                                long tk1, long tk2,
                                                int m1, int m2,
-                                               long uk1, long uk2,
+                                               long uk1, long uk2, long nstates,
                                                const T* gate,
                                                const int* qubits,
                                                int ncontrols) {
-  const long g = blockIdx.x * blockDim.x + threadIdx.x;
-  const long i = multicontrol_index(qubits, g, ncontrols);
-  _apply_fsim(state[i - uk2], state[i - uk1], state[i], gate);
+  for (long g = (long) blockDim.x * blockIdx.x + threadIdx.x;
+       g < nstates;
+       g += (long) blockDim.x * gridDim.x) {
+    const long i = multicontrol_index(qubits, g, ncontrols);
+    _apply_fsim(state[i - uk2], state[i - uk1], state[i], gate);
+  }
 }
 """
-)
+)  # pragma: no cover
 
 
 multicontrol_apply_swap_kernel = (
@@ -418,15 +463,18 @@ extern "C"
 __global__ void multicontrol_apply_swap_kernel(T* state,
                                                long tk1, long tk2,
                                                int m1, int m2,
-                                               long uk1, long uk2,
+                                               long uk1, long uk2, long nstates,
                                                const int* qubits,
                                                int ncontrols) {
-  const long g = blockIdx.x * blockDim.x + threadIdx.x;
-  const long i = multicontrol_index(qubits, g, ncontrols);
-  _apply_x(state[i - tk1], state[i - tk2]);
+  for (long g = (long) blockDim.x * blockIdx.x + threadIdx.x;
+       g < nstates;
+       g += (long) blockDim.x * gridDim.x) {
+    const long i = multicontrol_index(qubits, g, ncontrols);
+    _apply_x(state[i - tk1], state[i - tk2]);
+  }
 }
 """
-)
+)  # pragma: no cover
 
 
 apply_multi_qubit_gate_kernel = (
@@ -441,29 +489,33 @@ __launch_bounds__(MAX_BLOCK_SIZE) // to prevent cuda_error_launch_out_of_resourc
                                   // the maximum block size is chosen in backends.py
                                   // and it is replaced here before compilation.
 apply_multi_qubit_gate_kernel(T* state,
+                              long nstates,
                               const T* gate,
                               const int* qubits,
                               const long* targets,
                               int ntargets,
                               int ncontrols) {
-  const long g = blockIdx.x * blockDim.x + threadIdx.x;
-  const long ig = multicontrol_index(qubits, g, ncontrols);
-  T buffer[nsubstates];
-  for (auto i = 0; i < nsubstates; i++) {
-    const long t = ig - multitarget_index(targets, nsubstates - i - 1, ntargets);
-    buffer[i] = state[t];
-  }
-  for (auto i = 0; i < nsubstates; i++) {
-    const long t = ig - multitarget_index(targets, nsubstates - i - 1, ntargets);
-    T new_state_elem = T(0., 0.); // use local variable because it is faster than global ones
-    for (auto j = 0; j < nsubstates; j++) {
-      new_state_elem += gate[nsubstates * i + j] * buffer[j];
+  for (long g = (long) blockDim.x * blockIdx.x + threadIdx.x;
+       g < nstates;
+       g += (long) blockDim.x * gridDim.x) {
+    const long ig = multicontrol_index(qubits, g, ncontrols);
+    T buffer[nsubstates];
+    for (auto i = 0; i < nsubstates; i++) {
+      const long t = ig - multitarget_index(targets, nsubstates - i - 1, ntargets);
+      buffer[i] = state[t];
     }
-    state[t] = new_state_elem;
+    for (auto i = 0; i < nsubstates; i++) {
+      const long t = ig - multitarget_index(targets, nsubstates - i - 1, ntargets);
+      T new_state_elem = T(0., 0.); // use local variable because it is faster than global ones
+      for (auto j = 0; j < nsubstates; j++) {
+        new_state_elem += gate[nsubstates * i + j] * buffer[j];
+      }
+      state[t] = new_state_elem;
+    }
   }
 }
 """
-)
+)  # pragma: no cover
 
 
 collapse_state_kernel = (
@@ -475,19 +527,22 @@ collapse_state_kernel = (
 // Only the parallel for is implemented here. the other portions of code are
 // implemented in backends.py:CupyBackend.collapse_state()
 extern "C"
-__global__ void collapse_state_kernel(T* state, const int* qubits,
+__global__ void collapse_state_kernel(T* state, long nstates, const int* qubits,
                                       const long result, int ntargets) {
-  const auto g = blockIdx.x * blockDim.x + threadIdx.x;
-  const long nsubstates = (long)1 << ntargets;
-  for (auto h = 0; h < result; h++) {
-    state[collapse_index(qubits, g, h, ntargets)] = T(0, 0);
-  }
-  for (auto h = result + 1; h < nsubstates; h++) {
-    state[collapse_index(qubits, g, h, ntargets)] = T(0, 0);
+  for (long g = (long) blockDim.x * blockIdx.x + threadIdx.x;
+       g < nstates;
+       g += (long) blockDim.x * gridDim.x) {
+    const long nsubstates = (long)1 << ntargets;
+    for (auto h = 0; h < result; h++) {
+      state[collapse_index(qubits, g, h, ntargets)] = T(0, 0);
+    }
+    for (auto h = result + 1; h < nsubstates; h++) {
+      state[collapse_index(qubits, g, h, ntargets)] = T(0, 0);
+    }
   }
 }
 """
-)
+)  # pragma: no cover
 
 
 initial_state_kernel = """
@@ -498,6 +553,6 @@ initial_state_kernel = """
 // to zero in backends.py:CupyBackend.initial_state, then a
 // single thread execute this kernel and set the first element to 1
 extern "C" __global__ void initial_state_kernel(T* state) {
-  state[0] = T(1, 0);
+  <BODY>
 }
-"""
+"""  # pragma: no cover
