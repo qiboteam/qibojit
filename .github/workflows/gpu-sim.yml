@@ -1,0 +1,112 @@
+name: GPU tests (simulated H100)
+
+# Optional, non-required check. The runners of tests.yml have no GPU and do
+# not install cupy, so the cupy backend tests never run there. This runs them
+# on a simulated NVIDIA H100 (https://github.com/pantheongpu/pantheonsim).
+# A simulator cannot reproduce hardware-specific behavior or timing.
+#
+# CuPy 13 and later link the CUDA runtime statically, which the simulator
+# cannot run, so this uses CuPy 12.3 (shared runtime, CUDA 12.6 toolkit).
+# CuPy compiles its kernels with NVRTC; CUPY_COMPILE_WITH_PTX makes it emit
+# PTX, which is what the simulator runs. Only the cupy backend is tested; the
+# cuquantum backend needs cuQuantum, which is not installed.
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [main]
+    paths:
+      - "src/**"
+      - "tests/**"
+      - "pyproject.toml"
+      - ".github/workflows/gpu-sim.yml"
+
+concurrency:
+  group: gpu-sim-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  gpu-sim:
+    name: CuPy 12.3 on a simulated H100
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.12"
+
+      - name: Set up the simulated H100 and CUDA 12.6 toolkit
+        uses: pantheongpu/setup-pantheonsim@a1b9d4237411f9b2b0e0bb895b4d83377f336a7b # v0.1.9
+        with:
+          gpu: nvidia/h100
+          cuda-toolkit: "12.6"
+
+      # qibo requires numpy>=2 but CuPy 12.3 needs numpy<2 (it uses np.float_),
+      # so qibo and qibojit are installed without their numpy pin.
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          pip install "numpy<2" "cupy-cuda12x==12.3.0" pytest pytest-env \
+            "numba>=0.68,<0.69" "scipy>=1.15.2,<2" psutil sympy networkx joblib \
+            "openqasm3[parser]<2"
+          pip install --no-deps qibo==0.3.7 -e .
+
+      # tests/conftest.py silently drops the cupy backend when cupy cannot be
+      # imported, so check first that the simulated H100 is the device used.
+      - name: Check that cupy sees the simulated H100
+        env:
+          CUDA_PATH: /usr/local/cuda-12.6
+          CUPY_COMPILE_WITH_PTX: "1"
+        run: |
+          vgpu run python - <<'PY'
+          import cupy
+          from qibojit.backends import CupyBackend
+          assert CupyBackend().engine is cupy
+          name = cupy.cuda.runtime.getDeviceProperties(0)["name"].decode()
+          print(name)
+          assert "H100" in name
+          assert float((cupy.arange(10, dtype=cupy.float32) * 2).sum()) == 90.0
+          PY
+
+      # Left out: test_backend_expm, which imports cupyx.scipy.linalg.expm
+      # (missing in CuPy 12.3), and test_apply_multiplexor, which fails with
+      # "Implicit conversion to a NumPy array is not allowed" when the matrix
+      # is built on both the cupy and the numpy backend.
+      - name: Run the cupy backend tests on the simulated H100
+        env:
+          CUDA_PATH: /usr/local/cuda-12.6
+          CUPY_COMPILE_WITH_PTX: "1"
+        run: |
+          vgpu run python -m pytest -k cupy -rs -o addopts="" \
+            --deselect tests/test_backends.py::test_backend_expm \
+            --deselect tests/test_gates.py::test_apply_multiplexor \
+            --junitxml="$RUNNER_TEMP/gpu-junit.xml"
+
+      # Some cupy-parametrized tests skip by design (ops that only exist for
+      # numba). Without cupy or a device the cupy tests would not be collected
+      # at all, so check that enough of them actually passed.
+      - name: Check that enough cupy tests passed
+        if: always()
+        env:
+          MIN_PASSED: "600"
+        run: |
+          python - <<'PY'
+          import os
+          import xml.etree.ElementTree as ET
+
+          root = ET.parse(os.path.join(os.environ["RUNNER_TEMP"], "gpu-junit.xml")).getroot()
+          suite = root if root.tag == "testsuite" else root.find("testsuite")
+          tests, skipped = int(suite.get("tests")), int(suite.get("skipped"))
+          bad = int(suite.get("failures")) + int(suite.get("errors"))
+          passed = tests - skipped - bad
+          print(f"{tests} cupy tests: {passed} passed, {skipped} skipped, {bad} failed")
+          assert passed >= int(os.environ["MIN_PASSED"]), "too few cupy tests passed"
+          PY
